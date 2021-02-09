@@ -30,6 +30,7 @@ jobs:
       with:
         repository: YeonV/LedFx-Backend
         ref: main
+        token: ${{ secrets.FRONTEND_TOKEN }} 
         path: src    
     - name: Set up Python 3.9
       uses: actions/setup-python@v1
