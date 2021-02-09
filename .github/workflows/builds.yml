@@ -1,9 +1,16 @@
 name: Builds
 
-on:
-  push:
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Friendly description to be shown in the UI instead of 'name'
+       description: 'Person to greet'
+        # Default value if no value is explicitly provided
+       default: 'World'
+        # Input has to be provided for the workflow to run
+       required: false
 
 jobs:
 
