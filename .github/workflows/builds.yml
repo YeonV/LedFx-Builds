@@ -43,14 +43,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            TARGET: macos
-            CMD_BUILD: >
-                cd src && pyinstaller -F -w -n LedFx-BladeMOD -i icons/discord.ico cli.py &&
-                cd dist/ &&
-                zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
-            OUT_FILE_NAME: LedFx-BladeMOD.zip
-            ASSET_MIME: application/zip
+          #- os: macos-latest
+          #  TARGET: macos
+          #  CMD_BUILD: >
+          #      cd src && pyinstaller -F -w -n LedFx-BladeMOD -i icons/discord.ico cli.py &&
+          #      cd dist/ &&
+          #      zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
+          #  OUT_FILE_NAME: LedFx-BladeMOD.zip
+          #  ASSET_MIME: application/zip
           - os: windows-latest
             TARGET: windows
             CMD_BUILD: cd src && pyinstaller win.spec
