@@ -29,6 +29,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: YeonV/LedFx-Backend
+        ref: main
         path: src    
     - name: Set up Python 3.9
       uses: actions/setup-python@v1
