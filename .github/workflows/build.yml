@@ -21,22 +21,34 @@ jobs:
   # This workflow contains a single job called "greet"
   build:
     # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ github.event.inputs.name }}"
+    #- name: Send greeting
+    #  run: echo "Hello ${{ github.event.inputs.name }}"
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
         ref: Virtuals
         path: src
-    - name: Package Application
-      uses: JackMcKew/pyinstaller-action-windows@main
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v1
       with:
-        path: src
+        python-version: 3.9
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+    - name: build with pyinstaller
+      run: |
+        cd src; pyinstaller win.spec 
+    #- name: Package Application
+    #  uses: JackMcKew/pyinstaller-action-windows@main
+    #  with:
+    #    path: src
 
     - uses: actions/upload-artifact@v2
       with:
