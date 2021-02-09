@@ -28,8 +28,7 @@ jobs:
     #  run: echo "Hello ${{ github.event.inputs.name }}"
     - uses: actions/checkout@v2
       with:
-        repository: LedFx/LedFx
-        ref: Virtuals
+        repository: YeonV/LedFx-Backend
         path: src
     
     - name: Set up Python 3.9
