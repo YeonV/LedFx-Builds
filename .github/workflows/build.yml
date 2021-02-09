@@ -44,7 +44,7 @@ jobs:
         pip install pyinstaller
     - name: build with pyinstaller
       run: |
-        cd src; pyinstaller win.spec 
+        cd src; python -m pip install -r requirements.txt -r requirements-dev.txt; pyinstaller win.spec 
     #- name: Package Application
     #  uses: JackMcKew/pyinstaller-action-windows@main
     #  with:
