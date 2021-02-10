@@ -75,9 +75,8 @@ jobs:
     - name: Get Backendver
       id: getbackendver
       run: |
-        cd src/ledfx
-        output=$(python consts.py)
-        echo "::set-output name=bversion::$output"
+        cd src/ledfx        
+        echo "::set-output name=bversion::$(python consts.py)"
       
     - name: Install dependencies
       run: |
