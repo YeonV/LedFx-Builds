@@ -76,7 +76,7 @@ jobs:
       id: getbackendver
       run: |
         cd src/ledfx
-        ver=`python consts.py`
+        ver=$(python consts.py)
         echo ::set-output name=bversion::$ver
       
     - name: Install dependencies
