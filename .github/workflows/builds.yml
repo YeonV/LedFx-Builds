@@ -90,11 +90,7 @@ jobs:
         ls src\dist
     - name: Debug 2
       run: |
-        ls src\build
-        cd src\dist;
-    - name: Debug 3
-      run: |
-        mv win ${{ matrix.OUT_FILE_NAME}}
+        cd src\dist
     - name: Create Archive
       uses: thedoctor0/zip-release@master
       with:
