@@ -8,7 +8,7 @@ on:
         # Friendly description to be shown in the UI instead of 'name'
        description: 'Person to greet'
         # Default value if no value is explicitly provided
-       default: 'World'
+       default: 'v0.'
         # Input has to be provided for the workflow to run
        required: false
 
@@ -73,8 +73,8 @@ jobs:
       with:
         python-version: 3.9  
     - name: Get Backendver
-      id: get_backendver
-      run: cd src/ledfx; python consts.py
+      id: getbackendver
+      run: cd src/ledfx; echo ::set-output name=bversion::$(python consts.py);
       
     - name: Install dependencies
       run: |
@@ -95,8 +95,8 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        echo ${{join(steps.get_backendver.outputs.*, '\n')}};
-        echo ${{ steps.get_backendver.outputs.contents }}
+        echo ${{join(steps.getbackendver.outputs.*, '\n')}};
+        echo ${{ steps.getbackendver.outputs.bversion }}
     - name: Zip project # This would actually build your project, using zip for an example artifact
       run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip . -mx0 -xr!.git -xr!.github
       shell: cmd
