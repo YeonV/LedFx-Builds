@@ -86,10 +86,10 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        ls
+        ls src
     - name: Debug2
       run: |
-        cd D:\a\LedFx-Builds\LedFx-Builds &&
+        cd D:\a\LedFx-Builds\LedFx-Builds\src\build &&
         ls
     - name: Upload Release Asset
       id: upload-release-asset
