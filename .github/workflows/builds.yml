@@ -72,11 +72,14 @@ jobs:
         ls src
         Remove-Item -path src/ledfx_frontend -recurse -force
         ls src
-    - uses: robinraju/release-downloader@v1
+    - name: Download Release Asset
+      id: download_release_asset
+      uses: i3h/download-release-asset@v1
       with:
-        repository: "YeonV/LedFx-Frontend"
-        latest: true
-        fileName: "ledfx_frontend.zip"        
+        owner: YeonV
+        repo: LedFx-Frontend
+        tag: latest
+        file: ledfx_frontend.zip
         token: ${{ secrets.FRONTEND_TOKEN }}
         
     - name: Check new frontend
