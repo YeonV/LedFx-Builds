@@ -87,7 +87,11 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        cd src\dist && mv win ${{ matrix.OUT_FILE_NAME}}
+        ls src\dist\win;
+        cd src\dist;
+    - name: Debug 
+      run: |
+        mv win ${{ matrix.OUT_FILE_NAME}}
     - name: Create Archive
       uses: thedoctor0/zip-release@master
       with:
