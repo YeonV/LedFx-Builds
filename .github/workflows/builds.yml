@@ -99,7 +99,10 @@ jobs:
         powershell Compress-7Zip "${{ matrix.OUT_FILE_NAME}}" -ArchiveFileName "${{ matrix.OUT_FILE_NAME}}.zip" -Format Zip
     - name: Debug 
       run: |
-        ls src\dist\${{ matrix.OUT_FILE_NAME}}
+        ls src\dist
+    - name: Debug 
+      run: |
+        ls
     - name: Upload Release Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
