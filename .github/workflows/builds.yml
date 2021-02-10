@@ -67,14 +67,16 @@ jobs:
         ref: main
         token: ${{ secrets.FRONTEND_TOKEN }} 
         path: src
-    - name: Get Backendver
-      id: get_backendver
-      run: python src/ledfx/const.py
 
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
+        
+    - name: Get Backendver
+      id: get_backendver
+      run: cd src/ledfx; python const.py
+      
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
