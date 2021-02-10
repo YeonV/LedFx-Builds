@@ -70,7 +70,7 @@ jobs:
     - name: Delete old frontend
       run: |
         ls src
-        rm -rf src/ledfx_frontend
+        Remove-Item -path src/ledfx_frontend -recurse -force
         ls src
     - uses: actions/checkout@v2
       with:
