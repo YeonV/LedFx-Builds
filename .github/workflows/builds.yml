@@ -86,7 +86,7 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        ls src\dist
+        ls src\dist\win
     - name: Debug2
       run: |
         cd D:\a\LedFx-Builds\LedFx-Builds\src\build\win &&
