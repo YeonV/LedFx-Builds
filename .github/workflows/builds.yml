@@ -115,6 +115,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ${{ matrix.OUT_FILE_NAME}}
+        asset_path: D:\a\LedFx-Builds\LedFx-Builds\${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
