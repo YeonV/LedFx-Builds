@@ -74,13 +74,13 @@ jobs:
         python-version: 3.9
     - name: Debug 
       run: |
-        ls src/
+        ls src/ledfx
     - name: Debug 
       run: |
         ls     
     - name: Get Backendver
       id: get_backendver
-      run: cd ledfx; python const.py
+      run: cd src/ledfx; python const.py
       
     - name: Install dependencies
       run: |
