@@ -84,9 +84,7 @@ jobs:
         
     - name: Check new frontend
       run: |
-        ls 
-        7z.exe x src/ledfx_frontend.zip -osrc
-        ls src
+        7z.exe x ledfx_frontend.zip -osrc        
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
