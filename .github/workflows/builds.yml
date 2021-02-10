@@ -97,8 +97,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        cd src && pip install -r requirements.txt && python setup install
-        pip install pyinstaller
+        cd src 
+        python setup.py install
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}
     - name: Load Release URL File from release job
