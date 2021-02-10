@@ -97,10 +97,9 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        echo ${{join(steps.getbackendver.outputs.*, '\n')}};
         echo ${{ steps.getbackendver.outputs.bversion }}
     - name: Zip project # This would actually build your project, using zip for an example artifact
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip . -mx0 -xr!.git -xr!.github
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}--v${{ steps.getbackendver.outputs.bversion }}.zip . -mx0 -xr!.git -xr!.github
       shell: cmd
     #- name: Create Artifact
     #  uses: actions/upload-artifact@v2
@@ -114,6 +113,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip
-        asset_name: ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}--v${{ steps.getbackendver.outputs.bversion }}.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}--v${{ steps.getbackendver.outputs.bversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
