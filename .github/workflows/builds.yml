@@ -69,7 +69,7 @@ jobs:
         path: src
     - name: Get Backendver
       id: get_backendver
-      run: echo src/ledfx/const.py  | egrep '^MINOR_VERSION=\d+' | cut -d = -f 2
+      run: echo src/ledfx/const.py  |  %{ egrep '^MINOR_VERSION=\d+' $_ } | %{ cut -d = -f 2 $_ }
 
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
