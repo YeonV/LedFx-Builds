@@ -50,4 +50,4 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: LedFx-BladeMOD
-        path: D:\a\LedFx-Builds\LedFx-Builds\src\build
+        path: D:\a\LedFx-Builds\LedFx-Builds\src\dist
