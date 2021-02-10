@@ -18,9 +18,6 @@ jobs:
     name: Create Release
     runs-on: [ubuntu-latest]
     steps:
-    - name: Install 7Zip PowerShell Module
-      shell: powershell
-      run: Install-Module 7Zip4PowerShell -Force -Verbose
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -61,6 +58,9 @@ jobs:
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
     steps:
+    - name: Install 7Zip PowerShell Module
+      shell: powershell
+      run: Install-Module 7Zip4PowerShell -Force -Verbose
     - uses: actions/checkout@v2
       with:
         repository: YeonV/LedFx-Backend
