@@ -71,16 +71,10 @@ jobs:
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: 3.9
-    - name: Debug 
-      run: |
-        ls src/ledfx
-    - name: Debug 
-      run: |
-        ls     
+        python-version: 3.9  
     - name: Get Backendver
       id: get_backendver
-      run: cd src/ledfx; python const.py
+      run: cd src/ledfx; python consts.py
       
     - name: Install dependencies
       run: |
@@ -105,12 +99,6 @@ jobs:
     - name: Debug 2
       run: |
         cd src\dist
-    #- name: Create Archive
-    #  run: |
-    #    powershell Compress-7Zip "${{ matrix.OUT_FILE_NAME}}" -ArchiveFileName "${{ matrix.OUT_FILE_NAME}}.zip" -Format Zip
-    - name: Debug 
-      run: |
-        ls src\dist
     - name: Debug 
       run: |
         echo ${{ steps.get_backendver.outputs }}
