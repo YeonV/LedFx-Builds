@@ -69,7 +69,8 @@ jobs:
         path: src
     - name: Get Backendver
       id: get_backendver
-      run: echo VAR2=`sed -n 's/VAR2=\(.*\)/\1/p' < src/ledfx/const.py`
+      run: echo src/ledfx/const.py  | egrep '^MINOR_VERSION=\d+' | cut -d = -f 2
+
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
