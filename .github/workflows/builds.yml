@@ -74,7 +74,10 @@ jobs:
         python-version: 3.9  
     - name: Get Backendver
       id: getbackendver
-      run: cd src/ledfx; echo ::set-output name=bversion::$(python consts.py);
+      run: |
+        cd src/ledfx
+        ver=`python consts.py`
+        echo ::set-output name=bversion::$ver
       
     - name: Install dependencies
       run: |
