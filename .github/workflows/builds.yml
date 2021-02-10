@@ -95,13 +95,8 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        ls src\dist\${{ matrix.OUT_FILE_NAME}}
-    - name: Debug 2
-      run: |
-        cd src\dist
-    - name: Debug 
-      run: |
-        echo ${{ steps.get_backendver.outputs }}
+        echo ${{join(steps.get_backendver.outputs.*, '\n')}};
+        echo ${{ steps.get_backendver.outputs.contents }}
     - name: Zip project # This would actually build your project, using zip for an example artifact
       run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip . -mx0 -xr!.git -xr!.github
       shell: cmd
