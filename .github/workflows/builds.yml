@@ -66,7 +66,10 @@ jobs:
         repository: YeonV/LedFx-Backend
         ref: main
         token: ${{ secrets.FRONTEND_TOKEN }} 
-        path: src    
+        path: src
+    - name: Get Backendver
+      id: get_backendver
+      run: echo VAR2=`sed -n 's/VAR2=\(.*\)/\1/p' < src/ledfx/const.py`
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -102,7 +105,7 @@ jobs:
         ls src\dist
     - name: Debug 
       run: |
-        ls
+        echo ${{ steps.get_backendver.outputs }}
     - name: Zip project # This would actually build your project, using zip for an example artifact
       run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-${{ github.event.inputs.name }}.zip . -mx0 -xr!.git -xr!.github
       shell: cmd
