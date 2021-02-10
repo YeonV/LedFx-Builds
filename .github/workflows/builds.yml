@@ -99,10 +99,11 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --upgrade wheel
         cd src 
+        pip install pywin32
+        python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
         pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
         pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
         python setup.py install
-        python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}
     - name: Load Release URL File from release job
