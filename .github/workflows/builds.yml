@@ -72,13 +72,13 @@ jobs:
         ls src
         Remove-Item -path src/ledfx_frontend -recurse -force
         ls src
-    - uses: dsaltares/fetch-gh-release-asset@master
+    - uses: robinraju/release-downloader@v1
       with:
-        repo: "YeonV/LedFx-Frontend"
-        version: "latest"
-        file: "ledfx_frontend.zip"
-        target: "src/ledfx_frontend.zip"
+        repository: "YeonV/LedFx-Frontend"
+        latest: true
+        fileName: "ledfx_frontend.zip"        
         token: ${{ secrets.FRONTEND_TOKEN }}
+        
     - name: Check new frontend
       run: |
         ls src
