@@ -71,7 +71,7 @@ jobs:
       run: |
         ls src
         Remove-Item -path src/ledfx_frontend -recurse -force
-        ls src
+        cd src
     - name: Download Release Asset
       id: download_release_asset
       uses: i3h/download-release-asset@v1
@@ -84,7 +84,7 @@ jobs:
         
     - name: Check new frontend
       run: |
-        ls src
+        ls 
         7z.exe x src/ledfx_frontend.zip -osrc
         ls src
     - name: Set up Python 3.9
