@@ -87,9 +87,12 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Debug 
       run: |
-        ls src\dist\win;
+        ls src\dist
+    - name: Debug 2
+      run: |
+        ls src\build
         cd src\dist;
-    - name: Debug 
+    - name: Debug 3
       run: |
         mv win ${{ matrix.OUT_FILE_NAME}}
     - name: Create Archive
