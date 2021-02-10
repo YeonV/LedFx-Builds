@@ -99,6 +99,7 @@ jobs:
         python -m pip install --upgrade pip
         cd src 
         pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+        pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
         python setup.py install
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}
