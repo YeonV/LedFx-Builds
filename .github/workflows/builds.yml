@@ -72,15 +72,17 @@ jobs:
         ls src
         Remove-Item -path src/ledfx_frontend -recurse -force
         ls src
-    - uses: actions/checkout@v2
+    - uses: dsaltares/fetch-gh-release-asset@master
       with:
-        repository: YeonV/LedFx-Frontend
-        ref: main
-        token: ${{ secrets.FRONTEND_TOKEN }} 
-        path: src
-        tag: latest
+        repo: "YeonV/LedFx-Frontend"
+        version: "latest"
+        file: "ledfx_frontend.zip"
+        target: "src/ledfx_frontend.zip"
+        token: ${{ secrets.FRONTEND_TOKEN }}
     - name: Check new frontend
       run: |
+        ls src
+        7z.exe x src/ledfx_frontend.zip -osrc
         ls src
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
