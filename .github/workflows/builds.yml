@@ -113,7 +113,7 @@ jobs:
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
     - name: Zip project # This would actually build your project, using zip for an example artifact
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--BladeMOD-${{ github.event.inputs.name }}.zip . -mx0 -xr!.git -xr!.github
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--BladeMOD-${{ github.event.inputs.name }}.zip ./src/dist/{{ matrix.OUT_FILE_NAME}}-BladeMOD -mx0 -xr!.git -xr!.github
       shell: cmd
     - name: Upload Release Asset
       id: upload-release-asset
