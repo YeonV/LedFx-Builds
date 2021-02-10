@@ -72,10 +72,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.9
-        
+    - name: Debug 
+      run: |
+        ls src/
+    - name: Debug 
+      run: |
+        ls     
     - name: Get Backendver
       id: get_backendver
-      run: cd src/ledfx; python const.py
+      run: cd ledfx; python const.py
       
     - name: Install dependencies
       run: |
