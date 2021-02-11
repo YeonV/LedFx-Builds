@@ -36,7 +36,7 @@ jobs:
         
     - name: Get Messages
       run: |
-        7z.exe x ledfx_frontend.zip -o. *messages.md -r  
+        unzip -p ledfx_frontend.zip ledfx_frontend/messages.md >messages.md
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
