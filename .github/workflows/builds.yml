@@ -63,9 +63,11 @@ jobs:
     #  run: Install-Module 7Zip4PowerShell -Force -Verbose
     - uses: actions/checkout@v2
       with:
-        repository: YeonV/LedFx-Backend
-        ref: main
-        token: ${{ secrets.FRONTEND_TOKEN }} 
+        repository: LedFx/LedFx
+        ref: Vituals
+        #repository: YeonV/LedFx-Backend
+        #ref: main
+        #token: ${{ secrets.FRONTEND_TOKEN }} 
         path: src
     - name: Delete old frontend
       run: |        
@@ -103,7 +105,7 @@ jobs:
         python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
         pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
         pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
-        python setup.py install        
+        python setup-gh.py install        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}
     - name: Delete .lib from numpy
