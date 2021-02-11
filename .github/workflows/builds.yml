@@ -45,7 +45,7 @@ jobs:
       with:
         tag_name: ${{ github.event.inputs.fversion }}
         release_name: Release ${{ github.event.inputs.fversion }}
-        body_path: .messages.md
+        body_path: ./messages.md
         draft: false
         prerelease: false
     - name: Output Release URL File
