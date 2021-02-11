@@ -10,8 +10,14 @@ on:
         # Default value if no value is explicitly provided
        default: 'v0.'
         # Input has to be provided for the workflow to run
-       required: true
-
+       required: false
+      fmessages:
+        # Friendly description to be shown in the UI instead of 'name'
+       description: 'Frontend Messages'
+        # Default value if no value is explicitly provided
+       default: ''
+        # Input has to be provided for the workflow to run
+       required: false
 jobs:
 
   createrelease:
