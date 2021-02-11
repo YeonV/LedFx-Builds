@@ -53,7 +53,7 @@ jobs:
           #  ASSET_MIME: application/zip
           - os: windows-latest
             TARGET: windows
-            CMD_BUILD: cd src && pyinstaller win.spec
+            CMD_BUILD: cd src && pyinstaller win-gh.spec
             OUT_FILE_NAME: LedFx
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
