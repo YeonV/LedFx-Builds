@@ -110,7 +110,7 @@ jobs:
       run: ${{matrix.CMD_BUILD}}
     - name: Delete .lib from numpy
       run: |        
-        Remove-Item -path ./src/dist/LedFx-BladeMOD/numpy/.libs -recurse -force        
+        Remove-Item -path ./src/dist/LedFx-BladeMOD/numpy/.libs -recurse -force -ErrorAction Ignore    
     - name: Load Release URL File from release job
       uses: actions/download-artifact@v1
       with:
