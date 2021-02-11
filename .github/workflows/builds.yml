@@ -64,7 +64,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
-        ref: Vituals
+        ref: Virtuals
         #repository: YeonV/LedFx-Backend
         #ref: main
         #token: ${{ secrets.FRONTEND_TOKEN }} 
