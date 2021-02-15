@@ -97,6 +97,7 @@ jobs:
       run: |        
         Remove-Item -path src/ledfx_frontend -recurse -force
         cd src
+        git rev-parse HEAD >> ledfx/git_version
     - name: Download Release Asset
       id: download_release_asset
       uses: i3h/download-release-asset@v1
