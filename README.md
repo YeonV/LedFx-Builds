@@ -1,9 +1,8 @@
-# Unofficial LedFx-Nightly-Dev-Builds (BladeMod)
+# [Unofficial LedFx-Nightly-Dev-Builds (BladeMod)](https://github.com/YeonV/LedFx-Builds/releases/latest)
 
-# [releases](https://github.com/YeonV/LedFx-Builds/releases/latest)
+These builds are for ledfx-developers _only_!
 
-These builds are for ledfx-developers only!
-and most likely broken for users.
+Most likely broken for users.
 
 No support or anything!!!
 
