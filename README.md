@@ -1,10 +1,12 @@
-# LedFx-Builds
+# Unofficial LedFx-Nightly-Dev-Builds (BladeMod)
 
-## [Unofficial LedFx-BladeMod-Builds](https://github.com/YeonV/LedFx-Builds/releases/latest)
+# [releases](https://github.com/YeonV/LedFx-Builds/releases/latest)
 
-These builds are meant for ledfx-developers only!
+These builds are for ledfx-developers only!
+and most likely broken for users.
 
 No support or anything!!!
 
-Why that rude?
-we don't want to split the users into countless version-depending groups.
+Why?
+we don't want to split the users into countless version-depending groups,
+but we also need a way to test build-pipelines and other meta stuff (like zeroconf).
