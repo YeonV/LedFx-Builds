@@ -29,7 +29,7 @@ jobs:
       uses: i3h/download-release-asset@v1
       with:
         owner: YeonV
-        repo: LedFx-Frontend
+        repo: LedFx-Frontend-v2
         tag: latest
         file: ledfx_frontend_v2.zip
         token: ${{ secrets.FRONTEND_TOKEN }}
