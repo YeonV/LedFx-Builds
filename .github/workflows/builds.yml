@@ -31,16 +31,16 @@ jobs:
         owner: YeonV
         repo: LedFx-Frontend
         tag: latest
-        file: ledfx_frontend.zip
+        file: ledfx_frontend_v2.zip
         token: ${{ secrets.FRONTEND_TOKEN }}
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v1
       with:
         name: ledfx_frontend
-        path: ledfx_frontend.zip     
+        path: ledfx_frontend_v2.zip     
     - name: Get Messages
       run: |
-        unzip -p ledfx_frontend.zip ledfx_frontend/messages.md >messages.md
+        unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
@@ -115,12 +115,12 @@ jobs:
         owner: YeonV
         repo: LedFx-Frontend
         tag: latest
-        file: ledfx_frontend.zip
+        file: ledfx_frontend_v2.zip
         token: ${{ secrets.FRONTEND_TOKEN }}
         
     - name: Include new frontend
       run: |
-        7z.exe x ledfx_frontend.zip -osrc
+        7z.exe x ledfx_frontend_v2.zip -osrc
         (Get-Content src/ledfx_frontend/index.html) -replace '</body></html>', '<script> window.ledfx_mode = "dev"; </script></body></html>' | Out-File -encoding ASCII src/ledfx_frontend/index.html
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
@@ -172,7 +172,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ledfx_frontend/ledfx_frontend.zip
+        asset_path: ledfx_frontend/ledfx_frontend_v2.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Windows Build as Asset
