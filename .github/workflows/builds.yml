@@ -44,7 +44,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
-        ref: Virtuals
+        ref: main
         path: backend
     - name: Get Backendver
       id: getbackendver
@@ -98,7 +98,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
-        ref: Virtuals
+        ref: main
         #repository: YeonV/LedFx-Backend
         #ref: main
         #token: ${{ secrets.FRONTEND_TOKEN }} 
