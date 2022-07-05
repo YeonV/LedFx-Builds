@@ -120,7 +120,8 @@ jobs:
         
     - name: Include new frontend
       run: |
-        7z.exe x ledfx_frontend_v2.zip -osrc
+        cp ledfx_frontend_v2.zip ledfx_frontend.zip
+        7z.exe x ledfx_frontend.zip -osrc
         (Get-Content src/ledfx_frontend/index.html) -replace '</body></html>', '<script> window.ledfx_mode = "dev"; </script></body></html>' | Out-File -encoding ASCII src/ledfx_frontend/index.html
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
@@ -172,7 +173,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ledfx_frontend/ledfx_frontend_v2.zip
+        asset_path: ledfx_frontend/ledfx_frontend.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Windows Build as Asset
