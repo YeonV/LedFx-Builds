@@ -51,10 +51,12 @@ jobs:
         curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
     - name: Include new frontend
       run: |
-        dir
         7z.exe x ledfx_frontend.zip
+        cp -r ledfx_frontend_v2 src/ledfx_frontend        
+        cd src\ledfx_frontend
         dir
-        cp -r ledfx_frontend_v2 src/ledfx_frontend
+        cd ..
+        cd ..
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
