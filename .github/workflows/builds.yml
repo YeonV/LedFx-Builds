@@ -120,7 +120,7 @@ jobs:
         
     - name: Include new frontend
       run: |
-        dir
+        cd ..
         cd ..
         dir
         cp ledfx_frontend_v2.zip ledfx_frontend.zip
