@@ -48,11 +48,11 @@ jobs:
         git rev-parse HEAD >> ledfx/git_version          
     - name: Get latest frontend
       run: |
-        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
+        curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
     - name: Include new frontend
       run: |
         dir
-        7z.exe x ./ledfx_frontend.zip
+        7z.exe x ledfx_frontend.zip
         dir
         cp -r ledfx_frontend src/ledfx_frontend
     - name: Set up Python 3.9
