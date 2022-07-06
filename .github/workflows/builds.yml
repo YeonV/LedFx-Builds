@@ -26,12 +26,12 @@ jobs:
     steps:    
     - name: Get latest frontend
       run: |
-        wget https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip
+        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v1
       with:
         name: ledfx_frontend
-        path: ledfx_frontend_v2.zip     
+        path: ledfx_frontend.zip     
     # - name: Get Messages
     #   run: |
     #     unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
@@ -104,11 +104,13 @@ jobs:
         git rev-parse HEAD >> ledfx/git_version
     - name: Get latest frontend
       run: |
-        wget https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip        
+          
+    - name: Get latest frontend
+      run: |
+        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
     - name: Include new frontend
       run: |
         dir
-        cp ledfx_frontend_v2.zip ledfx_frontend.zip
         7z.exe x ledfx_frontend.zip -osrc
         (Get-Content src/ledfx_frontend/index.html) -replace '</body></html>', '<script> window.ledfx_mode = "dev"; </script></body></html>' | Out-File -encoding ASCII src/ledfx_frontend/index.html
     - name: Set up Python 3.9
