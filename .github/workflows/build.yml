@@ -11,6 +11,13 @@ on:
        default: 'v0.'
         # Input has to be provided for the workflow to run
        required: false
+      releaseurl:
+        # Friendly description to be shown in the UI instead of 'name'
+       description: 'Release URL'
+        # Default value if no value is explicitly provided
+       default: 'https://github.com/YeonV/LedFx-Frontend-v2/releases/tag/2.0.0-beta46'
+        # Input has to be provided for the workflow to run
+       required: true
 jobs:
   build:
     name: Build packages
@@ -28,7 +35,7 @@ jobs:
           #  ASSET_MIME: application/zip
           - os: windows-latest
             TARGET: windows
-            CMD_BUILD: cd src && pyinstaller win-gh.spec
+            CMD_BUILD: cd src && pyinstaller win.spec
             OUT_FILE_NAME: LedFx
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
@@ -92,7 +99,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: https://github.com/YeonV/LedFx-Frontend-v2/releases/tag/2.0.0-beta46
+        upload_url: ${{ github.event.inputs.releaseurl }}
         asset_path: ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
         asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
