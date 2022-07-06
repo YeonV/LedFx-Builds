@@ -77,7 +77,7 @@ jobs:
         pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
         pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
         pip install pystray
-        python setup-gh.py install        
+        python setup.py install        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}
     - name: Delete .lib from numpy
@@ -85,7 +85,14 @@ jobs:
         Remove-Item -path ./src/dist/LedFx_v2/numpy/.libs -recurse -force -ErrorAction Ignore    
     - name: Zip project # This would actually build your project, using zip for an example artifact
       run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx_v2 -mx5 -xr!.git -xr!.github
-      shell: cmd      
-    - name: Check
-      run: |
-        dir
+      shell: cmd
+    - name: Upload Windows Build as Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: https://github.com/YeonV/LedFx-Frontend-v2/releases/tag/2.0.0-beta46
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
+        asset_content_type: ${{ matrix.ASSET_MIME}}
