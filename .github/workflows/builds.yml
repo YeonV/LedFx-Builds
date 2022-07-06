@@ -23,16 +23,10 @@ jobs:
   createrelease:
     name: Create Release
     runs-on: [ubuntu-latest]
-    steps:
+    steps:    
     - name: Get latest frontend
-      id: download_release_asset
-      uses: i3h/download-release-asset@v1
-      with:
-        owner: YeonV
-        repo: LedFx-Frontend-v2
-        tag: latest
-        file: ledfx_frontend_v2.zip
-        token: ${{ secrets.FRONTEND_TOKEN }}
+      run: |
+        wget https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v1
       with:
@@ -108,20 +102,11 @@ jobs:
         Remove-Item -path src/ledfx_frontend -recurse -force
         cd src
         git rev-parse HEAD >> ledfx/git_version
-    - name: Download Release Asset
-      id: download_release_asset
-      uses: i3h/download-release-asset@v1
-      with:
-        owner: YeonV
-        repo: LedFx-Frontend
-        tag: latest
-        file: ledfx_frontend_v2.zip
-        token: ${{ secrets.FRONTEND_TOKEN }}
-        
+    - name: Get latest frontend
+      run: |
+        wget https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip        
     - name: Include new frontend
       run: |
-        cd ..
-        cd ..
         dir
         cp ledfx_frontend_v2.zip ledfx_frontend.zip
         7z.exe x ledfx_frontend.zip -osrc
