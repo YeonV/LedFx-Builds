@@ -51,7 +51,8 @@ jobs:
         curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
     - name: Include new frontend
       run: |
-        7z.exe x ledfx_frontend.zip
+        dir
+        7z.exe x ./ledfx_frontend.zip
         dir
         cp -r ledfx_frontend src/ledfx_frontend
     - name: Set up Python 3.9
