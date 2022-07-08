@@ -1,0 +1,105 @@
+name: build
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      fversion:
+        # Friendly description to be shown in the UI instead of 'name'
+       description: 'Frontend Version'
+        # Default value if no value is explicitly provided
+       default: 'v0.'
+        # Input has to be provided for the workflow to run
+       required: false
+      releaseurl:
+        # Friendly description to be shown in the UI instead of 'name'
+       description: 'Release URL'
+        # Default value if no value is explicitly provided
+       default: 'https://github.com/YeonV/LedFx-Frontend-v2/releases/tag/2.0.0-beta46'
+        # Input has to be provided for the workflow to run
+       required: true
+jobs:
+  build:
+    name: Build packages
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            TARGET: macos
+            CMD_BUILD: >
+                cd src && pyinstaller -F -w -n LedFx-BladeMOD -i icons/discord.ico cli.py &&
+                cd dist/ &&
+                zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
+            OUT_FILE_NAME: LedFx-BladeMOD.zip
+            ASSET_MIME: application/zip
+          #- os: windows-latest
+          #  TARGET: windows
+          #  CMD_BUILD: cd src && pyinstaller win.spec
+          #  OUT_FILE_NAME: LedFx
+          #  # ASSET_MIME: application/vnd.microsoft.portable-executable
+          #  ASSET_MIME: application/zip
+    steps:
+    #- name: Install 7Zip PowerShell Module
+    #  shell: powershell
+    #  run: Install-Module 7Zip4PowerShell -Force -Verbose
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: src
+    - name: Delete old frontend
+      run: |        
+        Remove-Item -path src/ledfx_frontend -recurse -force
+        cd src
+        git rev-parse HEAD >> ledfx/git_version          
+    - name: Get latest frontend
+      run: |
+        curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
+    - name: Include new frontend
+      run: |
+        7z.exe x ledfx_frontend.zip
+        cp -r ledfx_frontend_v2 src/ledfx_frontend        
+        cd src\ledfx_frontend
+        dir
+        cd ..
+        cd ..
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9  
+    - name: Get Backendver
+      id: getbackendver
+      run: |
+        cd src/ledfx        
+        echo "::set-output name=bversion::$(python consts.py)"
+      
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade wheel
+        cd src 
+        python -m pip install pywin32
+        python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
+        pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+        pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
+        pip install pystray
+        python setup.py develop        
+    - name: Build with pyinstaller for ${{matrix.TARGET}}
+      run: ${{matrix.CMD_BUILD}}
+    - name: Delete .lib from numpy
+      run: |        
+        Remove-Item -path ./src/dist/LedFx_v2/numpy/.libs -recurse -force -ErrorAction Ignore    
+    - name: Zip project # This would actually build your project, using zip for an example artifact
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx_v2 -mx5 -xr!.git -xr!.github
+      shell: cmd
+    - name: Upload Windows Build as Asset
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.inputs.releaseurl }}
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
+        asset_content_type: ${{ matrix.ASSET_MIME}}
