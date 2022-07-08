@@ -28,7 +28,7 @@ jobs:
           - os: macos-latest
             TARGET: macos
             CMD_BUILD: >
-                cd src && pyinstaller -F -w -n LedFx-BladeMOD -i icons/discord.ico cli.py &&
+                cd src && pyinstaller mac.spec &&
                 cd dist/ &&
                 zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
             OUT_FILE_NAME: LedFx-BladeMOD.zip
@@ -73,6 +73,11 @@ jobs:
         repository: LedFx/LedFx
         ref: main
         path: src
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx-Builds
+        ref: main
+        path: src2
     - name: Get Backendver
       id: getbackendver
       run: |
@@ -84,6 +89,7 @@ jobs:
         brew install portaudio pulseaudio
         python -m pip install --upgrade pip
         python -m pip install --upgrade wheel
+        cp src2/mac.spec src/mac.spec
         cd src 
         pip install -r requirements-dev.txt
         pip install -e .
