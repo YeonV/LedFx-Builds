@@ -75,7 +75,7 @@ jobs:
         path: src
     - uses: actions/checkout@v2
       with:
-        repository: LedFx/LedFx-Builds
+        repository: YeonV/LedFx-Builds
         token: ${{ secrets.GITHUB_TOKEN }}
         ref: main
         path: src2
