@@ -30,7 +30,7 @@ jobs:
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ &&
-                zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
+                zip -r9 LedFx-BladeMOD . -i LedFx-BladeMOD.app/
             OUT_FILE_NAME: LedFx-BladeMOD.zip
             ASSET_MIME: application/zip
           #- os: windows-latest
