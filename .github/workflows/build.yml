@@ -8,19 +8,58 @@ on:
         # Friendly description to be shown in the UI instead of 'name'
        description: 'Frontend Version'
         # Default value if no value is explicitly provided
-       default: 'v0.'
+       default: 'beta47'
         # Input has to be provided for the workflow to run
        required: false
-      releaseurl:
-        # Friendly description to be shown in the UI instead of 'name'
-       description: 'Release URL'
-        # Default value if no value is explicitly provided
-       default: 'https://github.com/YeonV/LedFx-Frontend-v2/releases/tag/2.0.0-beta46'
-        # Input has to be provided for the workflow to run
-       required: true
+       
 jobs:
+  createrelease:
+    name: Create Release
+    runs-on: [ubuntu-latest]
+    steps:    
+    - name: Get latest frontend
+      run: |
+        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+    - name: Save Frontend for publish
+      uses: actions/upload-artifact@v1
+      with:
+        name: ledfx_frontend
+        path: ledfx_frontend.zip     
+    # - name: Get Messages
+    #   run: |
+    #     unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: backend
+    - name: Get Backendver
+      id: getbackendver
+      run: |
+        cd backend/ledfx        
+        echo "::set-output name=bversion::$(python consts.py)"
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}
+        release_name: Release v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}
+        # body_path: ./messages.md
+        draft: false
+        prerelease: false
+    - name: Output Release URL File
+      run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+    - name: Save Release URL File for publish
+      uses: actions/upload-artifact@v1
+      with:
+        name: release_url
+        path: release_url.txt
+        
   build:
-    name: Build packages
+    name: Build packages    
+    needs: createrelease
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -90,24 +129,41 @@ jobs:
       run: ${{matrix.CMD_BUILD}}      
     - name: Delete .lib from numpy
       run: |
-        dir
-        Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore
-        cd src
-        dir
-        cd dist
-        dir
-        cd ..
-        cd ..
-    - name: Zip project # This would actually build your project, using zip for an example artifact
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
-      shell: cmd
+        Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
+    - name: Load Release URL File from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+    - name: Get Release File Name & Upload URL
+      id: get_release_info
+      shell: bash
+      run: |
+        value=`cat release_url/release_url.txt`
+        echo ::set-output name=upload_url::$value
+    - name: Zip project
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
+      shell: cmd      
+    - name: Load Frontend from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: ledfx_frontend
+    - name: Upload Frontend Build as Asset
+      id: upload-release-asset-2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ledfx_frontend/ledfx_frontend.zip
+        asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
+        asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Windows Build as Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ github.event.inputs.releaseurl }}
-        asset_path: ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
-        asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
