@@ -19,11 +19,11 @@ jobs:
     steps:    
     - name: Get latest frontend
       run: |
-        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+        curl -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v1
       with:
-        name: ledfx_frontend
+        name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
     # - name: Get Messages
     #   run: |
@@ -146,7 +146,7 @@ jobs:
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
-        name: ledfx_frontend
+        name: ledfx_frontend_v2
     - name: Upload Frontend Build as Asset
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
