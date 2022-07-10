@@ -100,8 +100,11 @@ jobs:
     #- name: Delete .lib from numpy
     #  run: |        
     #    Remove-Item -path ./src/dist/LedFx_v2/numpy/.libs -recurse -force -ErrorAction Ignore    
-    - name: Zip project # This would actually build your project, using zip for an example artifact
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx_v2 -mx5 -xr!.git -xr!.github
+    - name: Pack project # This would actually build your project, using zip for an example artifact
+      run: |
+        ls
+        hdiutil create ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--mac.dmg ./src/dist/LedFx.app -ov
+    # 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx_v2 -mx5 -xr!.git -xr!.github
       shell: cmd
     - name: Upload Mac Build as Asset
       id: upload-release-asset
