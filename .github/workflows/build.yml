@@ -147,6 +147,10 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: ledfx_frontend_v2
+    - name: dir
+      shell: bash
+      run: |
+        dir
     - name: Upload Frontend Build as Asset
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
@@ -154,7 +158,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ledfx_frontend/ledfx_frontend.zip
+        asset_path: ledfx_frontend/ledfx_frontend_v2.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Windows Build as Asset
