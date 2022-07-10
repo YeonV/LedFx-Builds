@@ -29,7 +29,7 @@ jobs:
             TARGET: macos
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && ls &&
+                cd dist/ && ls && mv LedFx_v2 LedFx.app &&
                 zip -r LedFx-BladeMOD . -i LedFx.app/
             OUT_FILE_NAME: LedFx-BladeMOD.zip
             ASSET_MIME: application/zip
