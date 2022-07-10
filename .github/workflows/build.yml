@@ -98,11 +98,7 @@ jobs:
     - name: Include new frontend
       run: |
         7z.exe x ledfx_frontend.zip
-        cp -r ledfx_frontend_v2 src/ledfx_frontend        
-        cd src\ledfx_frontend
-        dir
-        cd ..
-        cd ..
+        cp -r ledfx_frontend_v2 src/ledfx_frontend
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -120,7 +116,7 @@ jobs:
         cd src 
         python -m pip install pywin32
         python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
-        pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+        # pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
         pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
         pip install pystray
         pip install typing-extensions
@@ -147,10 +143,6 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: ledfx_frontend_v2
-    - name: dir
-      shell: bash
-      run: |
-        dir
     - name: Upload Frontend Build as Asset
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
