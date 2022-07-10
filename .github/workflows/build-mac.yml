@@ -97,8 +97,6 @@ jobs:
       run: |
         ls
         hdiutil create ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--mac.dmg ./src/dist/LedFx.app -ov
-    # 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx_v2 -mx5 -xr!.git -xr!.github
-      shell: cmd
     - run:   |
        upload_url=$(curl -sL https://api.github.com/repos/actions/checkout/releases/latest | jq -r '.upload_url')
        echo UPLOAD_URL=$upload_url >> $GITHUB_ENV
