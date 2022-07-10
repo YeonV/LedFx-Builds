@@ -1,4 +1,4 @@
-name: builds
+name: build
 
 on: 
   workflow_dispatch:
@@ -8,30 +8,23 @@ on:
         # Friendly description to be shown in the UI instead of 'name'
        description: 'Frontend Version'
         # Default value if no value is explicitly provided
-       default: 'v0.'
+       default: 'beta47'
         # Input has to be provided for the workflow to run
        required: false
-      fmessages:
-        # Friendly description to be shown in the UI instead of 'name'
-       description: 'Frontend Messages'
-        # Default value if no value is explicitly provided
-       default: ''
-        # Input has to be provided for the workflow to run
-       required: false
+       
 jobs:
-
   createrelease:
     name: Create Release
     runs-on: [ubuntu-latest]
     steps:    
     - name: Get latest frontend
       run: |
-        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+        curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v1
       with:
-        name: ledfx_frontend
-        path: ledfx_frontend.zip     
+        name: ledfx_frontend_v2
+        path: ledfx_frontend_v2.zip     
     # - name: Get Messages
     #   run: |
     #     unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
@@ -63,9 +56,9 @@ jobs:
       with:
         name: release_url
         path: release_url.txt
-
+        
   build:
-    name: Build packages
+    name: Build packages    
     needs: createrelease
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,37 +74,39 @@ jobs:
           #  ASSET_MIME: application/zip
           - os: windows-latest
             TARGET: windows
-            CMD_BUILD: cd src && pyinstaller win-gh.spec
+            CMD_DEP: |
+              python -m pip install --upgrade pip
+              python -m pip install --upgrade wheel
+              cd src 
+              python -m pip install pywin32
+              python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
+              # pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+              pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
+              pip install pystray
+              pip install typing-extensions
+              python setup.py develop  
+            CMD_BUILD: cd src && pyinstaller win.spec
             OUT_FILE_NAME: LedFx
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
     steps:
-    #- name: Install 7Zip PowerShell Module
-    #  shell: powershell
-    #  run: Install-Module 7Zip4PowerShell -Force -Verbose
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
         ref: main
-        #repository: YeonV/LedFx-Backend
-        #ref: main
-        #token: ${{ secrets.FRONTEND_TOKEN }} 
         path: src
     - name: Delete old frontend
       run: |        
         Remove-Item -path src/ledfx_frontend -recurse -force
         cd src
-        git rev-parse HEAD >> ledfx/git_version
+        git rev-parse HEAD >> ledfx/git_version          
     - name: Get latest frontend
       run: |
-          
-    - name: Get latest frontend
-      run: |
-        curl -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
+        curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
     - name: Include new frontend
       run: |
-        dir
-        7z.exe x ledfx_frontend.zip -osrc
+        7z.exe x ledfx_frontend.zip
+        cp -r ledfx_frontend_v2 src/ledfx_frontend
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -123,21 +118,12 @@ jobs:
         echo "::set-output name=bversion::$(python consts.py)"
       
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install --upgrade wheel
-        cd src 
-        python -m pip install pywin32
-        python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
-        pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
-        pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
-        pip install pystray
-        python setup-gh.py install        
+      run: ${{matrix.CMD_DEP}}        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
-      run: ${{matrix.CMD_BUILD}}
+      run: ${{matrix.CMD_BUILD}}      
     - name: Delete .lib from numpy
-      run: |        
-        Remove-Item -path ./src/dist/LedFx-BladeMOD/numpy/.libs -recurse -force -ErrorAction Ignore    
+      run: |
+        Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
     - name: Load Release URL File from release job
       uses: actions/download-artifact@v1
       with:
@@ -148,13 +134,13 @@ jobs:
       run: |
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
-    - name: Zip project # This would actually build your project, using zip for an example artifact
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--BladeMOD-${{ github.event.inputs.fversion }}.win.zip ./src/dist/LedFx-BladeMOD -mx5 -xr!.git -xr!.github
-      shell: cmd
+    - name: Zip project
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
+      shell: cmd      
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
-        name: ledfx_frontend
+        name: ledfx_frontend_v2
     - name: Upload Frontend Build as Asset
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
@@ -162,7 +148,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ledfx_frontend/ledfx_frontend.zip
+        asset_path: ledfx_frontend.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Windows Build as Asset
@@ -172,6 +158,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--BladeMOD-${{ github.event.inputs.fversion }}.win.zip
-        asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}--BladeMOD-${{ github.event.inputs.fversion }}.win.zip
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
