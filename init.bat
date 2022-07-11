@@ -1,5 +1,4 @@
-git clone https://github.com/YeonV/LedFx-Build ledfx
-cd ledfx
+git clone https://github.com/YeonV/LedFx-Builds ledfx && cd ledfx
 git clone https://github.com/YeonV/LedFx-Frontend-v2 frontend
 git clone https://github.com/LedFx/LedFx backend
 
@@ -9,7 +8,7 @@ call activate.bat
 cd ..
 cd ..
 cd backend
-pip install ..\tools\aubio-0.5.0a0-cp310-cp310-win_amd64.whl
+pip install ..\tools\win\aubio-0.5.0a0-cp310-cp310-win_amd64.whl
 pip install aiohttp~=3.7.4
 pip install aiohttp_cors>=0.7.0
 pip install -r requirements-dev.txt
@@ -21,16 +20,8 @@ pip install pystray
 pip install typing-extensions
 python setup.py develop
 cd ..
+cp tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
 cd frontend
-where node.exe >nul 2>&1 && yarn || set /p install_yarn="Install Yarn? (y/n)"
-IF /I "%install_yarn%" NEQ "y" GOTO STEP2
-npm -g install yarn
-yarn
-GOTO STEP3
-
-:STEP2
-npm install --force
-
-:STEP3
+where node.exe >nul 2>&1 && echo yarn installed || call npm -g install yarn
+call yarn
 cls
-
