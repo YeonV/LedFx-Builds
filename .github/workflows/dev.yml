@@ -77,8 +77,8 @@ jobs:
                 python setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && ls && mv LedFx_v2 LedFx.app &&
-                zip -r LedFx-BladeMOD . -i LedFx.app
+                cd dist/ && ls && mv LedFx_v2 LedFx.app
+            CMD_PACK: zip -r LedFx-BladeMOD . -i LedFx.app
             OUT_FILE_NAME: LedFx-BladeMOD.zip
             ASSET_MIME: application/zip
              
@@ -96,6 +96,7 @@ jobs:
               pip install typing-extensions
               python setup.py develop  
             CMD_BUILD: cd src && pyinstaller win.spec
+            CMD_PACK: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
             OUT_FILE_NAME: LedFx
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
@@ -111,18 +112,18 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         ref: main
         path: src2
-    - name: Delete old frontend
-      run: |        
-        Remove-Item -path src/ledfx_frontend -recurse -force
-        cd src
-        git rev-parse HEAD >> ledfx/git_version          
-    - name: Get latest frontend
-      run: |
-        curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
-    - name: Include new frontend
-      run: |
-        7z.exe x ledfx_frontend.zip
-        cp -r ledfx_frontend_v2 src/ledfx_frontend
+    #- name: Delete old frontend
+    #  run: |        
+    #    Remove-Item -path src/ledfx_frontend -recurse -force
+    #    cd src
+    #    git rev-parse HEAD >> ledfx/git_version          
+    #- name: Get latest frontend
+    #  run: |
+    #    curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
+    #- name: Include new frontend
+    #  run: |
+    #    7z.exe x ledfx_frontend.zip
+    #    cp -r ledfx_frontend_v2 src/ledfx_frontend
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -137,9 +138,9 @@ jobs:
       run: ${{matrix.CMD_DEP}}        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}      
-    - name: Delete .lib from numpy
-      run: |
-        Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
+    #- name: Delete .lib from numpy
+    #  run: |
+    #    Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
     - name: Load Release URL File from release job
       uses: actions/download-artifact@v1
       with:
@@ -150,9 +151,8 @@ jobs:
       run: |
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
-    - name: Zip project
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
-      shell: cmd      
+    - name: Pack app
+      run: ${{matrix.CMD_PACK}}    
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
