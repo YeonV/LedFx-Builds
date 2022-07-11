@@ -110,6 +110,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: ./LedFx-BladeMOD.zip
+        asset_path: ./src/dist/LedFx-BladeMOD.zip
         asset_name: ${{ matrix.OUT_FILE_NAME}}-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--mac.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
