@@ -137,7 +137,7 @@ jobs:
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
     - name: Zip project
-      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
+      run: 7z.exe a -tzip ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5
       shell: cmd      
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
