@@ -64,14 +64,24 @@ jobs:
     strategy:
       matrix:
         include:
-          #- os: macos-latest
-          #  TARGET: macos
-          #  CMD_BUILD: >
-          #      cd src && pyinstaller -F -w -n LedFx-BladeMOD -i icons/discord.ico cli.py &&
-          #      cd dist/ &&
-          #      zip -r9 LedFx-BladeMOD LedFx-BladeMOD.app/
-          #  OUT_FILE_NAME: LedFx-BladeMOD.zip
-          #  ASSET_MIME: application/zip
+          - os: macos-latest
+            TARGET: macos
+            CMD_DEP: |
+                brew install portaudio pulseaudio
+                python -m pip install --upgrade pip
+                python -m pip install --upgrade wheel
+                cp src2/mac.spec src/mac.spec
+                cd src 
+                pip install -r requirements-dev.txt
+                pip install -e .
+                python setup.py develop      
+            CMD_BUILD: >
+                cd src && pyinstaller mac.spec &&
+                cd dist/ && ls && mv LedFx_v2 LedFx.app &&
+                zip -r LedFx-BladeMOD . -i LedFx.app
+            OUT_FILE_NAME: LedFx-BladeMOD.zip
+            ASSET_MIME: application/zip
+             
           - os: windows-latest
             TARGET: windows
             CMD_DEP: |
@@ -95,6 +105,12 @@ jobs:
         repository: LedFx/LedFx
         ref: main
         path: src
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Builds
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: main
+        path: src2
     - name: Delete old frontend
       run: |        
         Remove-Item -path src/ledfx_frontend -recurse -force
@@ -151,13 +167,13 @@ jobs:
         asset_path: ledfx_frontend.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
-    - name: Upload Windows Build as Asset
+    - name: Upload Build as Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
-        asset_name: ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--win.zip
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--${{ matrix.OS}}.zip
+        asset_name: ${{ matrix.OUT_FILE_NAME}}_core-v${{ steps.getbackendver.outputs.bversion }}-${{ github.event.inputs.fversion }}--${{ matrix.OS}}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
