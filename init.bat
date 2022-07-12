@@ -1,11 +1,16 @@
 @echo off
 cls
-echo Initializing LedFx:
+if exist %~dp0\ledfx\ (
+  echo A folder named 'ledfx' is already existing!
+  pause
+  goto end 
+)
+echo Initializing LedFx-Dev:
 git clone --quiet https://github.com/YeonV/LedFx-Builds ledfx && cd ledfx
-echo Getting Frontend...
-git clone --quiet https://github.com/YeonV/LedFx-Frontend-v2 frontend 
 echo Getting Backend...
 git clone --quiet https://github.com/LedFx/LedFx backend 
+echo Getting Frontend...
+git clone --quiet https://github.com/YeonV/LedFx-Frontend-v2 frontend 
 echo Creating Python Venv...
 python -m venv venv
 cd venv\Scripts
@@ -21,17 +26,36 @@ pip install -q aiohttp~=3.7.4
 pip install -q aiohttp_cors>=0.7.0
 pip install -q -r requirements-dev.txt
 python -m pip install -q pywin32
-python ..\venv\Scripts\pywin32_postinstall.py -install
+python ..\venv\Scripts\pywin32_postinstall.py -install -silent >nul 2>&1
 pip install -q pystray
 pip install -q typing-extensions
-echo Setting up LedFx-core...
+echo Installing Backend...
 python setup.py develop >nul 2>&1
 cd ..
-cp tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
+copy tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
 cd frontend
 echo Installing Frontend...
 where yarn.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\tools\win\install-yarn.bat
-call %~dp0\ledfx\install.bat
-@REM cls
-cd %~dp0\ledfx\
+call %~dp0\ledfx\install.bat >nul 2>&1
+cls
+cd %~dp0
+@REM del init.bat
+cd ledfx
+echo DONE! 
+echo =====
+echo Commands to start:
+echo dev backend
+echo dev frontend
+echo dev
+echo =====
+echo You want to start now?
+pause
+del init.bat
+del install.bat
+del .gitignore
+del LICENSE
+del README.md
+rmdir .github /s /q
 call dev.bat
+
+:end
