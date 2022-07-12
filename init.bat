@@ -30,7 +30,8 @@ cd ..
 cp tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
 cd frontend
 echo Installing Frontend...
-where yarn.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\install-yarn.bat
+where yarn.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\tools\win\install-yarn.bat
 call %~dp0\ledfx\install.bat
 @REM cls
-call %~dp0\ledfx\dev.bat
+cd %~dp0\ledfx\
+call dev.bat
