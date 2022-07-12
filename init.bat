@@ -20,7 +20,7 @@ pip install -q ..\tools\win\aubio-0.5.0a0-cp310-cp310-win_amd64.whl
 pip install -q aiohttp~=3.7.4
 pip install -q aiohttp_cors>=0.7.0
 pip install -q -r requirements-dev.txt
-python -m pip install -q  pywin32
+python -m pip install -q pywin32
 python ..\venv\Scripts\pywin32_postinstall.py -install
 pip install -q pystray
 pip install -q typing-extensions
@@ -30,7 +30,7 @@ cd ..
 cp tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
 cd frontend
 echo Installing Frontend...
-where node.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\install-yarn.bat
-call install.bat
+where yarn.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\install-yarn.bat
+call %~dp0\ledfx\install.bat
 @REM cls
 call %~dp0\ledfx\dev.bat
