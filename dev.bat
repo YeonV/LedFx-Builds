@@ -1,4 +1,5 @@
 @echo off
+cd frontend
 if "%~1"=="" goto both
 if "%~1"=="frontend" (goto frontend) else goto backend
 
