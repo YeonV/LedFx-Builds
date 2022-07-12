@@ -1,4 +1,4 @@
 @echo off
 cd ..
 cd frontend
-yarn
+yarn -s
