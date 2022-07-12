@@ -1,3 +1,4 @@
+@echo off
 git clone https://github.com/YeonV/LedFx-Builds ledfx && cd ledfx
 git clone https://github.com/YeonV/LedFx-Frontend-v2 frontend
 git clone https://github.com/LedFx/LedFx backend
@@ -22,6 +23,7 @@ python setup.py develop
 cd ..
 cp tools\win\libportaudio64bit.dll venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries
 cd frontend
-where node.exe >nul 2>&1 && echo yarn installed || call npm -g install yarn
+where node.exe >nul 2>&1 && echo yarn installed || call %~dp0\install-yarn.bat
 call yarn
 cls
+call dev.bat
