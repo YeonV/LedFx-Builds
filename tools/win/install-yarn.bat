@@ -1,1 +1,1 @@
-npm --silent --location=global install yarn >nul 2>&1
+npm --silent --location=global install yarn
