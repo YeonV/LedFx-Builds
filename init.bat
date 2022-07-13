@@ -15,9 +15,8 @@ echo Getting Frontend...
 git clone --quiet https://github.com/YeonV/LedFx-Frontend-v2 frontend 
 echo Creating Python Venv...
 python -m venv venv
-call %~dp0\ledfx\venv\Scripts\activate.bat
-cd  %~dp0\ledfx\
-cd backend
+call ledfx\venv\Scripts\activate.bat
+cd  ledfx
 echo Installing dependencies ...
 
 @REM python -m pip install -q --upgrade wheel
@@ -33,13 +32,17 @@ python %~dp0\ledfx\venv\Scripts\pywin32_postinstall.py -install
 pip install numpy
 pip install pillow
 pip install psutil
+cd backend
 if %pyversion%==3.10 (
-  pip install -q ..\tools\win\aubio-0.5.0a0-cp310-cp310-win_amd64.whl
+  copy %~dp0\ledfx\tools\win\aubio-0.5.0a0-cp310-cp310-win_amd64.whl %~dp0\ledfx\backend
+  pip install -q aubio-0.5.0a0-cp310-cp310-win_amd64.whl
 ) else if %pyversion%==3.9. (
-  pip install -q ..\tools\win\aubio-0.5.0a0-cp39-cp39-win_amd64.whl
+  copy %~dp0\ledfx\tools\win\aubio-0.5.0a0-cp39-cp39-win_amd64.whl %~dp0\ledfx\backend
+  pip install -q aubio-0.5.0a0-cp39-cp39-win_amd64.whl
 )
 pip install "chardet<4.0"
 pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
+python setup.py install
 python setup.py develop
 if %pyversion%==3.10 (
   copy %~dp0\ledfx\tools\win\libportaudio64bit.dll %~dp0\ledfx\venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
@@ -51,6 +54,7 @@ if %pyversion%==3.10 (
   goto end 
 )
 cd %~dp0\ledfx\frontend
+pause
 echo Installing Frontend...
 where yarn.exe >nul 2>&1 && echo yarn already installed || call %~dp0\ledfx\tools\win\install-yarn.bat
 echo Grab a coffee!
