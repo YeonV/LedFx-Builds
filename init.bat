@@ -15,8 +15,8 @@ echo Getting Frontend...
 git clone --quiet https://github.com/YeonV/LedFx-Frontend-v2 frontend 
 echo Creating Python Venv...
 python -m venv venv
-call ledfx\venv\Scripts\activate.bat
-cd  ledfx
+call %~dp0\ledfx\venv\Scripts\activate.bat
+cd  %~dp0\ledfx
 echo Installing dependencies ...
 
 @REM python -m pip install -q --upgrade wheel
