@@ -39,7 +39,7 @@ if %pyversion%==3.10 (
   pip install -q ..\tools\win\aubio-0.5.0a0-cp39-cp39-win_amd64.whl
 )
 pip install "chardet<4.0"
-pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
+pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
 python setup.py develop
 if %pyversion%==3.10 (
   copy %~dp0\ledfx\tools\win\libportaudio64bit.dll %~dp0\ledfx\venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
