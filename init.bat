@@ -1,7 +1,14 @@
 @echo off
 cls
-if exist .\ledfx\ (
-  echo A folder named 'ledfx' is already existing!
+if "%~1"=="" (
+    SET project=ledfx
+) else (
+    SET project=%1
+    echo Parameters: %*
+)
+
+if exist .\%project%\ (
+  echo A folder named '%project%' is already existing!
   pause
   goto end 
 )
@@ -16,7 +23,7 @@ if %pyversion%==3.10 (
   pause
   goto end 
 )
-git clone --quiet https://github.com/YeonV/LedFx-Builds ledfx && cd ledfx
+git clone --quiet https://github.com/YeonV/LedFx-Builds %project% && cd %project%
 echo Getting Backend...
 git clone --quiet https://github.com/LedFx/LedFx backend 
 echo Getting Frontend...
@@ -64,7 +71,7 @@ call ..\install.bat
 cls
 cd %~dp0
 @REM del init.bat
-cd ledfx
+cd %project%
 echo DONE! 
 echo =====
 echo Commands to start:
