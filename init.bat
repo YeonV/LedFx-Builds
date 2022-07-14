@@ -86,6 +86,7 @@ del .gitignore
 del LICENSE
 del README.md
 rmdir .github /s /q
+rmdir .git /s /q
 call dev.bat
 
 :end
