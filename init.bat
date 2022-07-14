@@ -1,7 +1,7 @@
 @echo off
 cls
 if "%~1"=="" (
-    SET project=ledfx
+    SET project=ledfx_v2
 ) else (
     SET project=%1
 )
