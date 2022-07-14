@@ -4,7 +4,6 @@ if "%~1"=="" (
     SET project=ledfx
 ) else (
     SET project=%1
-    echo Parameters: %*
 )
 
 if exist .\%project%\ (
@@ -15,9 +14,9 @@ if exist .\%project%\ (
 FOR /F "tokens=2" %%F IN ('"python --version"') DO SET v=%%F
 SET pyversion=%v:~0,4%
 if %pyversion%==3.10 (
-  echo Initializing LedFx-Dev for Python %pyversion%:
+  echo Initializing LedFx-Dev for Python %pyversion% into '%project%':
 ) else if %pyversion%==3.9. (
-  echo Initializing LedFx-Dev for Python %pyversion%:
+  echo Initializing LedFx-Dev for Python %pyversion% into '%project%':
 ) else (
   echo Unsupport python version %pyversion%
   pause
