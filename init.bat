@@ -87,6 +87,7 @@ del LICENSE
 del README.md
 rmdir .github /s /q
 rmdir .git /s /q
+powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut('%userprofile%\Desktop\LedFx-Dev.lnk');$s.TargetPath='%~dp0%project%\dev.bat';$s.WorkingDirectory='%~dp0%project%\';$s.IconLocation='%~dp0%project%\backend\icons\discord.ico';$s.Save()"
 call dev.bat
 
 :end
