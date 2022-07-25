@@ -96,7 +96,7 @@ jobs:
               pip install typing-extensions
               python setup.py develop  
             CMD_BUILD: cd src && pyinstaller win.spec
-            CMD_PACK: 7z.exe a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx -mx5 -xr!.git -xr!.github
+            CMD_PACK: 7z.exe a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             OUT_FILE_NAME: LedFx
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
