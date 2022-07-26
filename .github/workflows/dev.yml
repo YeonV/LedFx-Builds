@@ -191,5 +191,4 @@ jobs:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
         asset_path: ./LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_name: LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
-        ASSET_MIME: application/vnd.microsoft.portable-executable
         asset_content_type: application/vnd.microsoft.portable-executable
