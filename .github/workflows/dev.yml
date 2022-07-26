@@ -86,7 +86,8 @@ jobs:
             TARGET: windows
             CMD_DEP: |
               python -m pip install --upgrade pip
-              python -m pip install --upgrade wheel
+              python -m pip install --upgrade wheel              
+              cp src2/tools/win/yzwin.spec src/yzwin.spec
               cd src 
               python -m pip install pywin32
               python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
@@ -94,8 +95,9 @@ jobs:
               pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
               pip install pystray==0.17
               pip install typing-extensions
-              python setup.py develop  
-            CMD_BUILD: cd src && pyinstaller win.spec
+              python setup.py develop
+              cp -f src2/tools/win/libportaudio64bit.dll C:\hostedtoolcache\windows\Python\3.9.1\x64\Lib\sounddevice-*.egg\sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
             CMD_PACK: 7z.exe a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
             # ASSET_MIME: application/vnd.microsoft.portable-executable
@@ -168,7 +170,7 @@ jobs:
         asset_path: ledfx_frontend_v2/ledfx_frontend_v2.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
-    - name: Upload Build as Asset
+    - name: Upload Zip as Asset
       id: upload-release-asset
       uses: actions/upload-release-asset@v1
       env:
@@ -178,3 +180,14 @@ jobs:
         asset_path: ./${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
+    - name: Upload Portable as Asset
+      id: upload-release-asset-portable
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_name: LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
+        ASSET_MIME: application/vnd.microsoft.portable-executable
+        asset_content_type: application/vnd.microsoft.portable-executable
