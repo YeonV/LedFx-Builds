@@ -58,7 +58,7 @@ jobs:
         path: release_url.txt
         
   build:
-    name: Build packages    
+    name: Build ${{ matrix.os }}    
     needs: createrelease
     runs-on: ${{ matrix.os }}
     strategy:
