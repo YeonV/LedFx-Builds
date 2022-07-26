@@ -37,7 +37,7 @@ jobs:
       id: getbackendver
       run: |
         cd backend/ledfx        
-        echo "::set-output name=bversion::$(python consts.py)"
+        echo "::set-output name=bversion::$(python consts.py | cut -d- -f1)"
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
