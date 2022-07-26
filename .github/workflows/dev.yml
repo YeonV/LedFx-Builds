@@ -78,8 +78,8 @@ jobs:
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && ls && mv LedFx_v2 LedFx.app
-            CMD_PACK: zip -r LedFx-BladeMOD . -i LedFx.app
-            OUT_FILE_NAME: LedFx-BladeMOD.zip
+            CMD_PACK: zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i LedFx.app
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
              
           - os: windows-latest
@@ -92,7 +92,7 @@ jobs:
               python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
               # pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
               pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
-              pip install pystray
+              pip install pystray=0.17
               pip install typing-extensions
               python setup.py develop  
             CMD_BUILD: cd src && pyinstaller win.spec
