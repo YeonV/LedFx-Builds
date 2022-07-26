@@ -182,7 +182,8 @@ jobs:
         asset_path: ./${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
-    - name: Upload Portable as Asset
+    - name: Upload Portable as Asset      
+      if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-portable
       uses: actions/upload-release-asset@v1
       env:
