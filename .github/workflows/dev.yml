@@ -157,13 +157,6 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: ledfx_frontend_v2
-    - name: upload-release-asset-2
-      run: |
-        ls
-        dir
-        cd ledfx_frontend_v2
-        ls
-        dir
     - name: Upload Frontend Build as Asset
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
