@@ -158,6 +158,7 @@ jobs:
       with:
         name: ledfx_frontend_v2
     - name: Upload Frontend Build as Asset
+      if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
       env:
