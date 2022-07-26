@@ -78,7 +78,7 @@ jobs:
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && ls && mv ./LedFx_v2 ./LedFx.app
-            CMD_PACK: ls && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./LedFx.app
+            CMD_PACK: ls && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx.app
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
              
