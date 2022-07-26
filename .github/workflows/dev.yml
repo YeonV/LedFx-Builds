@@ -77,8 +77,8 @@ jobs:
                 python setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && ls && mv ./LedFx_v2 ./LedFx.app && ls -la
-            CMD_PACK: ls && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx.app && ls && cd src && ls
+                cd dist/ && ls && mkdir LedFx && mv ./LedFx_v2 ./LedFx/LedFx.app && ls -la
+            CMD_PACK: ls && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx && ls && cd src && ls
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
              
