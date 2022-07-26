@@ -88,6 +88,7 @@ jobs:
               python -m pip install --upgrade pip
               python -m pip install --upgrade wheel              
               cp src2/tools/win/yzwin.spec src/yzwin.spec
+              cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src 
               python -m pip install pywin32
               python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
