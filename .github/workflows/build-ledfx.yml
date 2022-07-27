@@ -18,11 +18,6 @@ on:
        description: 'Build Client'
        default: true
        required: false
-      cc:
-       type: boolean
-       description: 'Build CC'
-       default: true
-       required: false
        
 jobs:
   createrelease:
