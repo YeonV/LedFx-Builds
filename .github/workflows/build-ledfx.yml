@@ -278,7 +278,9 @@ jobs:
         path: frontend
     - name: Building Clients
       run: |
-         cd frontend && npm install --force && npm run distall
+         cd frontend && npm install --force && npm run distall      
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          
          
          
