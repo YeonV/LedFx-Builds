@@ -225,6 +225,12 @@ jobs:
         asset_path: ./LedFx-notray--win.exe 
         asset_name: LedFx-notray--win.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
+    - name: Save Win-Notray for CC
+      if: "startsWith(matrix.OS, 'win')"
+      uses: actions/upload-artifact@v1
+      with:
+        name: LedFx-notray--win
+        path: ./LedFx-notray--win.exe   
     - name: Upload Mac-Notray as Asset      
       if: "startsWith(matrix.OS, 'mac')"
       id: upload-release-asset-notray-mac
@@ -236,7 +242,12 @@ jobs:
         asset_path: ./LedFx-notray--mac-x64.zip 
         asset_name: LedFx-notray--mac-x64.zip 
         asset_content_type: application/zip
-        
+    - name: Save Mac-Notray for CC
+      if: "startsWith(matrix.OS, 'mac')"
+      uses: actions/upload-artifact@v1
+      with:
+        name: LedFx-notray--mac
+        path: ./LedFx-notray--mac-x64.zip         
         
         
   client:
@@ -287,16 +298,21 @@ jobs:
       run: |
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
-#     - name: Load Core from previous job
-#       uses: actions/download-artifact@v1
-#       with:
-#         name: core-notray
-    - name: Move Core-notray
+    - name: Load Core from previous job
+      uses: actions/download-artifact@v1
+      with:
+        name: core-notray
+    - name: Move Core-notray-win
+      if: "startsWith(matrix.OS, 'win')"
       run: |
-         echo cp XXX ./frontend/extraResources/LedFx_core.app 
-         echo cp XXX ./frontend/extraResources/LedFx-notray.exe
-         ls
-         
+         cp core-notray/LedFx-notray--win.exe ./frontend/extraResources/LedFx-notray.exe
+         ls -la ./frontend/extraResources/
+    - name: Move Core-notray-mac
+      if: "startsWith(matrix.OS, 'mac')"
+      run: |
+         echo cp core-notray ./frontend/extraResources/LedFx_core.app 
+         cp core-notray/LedFx-notray--win.exe ./frontend/extraResources/LedFx-notray.exe
+         ls -la ./frontend/extraResources/
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
