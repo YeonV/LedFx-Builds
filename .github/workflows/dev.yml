@@ -77,7 +77,9 @@ jobs:
                 python setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && mkdir LedFx && mv ./LedFx_v2 ./LedFx/LedFx.app
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&
+                cd dist/ && mkdir LedFxC && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app
             CMD_PACK: ls # && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx && ls && cd src && ls
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
@@ -163,6 +165,11 @@ jobs:
       with:
         files: ./src/dist/LedFx/
         dest: ${{ matrix.OUT_FILE_NAME}}
+    - uses: vimtor/action-zip@v1
+      if: "startsWith(matrix.OS, 'mac')"      
+      with:
+        files: ./src/dist/LedFxC/
+        dest: LedFx-notray.zip
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
