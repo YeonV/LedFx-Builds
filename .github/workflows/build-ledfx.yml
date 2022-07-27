@@ -252,7 +252,7 @@ jobs:
         
   client:
     name: Build Client ${{ matrix.os }}    
-    needs: createrelease
+    needs: core
     if: ${{ github.event.inputs.client == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
