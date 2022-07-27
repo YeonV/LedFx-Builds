@@ -18,6 +18,11 @@ on:
        description: 'Build Client'
        default: true
        required: false
+      cc:
+       type: boolean
+       description: 'Build CC'
+       default: true
+       required: false
        
 jobs:
   createrelease:
@@ -264,129 +269,41 @@ jobs:
             CMD_BUILD: echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
-            # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
     steps:
     - name: Building Clients
       run: |
          echo YZ
-#     - uses: actions/checkout@v2
-#       with:
-#         repository: LedFx/LedFx
-#         ref: main
-#         path: src
-#     - uses: actions/checkout@v2
-#       with:
-#         repository: YeonV/LedFx-Builds
-#         token: ${{ secrets.GITHUB_TOKEN }}
-#         ref: main
-#         path: src2
-    #- name: Delete old frontend
-    #  run: |        
-    #    Remove-Item -path src/ledfx_frontend -recurse -force
-    #    cd src
-    #    git rev-parse HEAD >> ledfx/git_version          
-    #- name: Get latest frontend
-    #  run: |
-    #    curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
-    #- name: Include new frontend
-    #  run: |
-    #    7z.exe x ledfx_frontend.zip
-    #    cp -r ledfx_frontend_v2 src/ledfx_frontend
-#     - name: Set up Python 3.9
-#       uses: actions/setup-python@v2
-#       with:
-#         python-version: 3.9  
-#     - name: Get Backendver
-#       id: getbackendver
-#       run: |
-#         cd src/ledfx        
-#         echo "::set-output name=bversion::$(python consts.py)"
-      
-#     - name: Install dependencies
-#       run: ${{matrix.CMD_DEP}}        
-#     - name: Build with pyinstaller for ${{matrix.TARGET}}
-#       run: ${{matrix.CMD_BUILD}}      
-    #- name: Delete .lib from numpy
-    #  run: |
-    #    Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
-#     - name: Load Release URL File from release job
-#       uses: actions/download-artifact@v1
-#       with:
-#         name: release_url
-#     - name: Get Release File Name & Upload URL
-#       id: get_release_info
-#       shell: bash
-#       run: |
-#         value=`cat release_url/release_url.txt`
-#         echo ::set-output name=upload_url::$value
-#     - name: Pack app
-#       run: ${{matrix.CMD_PACK}}
-#     - uses: vimtor/action-zip@v1
-#       if: "startsWith(matrix.OS, 'mac')"      
-#       with:
-#         files: ./src/dist/LedFx/
-#         dest: ${{ matrix.OUT_FILE_NAME}}
-#     - uses: vimtor/action-zip@v1
-#       if: "startsWith(matrix.OS, 'mac')"      
-#       with:
-#         files: ./src/dist/LedFxC/
-#         dest: LedFx-notray--mac-x64.zip
-#     - name: Load Frontend from release job
-#       uses: actions/download-artifact@v1
-#       with:
-#         name: ledfx_frontend_v2
-#     - name: Upload Frontend Build as Asset
-#       if: "startsWith(matrix.OS, 'win')"
-#       id: upload-release-asset-2
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#         asset_path: ledfx_frontend_v2/ledfx_frontend_v2.zip
-#         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
-#         asset_content_type: ${{ matrix.ASSET_MIME}}
-#     - name: Upload Zip as Asset
-#       id: upload-release-asset
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#         asset_path: ./${{ matrix.OUT_FILE_NAME}}
-#         asset_name: ${{ matrix.OUT_FILE_NAME}}
-#         asset_content_type: ${{ matrix.ASSET_MIME}}
-#     - name: Upload Win-Portable as Asset      
-#       if: "startsWith(matrix.OS, 'win')"
-#       id: upload-release-asset-portable
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#         asset_path: ./LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
-#         asset_name: LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
-#         asset_content_type: application/vnd.microsoft.portable-executable
-#     - name: Upload Win-Notray as Asset      
-#       if: "startsWith(matrix.OS, 'win')"
-#       id: upload-release-asset-notray
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#         asset_path: ./LedFx-notray--win.exe 
-#         asset_name: LedFx-notray--win.exe 
-#         asset_content_type: application/vnd.microsoft.portable-executable
-#     - name: Upload Mac-Notray as Asset      
-#       if: "startsWith(matrix.OS, 'mac')"
-#       id: upload-release-asset-notray-mac
-#       uses: actions/upload-release-asset@v1
-#       env:
-#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#       with:
-#         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#         asset_path: ./LedFx-notray--mac-x64.zip 
-#         asset_name: LedFx-notray--mac-x64.zip 
-#         asset_content_type: application/zip
+         
+         
+         
+  cc:
+    name: Build CC ${{ matrix.os }}    
+    needs: core
+    if: ${{ github.event.inputs.cc == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            TARGET: macos
+            CMD_DEP: |
+                echo YZ
+            CMD_BUILD: >
+                echo YZ
+            CMD_PACK: echo YZ
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
+            ASSET_MIME: application/zip
+             
+          - os: windows-latest
+            TARGET: windows
+            CMD_DEP: |
+              echo YZ
+            CMD_BUILD: echo YZ
+            CMD_PACK: echo YZ
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
+            ASSET_MIME: application/zip
+    steps:
+    - name: Building Clients
+      run: |
+         echo YZ
