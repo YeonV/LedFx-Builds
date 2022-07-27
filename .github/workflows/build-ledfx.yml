@@ -67,7 +67,7 @@ jobs:
   core:
     name: Build Core ${{ matrix.os }}    
     needs: createrelease
-    if: ${{ github.event.inputs.core }}
+    if: ${{ github.event.inputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -242,7 +242,7 @@ jobs:
   client:
     name: Build Client ${{ matrix.os }}    
     needs: createrelease
-    if: ${{ github.event.inputs.client }}
+    if: ${{ github.event.inputs.client == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
