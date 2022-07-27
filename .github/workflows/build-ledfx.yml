@@ -302,7 +302,7 @@ jobs:
       if: "startsWith(matrix.OS, 'win')"
       uses: actions/download-artifact@v1
       with:
-        name: core-notray
+        name: LedFx-notray--win
     - name: Load Core from previous job mac
       if: "startsWith(matrix.OS, 'mac')"
       uses: actions/download-artifact@v1
