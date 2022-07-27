@@ -218,7 +218,7 @@ jobs:
         asset_name: LedFx-notray--win.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Upload Mac-Notray as Asset      
-      if: "startsWith(matrix.OS, 'win')"
+      if: "startsWith(matrix.OS, 'mac')"
       id: upload-release-asset-notray-mac
       uses: actions/upload-release-asset@v1
       env:
