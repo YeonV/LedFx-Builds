@@ -246,7 +246,7 @@ jobs:
       if: "startsWith(matrix.OS, 'mac')"
       uses: actions/upload-artifact@v1
       with:
-        name: LedFx-notray--mac
+        name: LedFx-notray--mac-x64
         path: ./LedFx-notray--mac-x64.zip         
         
         
@@ -298,10 +298,19 @@ jobs:
       run: |
         value=`cat release_url/release_url.txt`
         echo ::set-output name=upload_url::$value
-    - name: Load Core from previous job
+    - name: Load Core from previous job win    
+      if: "startsWith(matrix.OS, 'win')"
       uses: actions/download-artifact@v1
       with:
         name: core-notray
+    - name: Load Core from previous job mac
+      if: "startsWith(matrix.OS, 'mac')"
+      uses: actions/download-artifact@v1
+      with:
+        name: LedFx-notray--mac-x64
+        
+        
+        
     - name: Move Core-notray-win
       if: "startsWith(matrix.OS, 'win')"
       run: |
@@ -310,8 +319,8 @@ jobs:
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
       run: |
-         echo cp core-notray ./frontend/extraResources/LedFx_core.app 
-         cp core-notray/LedFx-notray--win.exe ./frontend/extraResources/LedFx-notray.exe
+         ls LedFx-notray--mac-x64/
+         cp LedFx-notray--mac-x64/LedFx-notray--mac-x64.zip ./frontend/extraResources/LedFx_core.app
          ls -la ./frontend/extraResources/
          
     - name: Upload Win-Portable as Asset      
