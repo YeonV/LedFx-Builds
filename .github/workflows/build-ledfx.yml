@@ -1,4 +1,4 @@
-name: Build
+name: Build LedFx
 
 on: 
   workflow_dispatch:
@@ -9,7 +9,13 @@ on:
        default: 'beta47'
        required: false
       core:
+       type: boolean
        description: 'Build Core'
+       default: true
+       required: false
+      client:
+       type: boolean
+       description: 'Build Client'
        default: true
        required: false
        
