@@ -271,9 +271,15 @@ jobs:
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
             ASSET_MIME: application/zip
     steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Frontend-v2
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: main
+        path: frontend
     - name: Building Clients
       run: |
-         echo YZ
+         cd frontend && npm install && npm run distall
          
          
          
@@ -304,6 +310,6 @@ jobs:
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
             ASSET_MIME: application/zip
     steps:
-    - name: Building Clients
+    - name: Building CC
       run: |
          echo YZ
