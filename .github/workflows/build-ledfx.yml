@@ -278,39 +278,73 @@ jobs:
         path: frontend
     - name: Building Clients
       run: |
-         cd frontend && npm install --force && npm run distall      
+         cd frontend && npm install --force && npm run distall
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         
-         
-         
-  cc:
-    name: Build CC ${{ matrix.os }}    
-    needs: core
-    if: ${{ github.event.inputs.cc == 'true' }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            TARGET: macos
-            CMD_DEP: |
-                echo YZ
-            CMD_BUILD: >
-                echo YZ
-            CMD_PACK: echo YZ
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
-            ASSET_MIME: application/zip
-             
-          - os: windows-latest
-            TARGET: windows
-            CMD_DEP: |
-              echo YZ
-            CMD_BUILD: echo YZ
-            CMD_PACK: echo YZ
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
-            ASSET_MIME: application/zip
-    steps:
-    - name: Building CC
+        
+    - name: Load Release URL File from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+    - name: Get Release File Name & Upload URL
+      id: get_release_info
+      shell: bash
       run: |
-         echo YZ
+        value=`cat release_url/release_url.txt`
+        echo ::set-output name=upload_url::$value
+#     - name: Load Core from previous job
+#       uses: actions/download-artifact@v1
+#       with:
+#         name: core-notray
+    - name: Move Core-notray
+      run: |
+         echo cp XXX ./frontend/extraResources/LedFx_core.app 
+         echo cp XXX ./frontend/extraResources/LedFx-notray.exe
+         ls
+         
+         
+    - name: Upload Win-Portable as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-portable
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+    - name: Upload Win-Setup as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-setup
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+    - name: Upload Win-Zip as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-zip
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win.zip 
+        asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win.zip 
+        asset_content_type: application/zip
+    - name: Upload Win-CC as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-cc
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe
+        asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+         
