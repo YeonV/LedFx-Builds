@@ -274,7 +274,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: YeonV/LedFx-Frontend-v2
-        token: ${{ secrets.GITHUB_TOKEN }}
         ref: main
         path: frontend
     - name: Building Clients
