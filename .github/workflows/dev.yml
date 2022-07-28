@@ -1,0 +1,63 @@
+name: Build LedFx
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      fversion:
+       description: 'Frontend Version'
+       default: 'beta47'
+       required: false
+       
+jobs:
+  core:
+    name: Build Core ${{ matrix.os }}    
+    needs: createrelease
+    if: ${{ github.event.inputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            TARGET: ubuntu
+            CMD_DEP: |
+                sudo apt install libatlas3-base \
+                  libavformat58 \
+                  portaudio19-dev \
+                  pulseaudio                
+                cp src2/tools/linux/yzlinux.spec src/linux.spec
+                cd src
+                pip install -r requirements-dev.txt
+                pip install -e .    
+                python setup.py develop                  
+            CMD_BUILD: >
+                cd src && pyinstaller linux.spec
+            CMD_PACK: ls # && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx && ls && cd src && ls
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
+            ASSET_MIME: application/zip
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: src
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Builds
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: main
+        path: src2
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9  
+    - name: Get Backendver
+      id: getbackendver
+      run: |
+        cd src/ledfx        
+        echo "::set-output name=bversion::$(python consts.py)"
+      
+    - name: Install dependencies
+      run: ${{matrix.CMD_DEP}}        
+    - name: Build with pyinstaller for ${{matrix.TARGET}}
+      run: ${{matrix.CMD_BUILD}} 
