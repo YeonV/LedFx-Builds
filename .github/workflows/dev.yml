@@ -59,3 +59,11 @@ jobs:
       run: ${{matrix.CMD_DEP}}        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}} 
+    - name: List
+      id: list
+      run: |
+        ls
+        cd src && ls
+        cd dist && ls
+        cd ledfx && ls
+    
