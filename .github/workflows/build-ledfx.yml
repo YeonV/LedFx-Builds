@@ -258,15 +258,15 @@ jobs:
     strategy:
       matrix:
         include:
-#           - os: macos-latest
-#             TARGET: macos
-#             CMD_DEP: |
-#                 echo YZ
-#             CMD_BUILD: >
-#                 echo YZ
-#             CMD_PACK: echo YZ
-#             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
-#             ASSET_MIME: application/zip
+          - os: macos-latest
+            TARGET: macos
+            CMD_DEP: |
+                echo YZ
+            CMD_BUILD: >
+                echo YZ
+            CMD_PACK: echo YZ
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
+            ASSET_MIME: application/zip
              
           - os: windows-latest
             TARGET: windows
