@@ -332,6 +332,12 @@ jobs:
          ls LedFx-notray--mac-x64/
          cp LedFx-notray--mac-x64/LedFx-notray--mac-x64.zip ./frontend/extraResources/LedFx_core.app
          
+
+    - name: Move Client Linux
+      if: "startsWith(matrix.OS, 'ubu')"
+      run: |
+         mv ./frontend/dist/LedFx-Client-2.0.0-${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--linux-x64.AppImage
+         
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-portable
@@ -401,7 +407,7 @@ jobs:
         asset_content_type: application/zip
          
     - name: Upload Linux as Asset      
-      if: "startsWith(matrix.OS, 'win')"
+      if: "startsWith(matrix.OS, 'ubu')"
       id: upload-release-asset-linux
       uses: actions/upload-release-asset@v1
       env:
