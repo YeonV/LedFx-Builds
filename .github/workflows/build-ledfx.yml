@@ -128,7 +128,7 @@ jobs:
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\
               cd ..
             CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
-            CMD_PACK: 7z a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
+            CMD_PACK: 7z.exe a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--win.zip
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
@@ -155,7 +155,7 @@ jobs:
         name: ledfx_frontend_v2
     - name: Include new frontend
       run: |
-        7z x ledfx_frontend_v2.zip
+        # 7z x ledfx_frontend_v2.zip
         cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.9
