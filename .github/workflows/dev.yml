@@ -30,7 +30,7 @@ jobs:
                 python setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec
-            CMD_PACK: mv ./src/dist/LedFx ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 &&  mv ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 && zip -r LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 . -i ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
+            CMD_PACK: cd src && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/ &&  && zip -r LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 . -i ./LedFx-linux
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
     steps:
