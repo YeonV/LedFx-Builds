@@ -366,4 +366,27 @@ jobs:
         asset_path: ./frontend/dist/LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe
         asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
+        
+    - name: Upload Mac-Zip as Asset      
+      if: "startsWith(matrix.OS, 'mac')"
+      id: upload-release-asset-zip-mac
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--mac-x64.zip 
+        asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--mac-x64.zip 
+        asset_content_type: application/zip
+    - name: Upload Mac-CC as Asset      
+      if: "startsWith(matrix.OS, 'mac')"
+      id: upload-release-asset-cc-mac
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_CC-${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_content_type: application/zip
          
