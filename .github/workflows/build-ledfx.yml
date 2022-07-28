@@ -72,6 +72,23 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: ubuntu-latest
+            TARGET: ubuntu
+            CMD_DEP: |
+                sudo apt install libatlas3-base \
+                  libavformat58 \
+                  portaudio19-dev \
+                  pulseaudio                
+                cp src2/tools/linux/yzlinux.spec src/linux.spec
+                cd src
+                pip install -r requirements-dev.txt
+                pip install -e .    
+                python setup.py develop                  
+            CMD_BUILD: >
+                cd src && pyinstaller linux.spec
+            CMD_PACK: cd src && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/ && zip -r LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 . -i ./LedFx-linux && mv LedFx_core-${{ github.event.inputs.fversion }}--linux-x64.zip
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--linux-x64.zip
+            ASSET_MIME: application/zip
           - os: macos-latest
             TARGET: macos
             CMD_DEP: |
