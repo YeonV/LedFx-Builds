@@ -316,13 +316,11 @@ jobs:
       run: |
          ls LedFx-notray--win
          cp LedFx-notray--win/LedFx-notray--win.exe ./frontend/extraResources/LedFx-notray.exe
-         ls -la ./frontend/extraResources/
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
       run: |
          ls LedFx-notray--mac-x64/
          cp LedFx-notray--mac-x64/LedFx-notray--mac-x64.zip ./frontend/extraResources/LedFx_core.app
-         ls -la ./frontend/extraResources/
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
