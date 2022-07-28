@@ -11,9 +11,7 @@ on:
        
 jobs:
   core:
-    name: Build Core ${{ matrix.os }}    
-    needs: createrelease
-    if: ${{ github.event.inputs.core == 'true' }}
+    name: Build Core ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
