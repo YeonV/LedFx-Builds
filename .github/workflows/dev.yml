@@ -64,10 +64,6 @@ jobs:
     - name: List
       id: list
       run: |
-        echo ls
-        ls
         echo ls ./src/dist
         ls ./src/dist
-        echo ls ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
-        ls ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
     
