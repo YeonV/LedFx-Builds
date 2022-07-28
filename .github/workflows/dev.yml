@@ -1,4 +1,4 @@
-name: Build LedFx
+name: DEV
 
 on: 
   workflow_dispatch:
