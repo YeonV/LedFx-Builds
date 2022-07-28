@@ -30,7 +30,7 @@ jobs:
                 python setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec
-            CMD_PACK: ls # && zip -r LedFx_core-${{ github.event.inputs.fversion }}--mac-x64 . -i ./src/dist/LedFx && ls && cd src && ls
+            CMD_PACK: mv ./src/dist/LedFx ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 &&  mv ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 && zip -r LedFx_core-${{ github.event.inputs.fversion }}--linux-x64 . -i ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
     steps:
@@ -59,11 +59,15 @@ jobs:
       run: ${{matrix.CMD_DEP}}        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}} 
+    - name: Pack for ${{matrix.TARGET}}
+      run: ${{matrix.CMD_PACK}} 
     - name: List
       id: list
       run: |
+        echo ls
         ls
-        cd src && ls
-        cd dist && ls
-        cd ledfx && ls
+        echo ls ./src/dist
+        ls ./src/dist
+        echo ls ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
+        ls ./src/dist/LedFx_core-${{ github.event.inputs.fversion }}--linux-x64
     
