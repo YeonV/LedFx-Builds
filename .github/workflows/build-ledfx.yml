@@ -144,18 +144,20 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         ref: main
         path: src2
-    #- name: Delete old frontend
-    #  run: |        
-    #    Remove-Item -path src/ledfx_frontend -recurse -force
-    #    cd src
-    #    git rev-parse HEAD >> ledfx/git_version          
-    #- name: Get latest frontend
-    #  run: |
-    #    curl -L --max-redirs 5 -o ledfx_frontend.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"        
-    #- name: Include new frontend
-    #  run: |
-    #    7z.exe x ledfx_frontend.zip
-    #    cp -r ledfx_frontend_v2 src/ledfx_frontend
+    - name: Delete old frontend
+      run: |        
+        rm -rf ./src/ledfx_frontend
+        cd src
+        git rev-parse HEAD >> ledfx/git_version          
+    - name: Load Frontend from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: ledfx_frontend_v2
+    - name: Include new frontend
+      run: |
+        7z.exe x ledfx_frontend_v2.zip
+        cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
       with:
@@ -195,10 +197,7 @@ jobs:
       with:
         files: ./src/dist/LedFxC/
         dest: LedFx-notray--mac-x64.zip
-    - name: Load Frontend from release job
-      uses: actions/download-artifact@v1
-      with:
-        name: ledfx_frontend_v2
+
     - name: Upload Frontend Build as Asset
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-2
