@@ -145,8 +145,11 @@ jobs:
         ref: main
         path: src2
     - name: Delete old frontend
+      uses: JesseTG/rm@v1.0.3
+      with:
+        path: ./src/ledfx_frontend
+    - name: get git version
       run: |        
-        rm -rf ./src/ledfx_frontend
         cd src
         git rev-parse HEAD >> ledfx/git_version          
     - name: Load Frontend from release job
