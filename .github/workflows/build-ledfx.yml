@@ -32,9 +32,9 @@ jobs:
       with:
         name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
-    # - name: Get Messages
-    #   run: |
-    #     unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
+    - name: Get Messages
+      run: |
+        unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
@@ -53,7 +53,7 @@ jobs:
       with:
         tag_name: v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}
         release_name: Release v${{ steps.getbackendver.outputs.bversion }}--${{ github.event.inputs.fversion }}
-        # body_path: ./messages.md
+        body_path: ./messages.md
         draft: false
         prerelease: false
     - name: Output Release URL File
