@@ -34,7 +34,7 @@ jobs:
         path: ledfx_frontend_v2.zip     
     - name: Get Messages
       run: |
-        unzip -p ledfx_frontend_v2.zip ledfx_frontend/messages.md >messages.md
+        unzip -p ledfx_frontend_v2.zip messages.md >messages.md
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
