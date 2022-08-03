@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: 'beta47'
+       default: 'beta48'
        required: false
       core:
        type: boolean
