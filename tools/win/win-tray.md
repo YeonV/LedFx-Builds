@@ -20,11 +20,16 @@ import logging
 import os
 import subprocess
 import sys
+import importlib
 from logging.handlers import RotatingFileHandler
 
 import psutil
 import yappi
-from pyupdater.client import Client
+try:
+    from pyupdater.client import Client
+    have_updater = True
+except ImportError:
+    have_updater = False
 
 import ledfx.config as config_helpers
 from ledfx.consts import (
@@ -220,6 +225,9 @@ def installed_via_pip():
     Returns:
         boolean
     """
+    pip_spec = importlib.util.find_spec('pip')
+    if pip_spec is None:
+        return False
     pip_package_command = subprocess.check_output(
         [sys.executable, "-m", "pip", "freeze"]
     )
@@ -317,13 +325,8 @@ def main():
     else:
         p.nice(15)
 
-    if not (currently_frozen() or installed_via_pip()):
-        if args.offline_mode:
-            _LOGGER.warning(
-                "Offline Mode Enabled - Please check for updates regularly."
-            )
-        else:
-            import ledfx.sentry_config  # noqa: F401
+    if not (currently_frozen() or installed_via_pip()) and args.offline_mode is False:
+        import ledfx.sentry_config  # noqa: F401
 
     if args.sentry_test:
         """This will crash LedFx and submit a Sentry error if Sentry is configured"""
@@ -358,7 +361,7 @@ def main():
         icon = None
     # icon = None
 
-    # if not args.offline_mode and currently_frozen():
+    # if have_updater and not args.offline_mode and currently_frozen():
     #     update_ledfx(icon)
 
     if icon:
