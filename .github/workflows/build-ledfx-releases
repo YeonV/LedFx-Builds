@@ -1,4 +1,4 @@
-name: Build LedFx
+name: Build LedFx Releases
 
 on: 
   workflow_dispatch:
