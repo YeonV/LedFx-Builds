@@ -212,7 +212,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ledfx_frontend_v2/ledfx_frontend_v2.zip
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
@@ -222,7 +222,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
@@ -233,7 +233,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_name: LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
@@ -244,7 +244,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./LedFx-notray--win.exe 
         asset_name: LedFx-notray--win.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
@@ -261,7 +261,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./LedFx-notray--mac-x64.zip 
         asset_name: LedFx-notray--mac-x64.zip 
         asset_content_type: application/zip
@@ -368,7 +368,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
@@ -379,7 +379,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
@@ -390,7 +390,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--win.zip 
         asset_name: LedFx_client-${{ github.event.inputs.fversion }}--win.zip 
         asset_content_type: application/zip
@@ -401,7 +401,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe
         asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
@@ -413,7 +413,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--mac-x64.zip 
         asset_name: LedFx_client-${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_content_type: application/zip
@@ -424,7 +424,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_CC-${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_name: LedFx_CC-${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_content_type: application/zip
@@ -436,7 +436,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        upload_url: ${{ github.event.inputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-${{ github.event.inputs.fversion }}--linux-x64.AppImage 
         asset_name: LedFx_client-${{ github.event.inputs.fversion }}--linux-x64.AppImage 
         asset_content_type: application/octet-stream
