@@ -79,6 +79,7 @@ jobs:
           - os: ubuntu-latest
             TARGET: ubuntu
             CMD_DEP: |
+                sudp apt-get update \
                 sudo apt install libatlas3-base \
                   libavformat58 \
                   portaudio19-dev \
