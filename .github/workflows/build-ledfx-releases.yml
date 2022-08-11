@@ -80,8 +80,8 @@ jobs:
             TARGET: ubuntu
             CMD_DEP: |
                 sudo apt-get update \
-                sudo apt update \
-                sudo apt install libatlas3-base \
+                  sudo apt update \
+                  sudo apt install libatlas3-base \
                   libavformat58 \
                   portaudio19-dev \
                   pulseaudio                
