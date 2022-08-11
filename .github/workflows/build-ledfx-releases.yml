@@ -71,7 +71,7 @@ jobs:
   core:
     name: Build Core ${{ matrix.os }}    
     needs: createrelease    
-    if: always()
+    if: always()    
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -177,7 +177,8 @@ jobs:
       
     - name: Install dependencies
       run: ${{matrix.CMD_DEP}}        
-    - name: Build with pyinstaller for ${{matrix.TARGET}}
+    - name: Build with pyinstaller for ${{matrix.TARGET}}      
+      continue-on-error: true
       run: ${{matrix.CMD_BUILD}}      
     #- name: Delete .lib from numpy
     #  run: |
