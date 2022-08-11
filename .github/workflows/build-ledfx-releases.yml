@@ -70,8 +70,8 @@ jobs:
         
   core:
     name: Build Core ${{ matrix.os }}    
-    needs: createrelease
-    if: ${{ github.event.inputs.core == 'true' }}
+    needs: createrelease    
+    if: always()
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
