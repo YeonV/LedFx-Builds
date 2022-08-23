@@ -124,8 +124,8 @@ jobs:
               pip install pystray==0.17
               pip install typing-extensions
               python setup.py develop
-              del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
-              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\
+              del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.5-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.5-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\
               cd ..
             CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
