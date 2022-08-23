@@ -41,6 +41,7 @@ pip install numpy
 pip install pillow
 pip install "chardet<4.0"
 pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
+pip install sounddevice==0.4.4
 if %pyversion%==3.10 (
   copy ..\tools\win\aubio-0.5.0a0-cp310-cp310-win_amd64.whl .
   pip install -q aubio-0.5.0a0-cp310-cp310-win_amd64.whl
@@ -53,9 +54,9 @@ cd backend
 python setup.py develop
 
 if %pyversion%==3.10 (
-  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.5-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
+  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
 ) else if %pyversion%==3.9. (
-  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.5-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
+  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
 ) else (
   echo Unsupport python version %pyversion%
   pause
