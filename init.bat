@@ -53,9 +53,9 @@ cd backend
 python setup.py develop
 
 if %pyversion%==3.10 (
-  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.4-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
+  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.5-py3.10-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
 ) else if %pyversion%==3.9. (
-  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
+  copy ..\tools\win\libportaudio64bit.dll ..\venv\Lib\site-packages\sounddevice-0.4.5-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries >nul 2>&1
 ) else (
   echo Unsupport python version %pyversion%
   pause
