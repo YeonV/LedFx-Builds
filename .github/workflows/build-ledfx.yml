@@ -232,7 +232,7 @@ jobs:
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: 'Tar files'
       if: "startsWith(matrix.OS, 'mac')"  
-      run: tar -cvf my_files.tar ./src/dist/LedFx/
+      run: tar -cvf my_files.tar ./src/dist/LedFx/LedFx.app
       
     - name: Upload Zip as Asset
       id: upload-release-asset1      
