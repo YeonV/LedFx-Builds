@@ -125,6 +125,11 @@ jobs:
               pip install sounddevice==0.4.4
               pip install typing-extensions
               python setup.py develop
+              echo "---"
+              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages
+              echo "---"
+              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg
+              echo "---"
               del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\sounddevice-0.4.4-py3.9-win-amd64.egg\_sounddevice_data\portaudio-binaries\
               cd ..
