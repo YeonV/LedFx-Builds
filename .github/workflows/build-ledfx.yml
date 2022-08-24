@@ -71,10 +71,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        runtime: [ osx-x64, osx-arm64 ]
         include:
-          - os: ubuntu-latest          
-            runtime: linux-x64
+          - os: ubuntu-latest     
             TARGET: ubuntu
             CMD_DEP: |
                 sudo apt install libatlas3-base \
