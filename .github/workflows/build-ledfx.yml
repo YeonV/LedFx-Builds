@@ -173,7 +173,10 @@ jobs:
         name: ledfx_frontend_v2
     - name: Include new frontend
       run: |
+        cd ./ledfx_frontend_v2
         unzip ledfx_frontend_v2.zip
+        ls
+        cd ..
         cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.9
