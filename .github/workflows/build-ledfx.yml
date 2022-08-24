@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: 'beta48'
+       default: 'beta50'
        required: false
       core:
        type: boolean
@@ -103,14 +103,20 @@ jobs:
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                echo '----' &&
+                ls ./dist/LedFx/LedFx.app/Contents/MacOS &&
+                echo '----' &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
-                cp ../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&                
+                ls ./dist/LedFx/LedFx.app/Contents/MacOS &&
+                cp ../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
                 cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
                 cd dist/ && mkdir LedFxC && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app &&
                 mkdir ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
                 mkdir ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data &&
-                cp ../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
+                cp ../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               ls
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
