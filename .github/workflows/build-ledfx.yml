@@ -103,12 +103,16 @@ jobs:
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
-                echo '----' &&
-                ls ./dist/LedFx/LedFx.app/Contents/MacOS &&
-                echo '----' &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&                
+                echo '----' &&
                 ls ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                echo '----' &&
+                ls &&
+                echo '----' &&
+                ls ../src2 &&
+                echo '----' &&
+                ls ../src2/tools/mac/ &&
                 cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
                 mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
                 cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
