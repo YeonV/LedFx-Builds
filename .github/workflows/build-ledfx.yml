@@ -71,6 +71,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        runtime: [ osx-x64, osx-arm64 ]
         include:
           #- os: ubuntu-latest
           #  TARGET: ubuntu
@@ -116,7 +117,7 @@ jobs:
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--${{ matrix.runtime }}.zip
             ASSET_MIME: application/zip
             
           - os: macos-latest
@@ -146,7 +147,7 @@ jobs:
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-arm64.zip
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--${{ matrix.runtime }}.zip
             ASSET_MIME: application/zip
              
           #- os: windows-latest
@@ -247,11 +248,11 @@ jobs:
     #  with:
     #    files: ./src/dist/LedFx/
     #    dest: ${{ matrix.OUT_FILE_NAME}}
-    - uses: vimtor/action-zip@v1
-      if: "startsWith(matrix.OS, 'mac')"      
-      with:
-        files: ./src/dist/LedFxC/
-        dest: LedFx-notray--mac-x64.zip
+    #- uses: vimtor/action-zip@v1
+    #  if: "startsWith(matrix.OS, 'mac')"      
+    #  with:
+    #    files: ./src/dist/LedFxC/
+    #    dest: LedFx-notray--mac-x64.zip
 
     - name: Upload Frontend Build as Asset
       if: "startsWith(matrix.OS, 'win')"
