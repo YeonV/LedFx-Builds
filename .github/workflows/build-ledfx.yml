@@ -177,7 +177,7 @@ jobs:
         unzip ledfx_frontend_v2.zip
         ls
         cd ..
-        cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
+        cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.9
       uses: actions/setup-python@v2
