@@ -88,8 +88,8 @@ jobs:
                 python setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec
-            CMD_PACK: cd src && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && zip -r LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.zip ../../
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.zip
+            CMD_PACK: cd src && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && zip -r LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ../../
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip
             ASSET_MIME: application/zip
           - os: macos-latest
             runtime: osx-x64
@@ -121,7 +121,7 @@ jobs:
               tar -cvf my_files.tar ./LedFx.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
               tar -cvf my_files2.tar ./LedFx-notray.app
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--osx-x64.zip
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-x64.zip
             ASSET_MIME: application/zip
             
           #- os: macos-latest
@@ -154,7 +154,7 @@ jobs:
           #    tar -cvf my_files.tar ./LedFx.app
           #    mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
           #    tar -cvf my_files2.tar ./LedFx-notray.app
-          #  OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--osx-arm64.zip
+          #  OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
           #  ASSET_MIME: application/zip
              
           - os: windows-latest          
@@ -182,9 +182,9 @@ jobs:
               del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cd ..
-            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
-            CMD_PACK: 7z.exe a -tzip LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win.zip
+            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
+            CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             # ASSET_MIME: application/vnd.microsoft.portable-executable
             ASSET_MIME: application/zip
             
@@ -262,7 +262,7 @@ jobs:
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
         asset_path: ledfx_frontend_v2/ledfx_frontend_v2.zip
-        asset_name: ledfx_frontend-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}.zip
+        asset_name: ledfx_frontend-v2.0.${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
         
       
@@ -310,8 +310,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-portable.exe 
-        asset_name: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_path: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_name: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
         
     - name: Upload Win-Notray as Asset      
@@ -356,7 +356,7 @@ jobs:
             CMD_BUILD: >
                 echo YZ
             CMD_PACK: echo YZ
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--mac-x64.zip
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
              
           - os: windows-latest
@@ -365,7 +365,7 @@ jobs:
               echo YZ
             CMD_BUILD: echo YZ
             CMD_PACK: echo YZ
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win.zip
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_MIME: application/zip
             
           - os: ubuntu-latest
@@ -374,7 +374,7 @@ jobs:
               echo YZ
             CMD_BUILD: echo YZ
             CMD_PACK: echo YZ
-            OUT_FILE_NAME: LedFx_core-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--x64.AppImage
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--x64.AppImage
             ASSET_MIME: application/zip            
             
     steps:
@@ -427,7 +427,7 @@ jobs:
     - name: Move Client Linux
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
-         mv ./frontend/dist/LedFx-Client-2.0.0-${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.AppImage
+         mv ./frontend/dist/LedFx-Client-2.0.0-${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
@@ -437,8 +437,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-portable.exe 
-        asset_name: LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Upload Win-Setup as Asset      
       if: "startsWith(matrix.OS, 'win')"
@@ -448,8 +448,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-setup.exe 
-        asset_name: LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
     - name: Upload Win-Zip as Asset      
       if: "startsWith(matrix.OS, 'win')"
@@ -459,8 +459,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win.zip 
-        asset_name: LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win.zip 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
         asset_content_type: application/zip
     - name: Upload Win-CC as Asset      
       if: "startsWith(matrix.OS, 'win')"
@@ -470,8 +470,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_CC-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-setup.exe
-        asset_name: LedFx_CC-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
         
     - name: Upload Mac-Zip as Asset      
@@ -482,8 +482,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--mac-x64.zip 
-        asset_name: LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_content_type: application/zip
     - name: Upload Mac-CC as Asset      
       if: "startsWith(matrix.OS, 'mac')"
@@ -493,8 +493,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_CC-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--mac-x64.zip
-        asset_name: LedFx_CC-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_content_type: application/zip
          
     - name: Upload Linux as Asset      
@@ -505,6 +505,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
-        asset_name: LedFx_client-v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
         asset_content_type: application/octet-stream
