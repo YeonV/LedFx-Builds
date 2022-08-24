@@ -109,8 +109,8 @@ jobs:
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&                
                 ls ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
-                mv ./dist/LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
                 cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
                 cd dist/ && mkdir LedFxC && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app &&
                 mkdir ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
