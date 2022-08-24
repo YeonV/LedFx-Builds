@@ -90,6 +90,7 @@ jobs:
           #  OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--linux-x64.zip
           #  ASSET_MIME: application/zip
           - os: macos-latest
+            runtime: osx-x64
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
@@ -116,6 +117,36 @@ jobs:
             CMD_PACK: |
               ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
+            ASSET_MIME: application/zip
+            
+          - os: macos-latest
+            runtime: osx-arm64
+            TARGET: macos
+            CMD_DEP: |
+                brew install portaudio pulseaudio
+                python -m pip install --upgrade pip
+                python -m pip install --upgrade wheel
+                cp src2/tools/mac/mac.spec src/mac.spec
+                cd src 
+                pip install -r requirements-dev.txt
+                pip install -e .
+                python setup.py develop      
+            CMD_BUILD: >
+                cd src && pyinstaller mac.spec &&
+                cd dist/ && mkdir LedFx && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
+                cd dist/ && mkdir LedFxC && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app && cd .. &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
+            CMD_PACK: |
+              ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-arm64.zip
             ASSET_MIME: application/zip
              
           #- os: windows-latest
@@ -262,7 +293,7 @@ jobs:
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
         asset_path: my_files2.tar
-        asset_name: LedFx-notray.app.zip
+        asset_name: LedFx-notray--${{ matrix.runtime }}.app.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
         
     - name: Upload Zip as Asset
@@ -304,23 +335,12 @@ jobs:
       with:
         name: LedFx-notray--win
         path: ./LedFx-notray--win.exe   
-    - name: Upload Mac-Notray as Asset      
-      if: "startsWith(matrix.OS, 'mac')"
-      id: upload-release-asset-notray-mac
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./LedFx-notray--mac-x64.zip 
-        asset_name: LedFx-notray--mac-x64.zip 
-        asset_content_type: application/zip
     - name: Save Mac-Notray for CC
       if: "startsWith(matrix.OS, 'mac')"
       uses: actions/upload-artifact@v1
       with:
-        name: LedFx-notray--mac-x64
-        path: ./LedFx-notray--mac-x64.zip         
+        name: ./LedFx-notray--${{ matrix.runtime }}.zip
+        path: my_files2.tar
         
         
   client:
