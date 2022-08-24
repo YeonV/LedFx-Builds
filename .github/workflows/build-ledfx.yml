@@ -340,7 +340,7 @@ jobs:
       if: "startsWith(matrix.OS, 'mac')"
       uses: actions/upload-artifact@v1
       with:
-        name: ./LedFx-notray--${{ matrix.runtime }}.zip
+        name: LedFx-notray--${{ matrix.runtime }}
         path: my_files2.tar
         
         
