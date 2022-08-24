@@ -117,7 +117,7 @@ jobs:
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--${{ matrix.runtime }}.zip
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--osx-x64.zip
             ASSET_MIME: application/zip
             
           - os: macos-latest
@@ -147,7 +147,7 @@ jobs:
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
-            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--${{ matrix.runtime }}.zip
+            OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--osx-arm64.zip
             ASSET_MIME: application/zip
              
           #- os: windows-latest
