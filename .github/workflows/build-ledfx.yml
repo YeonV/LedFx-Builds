@@ -102,7 +102,7 @@ jobs:
                 python setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && mkdir LedFx && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                cd dist/ && mkdir LedFx && sudo chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
                 cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
@@ -114,7 +114,7 @@ jobs:
             #    cp ../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
             #    mv ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
-              ls
+              ls -la src/dist/LedFx/LedFx.app/Contents/MacOS
             OUT_FILE_NAME: LedFx_core-${{ github.event.inputs.fversion }}--mac-x64.zip
             ASSET_MIME: application/zip
              
@@ -208,11 +208,11 @@ jobs:
         echo ::set-output name=upload_url::$value
     - name: Pack app
       run: ${{matrix.CMD_PACK}}
-    - uses: vimtor/action-zip@v1
-      if: "startsWith(matrix.OS, 'mac')"      
-      with:
-        files: ./src/dist/LedFx/
-        dest: ${{ matrix.OUT_FILE_NAME}}
+    #- uses: vimtor/action-zip@v1
+    #  if: "startsWith(matrix.OS, 'mac')"      
+    #  with:
+    #    files: ./src/dist/LedFx/
+    #    dest: ${{ matrix.OUT_FILE_NAME}}
     - uses: vimtor/action-zip@v1
       if: "startsWith(matrix.OS, 'mac')"      
       with:
@@ -231,16 +231,30 @@ jobs:
         asset_name: ledfx_frontend-${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: 'Tar files'
-      run: tar -cvf my_files.tar ./${{ matrix.OUT_FILE_NAME}}
+      if: "startsWith(matrix.OS, 'mac')"  
+      run: tar -cvf my_files.tar ./src/dist/LedFx/
       
     - name: Upload Zip as Asset
-      id: upload-release-asset
+      id: upload-release-asset1      
+      if: "startsWith(matrix.OS, 'mac')"  
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
         asset_path: my_files.tar
+        asset_name: ${{ matrix.OUT_FILE_NAME}}
+        asset_content_type: ${{ matrix.ASSET_MIME}}
+        
+    - name: Upload Zip as Asset
+      if: "!startsWith(matrix.OS, 'mac')" 
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./${{ matrix.OUT_FILE_NAME}}
         asset_name: ${{ matrix.OUT_FILE_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
     - name: Upload Win-Portable as Asset      
