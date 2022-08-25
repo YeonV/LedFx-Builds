@@ -245,7 +245,7 @@ jobs:
       with:
         python-version: '3.10' 
     - name: Set up Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 16
     - name: Get Backendver
