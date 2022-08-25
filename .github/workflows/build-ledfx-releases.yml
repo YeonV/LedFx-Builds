@@ -99,7 +99,6 @@ jobs:
             ASSET_MIME3: application/zip
           - os: macos-latest
             runtime: osx-x64
-            python-version: '3.10.5'
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
@@ -140,6 +139,7 @@ jobs:
             
           - os: self-hosted
             runtime: osx-arm64
+            python-version: '3.10.5'
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
