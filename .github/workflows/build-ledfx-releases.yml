@@ -235,8 +235,8 @@ jobs:
     - name: Include new frontend
       run: |
         cd ./ledfx_frontend_v2
-        unzip ledfx_frontend_v2.zip
         ls
+        unzip -u ledfx_frontend_v2.zip
         cd ..
         cp -rf ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
