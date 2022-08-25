@@ -51,8 +51,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        #tag_name: v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        tag_name: v2.0.${{ github.event.inputs.fversion }}
+        release_name: Release v2.0.${{ github.event.inputs.fversion }}
         body_path: ./messages.md
         draft: false
         prerelease: false
@@ -425,7 +426,8 @@ jobs:
     - name: Move Client Linux
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
-         mv ./frontend/dist/LedFx-Client-2.0.0-${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
+         ls ./frontend/dist/
+         mv ./frontend/dist/LedFx-Client-2.0.${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
