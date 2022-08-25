@@ -171,8 +171,16 @@ jobs:
               rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
               tar -cvf my_files2.tar ./LedFx-notray.app
-            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip            
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
+            ASSET_PATH: my_files.tar
             ASSET_MIME: application/zip
+            # ASSET_NAME2: LedFx-notray--osx-x64.app.zip
+            # ASSET_PATH2: my_files2.tar
+            # ASSET_MIME2: application/zip
+            ASSET_NAME3: LedFx-notray--osx-arm64.app.zip
+            ASSET_PATH3: my_files2.tar
+            ASSET_MIME3: application/zip
             
           - os: windows-latest          
             runtime: win-x64
