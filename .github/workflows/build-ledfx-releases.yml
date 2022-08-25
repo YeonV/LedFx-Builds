@@ -478,7 +478,7 @@ jobs:
     - name: Move Core-notray-linux
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
-         ls {{matrix.NOTRAY}}/
+         ls ${{matrix.NOTRAY}}/
       # cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
          
 
