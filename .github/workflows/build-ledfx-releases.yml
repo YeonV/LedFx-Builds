@@ -18,6 +18,26 @@ on:
        description: 'Build Client'
        default: true
        required: false
+      win:
+       type: boolean
+       description: 'Build Win'
+       default: true
+       required: false
+      mac:
+       type: boolean
+       description: 'Build Mac (x64)'
+       default: true
+       required: false
+      macarm:
+       type: boolean
+       description: 'Build Mac (arm64)'
+       default: true
+       required: false
+      linux:
+       type: boolean
+       description: 'Build Ubuntu (x64)'
+       default: true
+       required: false
        
 jobs:
   createrelease:
@@ -66,15 +86,17 @@ jobs:
         path: release_url.txt
         
   core:
-    name: Build Core ${{ matrix.os }}    
+    name: Build Core ${{ matrix.os }} (${{ matrix.runtime }})    
     needs: createrelease
     if: ${{ github.event.inputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest     
+          - os: ubuntu-latest
+            if: ${{ github.event.inputs.linux == 'true' }}
             TARGET: ubuntu
+            runtime: x64
             CMD_DEP: |
                 sudo apt install libatlas3-base \
                   libavformat58 \
@@ -98,6 +120,7 @@ jobs:
             ASSET_PATH3: ./LedFx-notray--linux-x64.zip
             ASSET_MIME3: application/zip
           - os: macos-latest
+            if: ${{ github.event.inputs.mac == 'true' }}
             runtime: osx-x64
             TARGET: macos
             CMD_DEP: |
@@ -140,6 +163,7 @@ jobs:
             ASSET_MIME3: application/zip
             
           - os: self-hosted
+            if: ${{ github.event.inputs.macarm == 'true' }}
             runtime: osx-arm64
             TARGET: macos
             CMD_DEP: |
@@ -182,8 +206,9 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: windows-latest          
-            runtime: win-x64
+          - os: windows-latest 
+            if: ${{ github.event.inputs.win == 'true' }}         
+            runtime: x64
             TARGET: windows
             CMD_DEP: |
               python -m pip install --upgrade pip
