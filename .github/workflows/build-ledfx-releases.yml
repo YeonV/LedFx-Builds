@@ -72,6 +72,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        python-version: ['3.10.5']
         include:
           - os: ubuntu-latest     
             TARGET: ubuntu
@@ -139,7 +140,6 @@ jobs:
             
           - os: self-hosted
             runtime: osx-arm64
-            python-version: '3.10.5'
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
