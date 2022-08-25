@@ -427,7 +427,8 @@ jobs:
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
          ls ./frontend/dist/
-         mv ./frontend/dist/LedFx-Client-2.0.${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
+         mv ./frontend/dist/ledfx-2.0.0-beta${{ github.event.inputs.fversion }}.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
+         mv ./frontend/dist/ledfx-2.0.0-beta${{ github.event.inputs.fversion }}_amd64.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.snap
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
@@ -507,4 +508,16 @@ jobs:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
         asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage 
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Linux as Asset      
+      if: "startsWith(matrix.OS, 'ubu')"
+      id: upload-release-asset-linux2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.snap 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.snap 
         asset_content_type: application/octet-stream
