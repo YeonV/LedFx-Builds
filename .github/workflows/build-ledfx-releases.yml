@@ -297,7 +297,7 @@ jobs:
       
     - name: Upload Asset 1
       id: upload-release-asset1
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -308,7 +308,7 @@ jobs:
         
     # - name: Upload Asset 2
     #   id: upload-release-asset2
-    #   uses: YeonV/upload-release-asset
+    #   uses: YeonV/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     #   with:
@@ -319,7 +319,7 @@ jobs:
         
     - name: Upload Asset 3   
       id: upload-release-asset3
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -329,7 +329,7 @@ jobs:
         asset_content_type: ${{ matrix.ASSET_MIME3}}
         
     - name: Save Notray for CC
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       with:
         name: ${{ matrix.ASSET_NAME3}}
         path: ${{ matrix.ASSET_PATH3}}       
@@ -435,7 +435,7 @@ jobs:
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-portable
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -447,7 +447,7 @@ jobs:
     - name: Upload Win-Setup as Asset      
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-setup
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -459,7 +459,7 @@ jobs:
     - name: Upload Win-Zip as Asset      
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-zip
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -471,7 +471,7 @@ jobs:
     - name: Upload Win-CC as Asset      
       if: "startsWith(matrix.OS, 'win')"
       id: upload-release-asset-cc
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -483,7 +483,7 @@ jobs:
     - name: Upload Mac-Zip as Asset      
       if: "startsWith(matrix.OS, 'mac')"
       id: upload-release-asset-zip-mac
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -495,7 +495,7 @@ jobs:
     - name: Upload Mac-CC as Asset      
       if: "startsWith(matrix.OS, 'mac')"
       id: upload-release-asset-cc-mac
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -507,7 +507,7 @@ jobs:
     - name: Upload Linux as Asset      
       if: "startsWith(matrix.OS, 'ubu')"
       id: upload-release-asset-linux
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -519,7 +519,7 @@ jobs:
     - name: Upload Linux as Asset      
       if: "startsWith(matrix.OS, 'ubu')"
       id: upload-release-asset-linux2
-      uses: YeonV/upload-release-asset
+      uses: YeonV/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
