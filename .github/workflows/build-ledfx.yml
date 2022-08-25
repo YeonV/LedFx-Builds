@@ -428,7 +428,7 @@ jobs:
       run: |
          ls ./frontend/dist/
          mv ./frontend/dist/ledfx-2.0.0-beta${{ github.event.inputs.fversion }}.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.AppImage
-         mv ./frontend/dist/ledfx-2.0.0-beta${{ github.event.inputs.fversion }}_amd64.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.snap
+         mv ./frontend/dist/ledfx_2.0.0-beta${{ github.event.inputs.fversion }}_amd64.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-x64.snap
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
