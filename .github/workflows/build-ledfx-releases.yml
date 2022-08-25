@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: 'beta50'
+       default: '50'
        required: false
       core:
        type: boolean
@@ -99,6 +99,7 @@ jobs:
             ASSET_MIME3: application/zip
           - os: macos-latest
             runtime: osx-x64
+            python-version: '3.10.5'
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
@@ -180,7 +181,7 @@ jobs:
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src 
               python -m pip install pywin32
-              python C:\hostedtoolcache\windows\Python\3.9.1\x64\Scripts\pywin32_postinstall.py -install
+              python C:\hostedtoolcache\windows\Python\3.10.5\x64\Scripts\pywin32_postinstall.py -install
               # pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
               pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
               pip install pystray==0.17
@@ -188,12 +189,12 @@ jobs:
               pip install typing-extensions
               python setup.py develop
               echo "---"
-              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages
+              dir c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages
               echo "---"
-              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data
+              dir c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages\_sounddevice_data
               echo "---"
-              del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
-              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              del c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.5\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cd ..
             CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
