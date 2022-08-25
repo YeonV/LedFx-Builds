@@ -87,7 +87,7 @@ jobs:
                 python setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. && cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller linux.spec && cd dist && mkdir LedFx-linux-notray && mv ./LedFx ./LedFx-linux-notray/LedFx && cd .. 
-            CMD_PACK: cd src && zip -r LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ../../ && zip -r LedFx-notray--linux-x64.zip ./LedFx-linux-notray && mv LedFx-notray--linux-x64.zip ../../
+            CMD_PACK: cd src && ls && zip -r LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ../../ && zip -r LedFx-notray--linux-x64.zip ./LedFx-linux-notray && mv LedFx-notray--linux-x64.zip ../../
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip
             ASSET_MIME: application/zip
