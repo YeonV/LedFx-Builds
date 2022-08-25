@@ -362,10 +362,10 @@ jobs:
         asset_content_type: ${{ matrix.ASSET_MIME3}}
         
     - name: Save Notray for CC
-      uses: YeonV/upload-release-asset@v1
+      uses: actions/upload-artifact@v1
       with:
-        asset_name: ${{ matrix.ASSET_NAME3}}
-        asset_path: ${{ matrix.ASSET_PATH3}}       
+        name: ${{ matrix.ASSET_NAME3}}
+        path: ${{ matrix.ASSET_PATH3}}       
 
         
         
