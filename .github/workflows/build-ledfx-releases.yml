@@ -409,7 +409,7 @@ jobs:
                 echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
-            NOTRAY: LedFx-notray--osx-arm64.zip
+            NOTRAY: LedFx-notray--osx-arm64.app.zip
             ASSET_MIME: application/zip
              
           - os: windows-latest
