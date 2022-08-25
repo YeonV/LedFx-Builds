@@ -401,6 +401,7 @@ jobs:
       run: |
          ls ${{matrix.NOTRAY}}
          cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}}.exe ./frontend/extraResources/LedFx-notray.exe
+         ls ./frontend/dist/
 
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
@@ -408,8 +409,8 @@ jobs:
          ls {{matrix.NOTRAY}}/
          cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
 
-    - name: Move Core-notray-mac
-      if: "startsWith(matrix.OS, 'mac')"
+    - name: Move Core-notray-linux
+      if: "startsWith(matrix.OS, 'ubu')"
       run: |
          ls {{matrix.NOTRAY}}/
       # cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
