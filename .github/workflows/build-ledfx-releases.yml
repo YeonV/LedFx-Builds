@@ -86,7 +86,7 @@ jobs:
         path: release_url.txt
         
   core:
-    name: Core ${{ matrix.os }} (${{ matrix.runtime }})    
+    name: Core ${{ matrix.runtime }}
     needs: createrelease
     if: ${{ github.event.inputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
@@ -97,7 +97,7 @@ jobs:
             continue-on-error: true
             if: ${{ github.event.inputs.linux == 'true' }}
             TARGET: ubuntu
-            runtime: x64
+            runtime: linux-x64
             CMD_DEP: |
                 sudo apt install libatlas3-base \
                   libavformat58 \
@@ -212,7 +212,7 @@ jobs:
           - os: windows-latest           
             continue-on-error: true
             if: ${{ github.event.inputs.win == 'true' }}         
-            runtime: x64
+            runtime: win-x64
             TARGET: windows
             CMD_DEP: |
               python -m pip install --upgrade pip
@@ -380,14 +380,15 @@ jobs:
         
         
   client:
-    name: Client ${{ matrix.os }} (${{ matrix.runtime }})
+    name: Client ${{ matrix.runtime }}
     needs: core
     if: ${{ github.event.inputs.client == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: macos-latest          
+          - os: macos-latest   
+            runtime: osx-x64       
             continue-on-error: true
             TARGET: macos
             CMD_DEP: |
@@ -399,6 +400,7 @@ jobs:
             NOTRAY: LedFx-notray--osx-x64
             ASSET_MIME: application/zip
           - os: self-hosted
+            runtime: osx-arm64
             continue-on-error: true
             TARGET: macos
             CMD_DEP: |
@@ -407,10 +409,11 @@ jobs:
                 echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
-            NOTRAY: LedFx-notray--osx-arm64
+            NOTRAY: LedFx-notray--osx-arm64.zip
             ASSET_MIME: application/zip
              
           - os: windows-latest
+            runtime: win-x64
             continue-on-error: true
             TARGET: windows
             CMD_DEP: |
@@ -422,6 +425,7 @@ jobs:
             ASSET_MIME: application/zip
             
           - os: ubuntu-latest
+            runtime: linux-x64
             continue-on-error: true
             TARGET: ubuntu
             CMD_DEP: |
