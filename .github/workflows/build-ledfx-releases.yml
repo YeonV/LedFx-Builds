@@ -123,8 +123,10 @@ jobs:
                 cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
+              rm -rf ./LedFx.app
               mv ./src/dist/LedFx/LedFx.app ./LedFx.app
               tar -cvf my_files.tar ./LedFx.app
+              rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
               tar -cvf my_files2.tar ./LedFx-notray.app
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-x64.zip
