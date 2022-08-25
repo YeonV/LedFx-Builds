@@ -94,6 +94,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            continue-on-error: true
             if: ${{ github.event.inputs.linux == 'true' }}
             TARGET: ubuntu
             runtime: x64
@@ -119,7 +120,8 @@ jobs:
             ASSET_NAME3: LedFx-notray--linux-x64.zip
             ASSET_PATH3: ./LedFx-notray--linux-x64.zip
             ASSET_MIME3: application/zip
-          - os: macos-latest
+          - os: macos-latest          
+            continue-on-error: true
             if: ${{ github.event.inputs.mac == 'true' }}
             runtime: osx-x64
             TARGET: macos
@@ -162,7 +164,8 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: self-hosted
+          - os: self-hosted          
+            continue-on-error: true
             if: ${{ github.event.inputs.macarm == 'true' }}
             runtime: osx-arm64
             TARGET: macos
@@ -206,7 +209,8 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: windows-latest 
+          - os: windows-latest           
+            continue-on-error: true
             if: ${{ github.event.inputs.win == 'true' }}         
             runtime: x64
             TARGET: windows
@@ -320,7 +324,8 @@ jobs:
       run: ${{matrix.CMD_PACK}}
       
     - name: Upload Frontend Build as Asset
-      if: "startsWith(matrix.OS, 'ywin')"
+      if: "startsWith(matrix.OS, 'win')"      
+      continue-on-error: true
       id: upload-release-asset-2
       uses: actions/upload-release-asset@v1
       env:
@@ -382,7 +387,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-latest          
+            continue-on-error: true
             TARGET: macos
             CMD_DEP: |
                 echo YZ
@@ -393,6 +399,7 @@ jobs:
             NOTRAY: LedFx-notray--osx-x64
             ASSET_MIME: application/zip
           - os: self-hosted
+            continue-on-error: true
             TARGET: macos
             CMD_DEP: |
                 echo YZ
@@ -404,6 +411,7 @@ jobs:
             ASSET_MIME: application/zip
              
           - os: windows-latest
+            continue-on-error: true
             TARGET: windows
             CMD_DEP: |
               echo YZ
@@ -414,6 +422,7 @@ jobs:
             ASSET_MIME: application/zip
             
           - os: ubuntu-latest
+            continue-on-error: true
             TARGET: ubuntu
             CMD_DEP: |
               echo YZ
