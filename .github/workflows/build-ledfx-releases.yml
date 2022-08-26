@@ -65,7 +65,7 @@ jobs:
       run: |
         alias python=python3.10
         cd backend/ledfx        
-        echo "::set-output name=bversion::$(python consts.py | cut -d- -f1)"
+        echo "::set-output name=bversion::$(python3.10 consts.py | cut -d- -f1)"
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -109,7 +109,7 @@ jobs:
                 cd src
                 pip install -r requirements-dev.txt
                 pip install -e .    
-                python setup.py develop                  
+                python3 setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. && cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller linux.spec && cd dist && mkdir LedFx-linux-notray && mv ./LedFx ./LedFx-linux-notray/LedFx && cd .. 
             CMD_PACK: cd src/dist && ls && zip -r LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ../../ && zip -r LedFx-notray--linux-x64.zip ./LedFx-linux-notray && mv LedFx-notray--linux-x64.zip ../../
@@ -306,7 +306,7 @@ jobs:
       id: getbackendver
       run: |        
         cd src/ledfx        
-        echo "::set-output name=bversion::$(python consts.py)"
+        echo "::set-output name=bversion::$(python3.10 consts.py)"
     - name: Update    
       if: "startsWith(matrix.OS, 'ubuntu')"   
       run: |
