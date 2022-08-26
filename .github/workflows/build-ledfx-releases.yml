@@ -63,9 +63,8 @@ jobs:
     - name: Get Backendver
       id: getbackendver
       run: |
-        alias python=python3.10
         cd backend/ledfx        
-        echo "::set-output name=bversion::$(python3.10 consts.py | cut -d- -f1)"
+        echo "::set-output name=bversion::$(python3 consts.py | cut -d- -f1)"
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -129,13 +128,13 @@ jobs:
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
-                python -m pip install --upgrade pip
-                python -m pip install --upgrade wheel
+                python3 -m pip install --upgrade pip
+                python3 -m pip install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
                 pip install -e .
-                python setup.py develop      
+                python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -173,13 +172,13 @@ jobs:
             TARGET: macos
             CMD_DEP: |
                 brew install portaudio pulseaudio
-                python -m pip install --upgrade pip
-                python -m pip install --upgrade wheel
+                python3 -m pip install --upgrade pip
+                python3 -m pip install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
                 pip install -e .
-                python setup.py develop      
+                python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -217,19 +216,19 @@ jobs:
             runtime: win-x64
             TARGET: windows
             CMD_DEP: |
-              python -m pip install --upgrade pip
-              python -m pip install --upgrade wheel              
+              python3 -m pip install --upgrade pip
+              python3 -m pip install --upgrade wheel              
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src 
-              python -m pip install pywin32
-              python C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
+              python3 -m pip install pywin32
+              python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
               # pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
               pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
               pip install pystray==0.17
               pip install sounddevice==0.4.4
               pip install typing-extensions
-              python setup.py develop
+              python3 setup.py develop
               echo "---"
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages
               echo "---"
@@ -268,7 +267,6 @@ jobs:
         path: ./src/ledfx_frontend
     - name: get git version
       run: |        
-        alias python=python3.10
         cd src
         git rev-parse HEAD >> ledfx/git_version          
     - name: Load Frontend from release job
@@ -306,7 +304,7 @@ jobs:
       id: getbackendver
       run: |        
         cd src/ledfx        
-        echo "::set-output name=bversion::$(python3.10 consts.py)"
+        echo "::set-output name=bversion::$(python3 consts.py)"
     - name: Update    
       if: "startsWith(matrix.OS, 'ubuntu')"   
       run: |
