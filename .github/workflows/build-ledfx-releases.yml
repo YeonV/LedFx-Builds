@@ -271,7 +271,7 @@ jobs:
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
-        name: ledfx_frontend_v2.zip
+        name: ledfx_frontend_v2
     - name: Include new frontend
       run: |
         cd ./ledfx_frontend_v2
@@ -469,7 +469,7 @@ jobs:
     - name: Move Core-notray-win
       if: "startsWith(matrix.OS, 'win')"
       run: |
-         cp ${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe
+         cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe
          ls ./frontend/dist/
 
     - name: Move Core-notray-mac
@@ -480,7 +480,7 @@ jobs:
     - name: Move Core-notray-linux
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
-         ls ${{matrix.NOTRAY}}/
+         ls ${{matrix.NOTRAY}}
       # cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
          
 
