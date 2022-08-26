@@ -421,7 +421,7 @@ jobs:
             CMD_BUILD: echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
-            NOTRAY: LedFx-notray--win.exe
+            NOTRAY: LedFx-notray--win
             ASSET_MIME: application/zip
             
           - os: ubuntu-latest
@@ -470,7 +470,7 @@ jobs:
       if: "startsWith(matrix.OS, 'win')"
       run: |
          ls ${{matrix.NOTRAY}}
-         cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}}.exe ./frontend/extraResources/LedFx-notray.exe
+         cp ${{matrix.NOTRAY}}.exe ./frontend/extraResources/LedFx-notray.exe
          ls ./frontend/dist/
 
     - name: Move Core-notray-mac
