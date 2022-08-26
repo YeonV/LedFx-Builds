@@ -91,6 +91,7 @@ jobs:
     if: ${{ github.event.inputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
