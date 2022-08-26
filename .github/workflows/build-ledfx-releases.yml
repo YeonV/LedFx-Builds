@@ -475,7 +475,7 @@ jobs:
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
       run: |
-         cp {{matrix.NOTRAY}} ./frontend/extraResources/LedFx_core.app
+         cp ${{matrix.NOTRAY}} ./frontend/extraResources/LedFx_core.app
 
     - name: Move Core-notray-linux
       if: "startsWith(matrix.OS, 'ubu')"
