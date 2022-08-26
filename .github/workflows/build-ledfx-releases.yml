@@ -171,6 +171,7 @@ jobs:
             runtime: osx-arm64
             TARGET: macos
             CMD_DEP: |
+                alias python=python3.10
                 brew install portaudio pulseaudio
                 python -m pip install --upgrade pip
                 python -m pip install --upgrade wheel
