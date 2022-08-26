@@ -271,7 +271,7 @@ jobs:
     - name: Load Frontend from release job
       uses: actions/download-artifact@v1
       with:
-        name: ledfx_frontend_v2
+        name: ledfx_frontend_v2.zip
     - name: Include new frontend
       run: |
         cd ./ledfx_frontend_v2
