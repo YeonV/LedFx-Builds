@@ -283,12 +283,12 @@ jobs:
         cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.10    
-      # if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx-arm64')"  
+      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx-arm64')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.10' 
     - name: Set up Python 3.9    
-      if: "startsWith(matrix.OS, 'win')"  
+      if: "startsWith(matrix.OS, 'winy')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.9.13' 
@@ -296,9 +296,14 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 16
+    - name: Activate python venv
+      if: "startsWith(matrix.OS, 'osx-arm64')" 
+      id: pythonvenv
+      run: |        
+        source ~/led/bin/activate
     - name: Get Backendver
       id: getbackendver
-      run: |
+      run: |        
         cd src/ledfx        
         echo "::set-output name=bversion::$(python consts.py)"
     - name: Update    
