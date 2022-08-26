@@ -171,7 +171,6 @@ jobs:
             runtime: osx-arm64
             TARGET: macos
             CMD_DEP: |
-                alias python=python3.10
                 brew install portaudio pulseaudio
                 python -m pip install --upgrade pip
                 python -m pip install --upgrade wheel
@@ -268,6 +267,7 @@ jobs:
         path: ./src/ledfx_frontend
     - name: get git version
       run: |        
+        alias python=python3.10
         cd src
         git rev-parse HEAD >> ledfx/git_version          
     - name: Load Frontend from release job
