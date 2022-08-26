@@ -210,7 +210,7 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: windows-x64           
+          - os: windows-latest         
             continue-on-error: true
             if: ${{ github.event.inputs.win == 'true' }}         
             runtime: win-x64
