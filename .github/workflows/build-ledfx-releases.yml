@@ -397,7 +397,7 @@ jobs:
                 echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-x64.zip
-            NOTRAY: LedFx-notray--osx-x64
+            NOTRAY: LedFx-notray--osx-x64.app.zip
             ASSET_MIME: application/zip
           - os: self-hosted
             runtime: osx-arm64
@@ -421,7 +421,7 @@ jobs:
             CMD_BUILD: echo YZ
             CMD_PACK: echo YZ
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
-            NOTRAY: LedFx-notray--win
+            NOTRAY: LedFx-notray--win.exe
             ASSET_MIME: application/zip
             
           - os: ubuntu-latest
@@ -469,15 +469,13 @@ jobs:
     - name: Move Core-notray-win
       if: "startsWith(matrix.OS, 'win')"
       run: |
-         ls ${{matrix.NOTRAY}}
-         cp ${{matrix.NOTRAY}}.exe ./frontend/extraResources/LedFx-notray.exe
+         cp ${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe
          ls ./frontend/dist/
 
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
       run: |
-         ls {{matrix.NOTRAY}}/
-         cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
+         cp {{matrix.NOTRAY}} ./frontend/extraResources/LedFx_core.app
 
     - name: Move Core-notray-linux
       if: "startsWith(matrix.OS, 'ubu')"
