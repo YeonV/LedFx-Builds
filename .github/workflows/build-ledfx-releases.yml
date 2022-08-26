@@ -165,7 +165,7 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: self-hosted          
+          - os: osx-arm64          
             continue-on-error: true
             if: ${{ github.event.inputs.macarm == 'true' }}
             runtime: osx-arm64
@@ -210,7 +210,7 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: windows-latest           
+          - os: windows-x64           
             continue-on-error: true
             if: ${{ github.event.inputs.win == 'true' }}         
             runtime: win-x64
@@ -282,7 +282,7 @@ jobs:
         cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.10    
-      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'self')"  
+      # if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'self')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.10' 
