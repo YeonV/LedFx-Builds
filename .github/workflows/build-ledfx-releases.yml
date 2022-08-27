@@ -252,6 +252,14 @@ jobs:
             ASSET_MIME3: application/vnd.microsoft.portable-executable
             
     steps:
+    - name: Include new frontend  ${{ runner.name }}
+      run: |
+        cd ./ledfx_frontend_v2
+        ls
+        unzip -u ledfx_frontend_v2.zip
+        cd ..
+        cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
