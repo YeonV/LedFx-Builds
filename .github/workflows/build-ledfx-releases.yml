@@ -554,7 +554,7 @@ jobs:
         asset_content_type: application/vnd.microsoft.portable-executable
         
     - name: Upload Mac-Zip as Asset      
-      if: "startsWith(matrix.OS, 'mac') || startsWith(matrix.OS, 'osx')"
+      if: "startsWith(matrix.OS, 'osx')"
       id: upload-release-asset-zip-mac
       uses: YeonV/upload-release-asset@v1
       env:
@@ -566,7 +566,7 @@ jobs:
         asset_content_type: application/zip
         
     - name: Upload Mac-CC as Asset      
-      if: "startsWith(matrix.OS, 'mac') || startsWith(matrix.OS, 'osx')"
+      if: "startsWith(matrix.OS, 'osx')"
       id: upload-release-asset-cc-mac
       uses: YeonV/upload-release-asset@v1
       env:
@@ -578,7 +578,7 @@ jobs:
         asset_content_type: application/zip
         
     - name: Upload Mac-Dmg as Asset      
-      if: "startsWith(matrix.OS, 'mac') || startsWith(matrix.OS, 'osx')"
+      if: "startsWith(matrix.OS, 'osx')"
       id: upload-release-asset-dmg-mac
       uses: YeonV/upload-release-asset@v1
       env:
@@ -590,7 +590,7 @@ jobs:
         asset_content_type: application/octet-stream
         
     - name: Upload Mac-CC-Dmg as Asset      
-      if: "startsWith(matrix.OS, 'mac') || startsWith(matrix.OS, 'osx')"
+      if: "startsWith(matrix.OS, 'osx')"
       id: upload-release-asset-cc-mac-dmg
       uses: YeonV/upload-release-asset@v1
       env:
