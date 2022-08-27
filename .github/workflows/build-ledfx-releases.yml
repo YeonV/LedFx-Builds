@@ -561,7 +561,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip 
+        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-x64.zip 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
         asset_content_type: application/zip
         
