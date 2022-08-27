@@ -346,7 +346,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./ledfx_frontend_v2.zip
+        asset_path: ./ledfx_frontend_v2/ledfx_frontend_v2.zip
         asset_name: ledfx_frontend-v2.0.${{ github.event.inputs.fversion }}.zip
         asset_content_type: ${{ matrix.ASSET_MIME}}
         
@@ -458,7 +458,7 @@ jobs:
         path: frontend
     - name: Building Clients
       run: |
-         cd frontend && npm install --force && npm install postcss && npm run distall
+         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
