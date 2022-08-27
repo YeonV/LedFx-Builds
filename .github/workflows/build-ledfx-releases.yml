@@ -252,9 +252,9 @@ jobs:
             ASSET_MIME3: application/vnd.microsoft.portable-executable
             
     steps:
-    - name: ${{ runner.name }}
+    - name: ${{ runner.name }} ${{ runner.label }} ${{ runner.labels }}
       run: |
-        $(basename $(dirname $(dirname $(dirname $(pwd)))))
+        echo ${{ runner.env }}
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
