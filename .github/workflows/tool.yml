@@ -1,0 +1,70 @@
+name: Build Tool
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      fversion:
+       description: 'Frontend Version'
+       default: '50'
+       required: false
+       
+jobs:        
+  tool:
+    name: ToolCache ${{ matrix.runtime }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            continue-on-error: true
+            TARGET: ubuntu
+            runtime: linux-x64
+            
+          - os: macos-latest          
+            continue-on-error: true
+            runtime: osx-x64
+            TARGET: macos
+            
+          - os: osx-arm64          
+            continue-on-error: true
+            runtime: osx-arm64
+            TARGET: macos
+            
+          - os: windows-latest         
+            continue-on-error: true    
+            runtime: win-x64
+            TARGET: windows        
+
+    steps:
+      - name: Clear any existing tool cache
+        run: |
+          mv "${{ runner.tool_cache }}" "${{ runner.tool_cache }}.old"
+          mkdir -p "${{ runner.tool_cache }}"
+      - name: Set up Python 3.10    
+        if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' 
+      - name: Set up Python 3.9    
+        if: "startsWith(matrix.OS, 'win')"  
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9.13' 
+
+      - name: Setup Node 16
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          
+      - name: Archive tool cache
+        run: |
+          cd "${{ runner.tool_cache }}"
+          tar -czf tool_cache.tar.gz *
+      - name: Upload tool cache artifact
+        uses: actions/upload-artifact@v2
+        with:
+          path: ${{runner.tool_cache}}/tool_cache.tar.gz
+
+ 
