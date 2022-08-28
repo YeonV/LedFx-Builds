@@ -561,8 +561,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-x64.zip 
-        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.zip 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.zip
         asset_content_type: application/zip
         
     - name: Upload Mac-CC as Asset      
@@ -573,8 +573,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
-        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-x64.zip
-        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-x64.zip
+        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.zip
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.zip
         asset_content_type: application/zip
         
     - name: Upload Mac-Dmg as Asset      
@@ -585,8 +585,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-x64.dmg
-        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-x64.dmg
+        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.dmg
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.dmg
         asset_content_type: application/octet-stream
         
     - name: Upload Mac-CC-Dmg as Asset      
@@ -597,8 +597,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
-        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-x64.dmg
-        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-x64.dmg
+        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.dmg
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{ matrix.runtime }}.dmg
         asset_content_type: application/octet-stream
         
     - name: Upload Linux as Asset      
