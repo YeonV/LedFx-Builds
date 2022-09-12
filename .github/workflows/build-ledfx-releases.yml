@@ -517,7 +517,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
 
@@ -529,7 +529,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
 
@@ -541,7 +541,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--win.zip 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
         asset_content_type: application/zip
 
@@ -553,7 +553,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--win-setup.exe
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe
         asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
         asset_content_type: application/vnd.microsoft.portable-executable
         
@@ -565,7 +565,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip 
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
         asset_content_type: application/zip
         
@@ -577,7 +577,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
-        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
         asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
         asset_content_type: application/zip
         
@@ -589,7 +589,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-        asset_path: ./frontend/dist/LedFx_client-beta${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
         asset_content_type: application/octet-stream
         
@@ -601,7 +601,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
-        asset_path: ./frontend/dist/LedFx_CC-beta${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
         asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
         asset_content_type: application/octet-stream
         
