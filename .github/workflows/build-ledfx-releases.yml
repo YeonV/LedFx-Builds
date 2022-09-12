@@ -506,8 +506,8 @@ jobs:
       if: "startsWith(matrix.OS, 'ubu')"
       run: |
          ls ./frontend/dist/
-         mv ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage
-         mv ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap
+         mv ./frontend/dist/LedFx-Client-v2.0.${{ github.event.inputs.fversion }}-linux.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage
+         mv ./frontend/dist/LedFx-Client-v2.0.${{ github.event.inputs.fversion }}-linux.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap
          
     - name: Upload Win-Portable as Asset      
       if: "startsWith(matrix.OS, 'win')"
