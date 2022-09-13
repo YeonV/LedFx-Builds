@@ -460,23 +460,6 @@ jobs:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
         path: frontend
-    - name: Building Clients
-      run: |
-         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Load Release URL File from release job
-      uses: actions/download-artifact@v1
-      with:
-        name: release_url
-    - name: Get Release File Name & Upload URL
-      id: get_release_info
-      shell: bash
-      run: |
-        value=`cat release_url/release_url.txt`
-        echo ::set-output name=upload_url::$value
-
     - name: Load Core from previous job win
       uses: actions/download-artifact@v1
       with:
@@ -500,7 +483,23 @@ jobs:
       run: |
          ls ${{matrix.NOTRAY}}
       # cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
-         
+      
+    - name: Building Clients
+      run: |
+         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Load Release URL File from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+    - name: Get Release File Name & Upload URL
+      id: get_release_info
+      shell: bash
+      run: |
+        value=`cat release_url/release_url.txt`
+        echo ::set-output name=upload_url::$value       
 
     - name: Move Client Linux
       if: "startsWith(matrix.OS, 'ubu')"
