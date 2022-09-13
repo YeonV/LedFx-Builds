@@ -465,13 +465,14 @@ jobs:
       with:
         name: ${{matrix.NOTRAY}}
         
-        
+    - name: cd
+      run: |
+         cd frontend    
         
     - name: Move Core-notray-win
       if: "startsWith(matrix.OS, 'win')"
       run: |
-         cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe
-         ls ./frontend/dist/
+         cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe         
 
     - name: Move Core-notray-mac
       if: "startsWith(matrix.OS, 'mac')"
@@ -486,7 +487,7 @@ jobs:
       
     - name: Building Clients
       run: |
-         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+         npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
