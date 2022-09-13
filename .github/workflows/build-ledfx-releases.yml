@@ -487,7 +487,7 @@ jobs:
       
     - name: Building Clients
       run: |
-         npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
