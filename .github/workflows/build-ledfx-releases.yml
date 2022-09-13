@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: '50'
+       default: '51'
        required: false
       core:
        type: boolean
@@ -477,6 +477,10 @@ jobs:
     - name: Move Core-notray-mac
       if: "startsWith(matrix.TARGET, 'mac')"
       run: |
+         ls
+         echo -         
+         ls ./frontend
+         echo -
          cp -r ${{matrix.NOTRAY}} ./frontend/extraResources/LedFx_core.app
 
     - name: Move Core-notray-linux
