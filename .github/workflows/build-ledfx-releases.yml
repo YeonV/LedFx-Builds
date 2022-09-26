@@ -172,13 +172,13 @@ jobs:
             TARGET: macos
             CMD_DEP: |
                 # brew install portaudio pulseaudio
-                # python -m pip install --upgrade pip
-                # python -m pip install --upgrade wheel
+                # python3.10 -m pip3.10 install --upgrade pip
+                # python3.10 -m pip3.10 install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
                 pip install -e .
-                python3.9 setup.py develop      
+                python3.10 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
