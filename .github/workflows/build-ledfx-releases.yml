@@ -222,7 +222,8 @@ jobs:
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src 
               python3 -m pip install pywin32
-              python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
+              # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
+              python3 C:\hostedtoolcache\windows\Python\3.10.7\x64\Scripts\pywin32_postinstall.py -install
               # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
               ### pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
               pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
@@ -230,9 +231,10 @@ jobs:
               pip install sounddevice==0.4.4
               pip install typing-extensions
               python3 setup.py develop
-              del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-              #cp ../src2/tools/win/libportaudio64bit.dll C:\Python310\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cd ..
               pip install pyinstaller
               pip install idna
