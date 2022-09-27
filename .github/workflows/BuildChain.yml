@@ -1,4 +1,4 @@
-name: Build LedFx Chained
+name: Build LedFx
 
 on: 
   workflow_dispatch:
@@ -7,6 +7,36 @@ on:
       fversion:
        description: 'Frontend Version'
        default: '51'
+       required: false
+      core:
+       type: boolean
+       description: 'Build Core'
+       default: true
+       required: false
+      client:
+       type: boolean
+       description: 'Build Client'
+       default: true
+       required: false
+      win:
+       type: boolean
+       description: 'Build Win'
+       default: true
+       required: false
+      mac:
+       type: boolean
+       description: 'Build Mac (x64)'
+       default: true
+       required: false
+      macarm:
+       type: boolean
+       description: 'Build Mac (arm64)'
+       default: true
+       required: false
+      linux:
+       type: boolean
+       description: 'Build Ubuntu (x64)'
+       default: true
        required: false
        
 jobs:
@@ -427,12 +457,6 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: release_url
-    - name: Get Release File Name & Upload URL
-      id: get_release_info
-      shell: bash
-      run: |
-        value=`cat release_url/release_url.txt`
-        echo ::set-output name=upload_url::$value       
 
     - name: Move Client Linux
       if: "startsWith(matrix.OS, 'ubu')"
@@ -560,4 +584,3 @@ jobs:
         asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
         asset_content_type: application/octet-stream
-
