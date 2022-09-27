@@ -210,7 +210,7 @@ jobs:
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
             
-          - os: yzwindows-latest         
+          - os: windows-latest         
             continue-on-error: true
             if: ${{ github.event.inputs.win == 'true' }}         
             runtime: win-x64
@@ -250,7 +250,9 @@ jobs:
             ASSET_NAME3: LedFx-notray--win.exe 
             ASSET_PATH3: ./LedFx-notray--win.exe 
             ASSET_MIME3: application/vnd.microsoft.portable-executable
-            
+
+        exclude:
+          - os: windows-latest            
     steps:
     - uses: actions/checkout@v2
       with:
