@@ -47,4 +47,11 @@ app = BUNDLE(exe,
           info_plist={
               'NSPrincipalClass': 'NSApplication',
               'NSAppleScriptEnabled': False,
+              'NSMicrophoneUsageDescription': 'Ledfx needs audio',
+              'com.apple.security.device.audio-input': True,
+              'com.apple.security.device.microphone': True,
+              },
+          entitlements_plist={
+              'com.apple.security.device.audio-input': True,
+              'com.apple.security.device.microphone': True,
               })
