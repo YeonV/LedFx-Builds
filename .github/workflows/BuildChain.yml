@@ -56,7 +56,7 @@ jobs:
         path: release_url.txt
         
   core:
-    name: Core ${{ matrix.runtime }}
+    name: Build ${{ matrix.runtime }}
     needs: createrelease
     # if: ${{ github.event.inputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
@@ -388,6 +388,7 @@ jobs:
         ref: main
         path: frontend
     - name: Load Core from previous job win
+      if: "!startsWith(matrix.OS, 'ubu')"
       uses: actions/download-artifact@v1
       with:
         name: ${{matrix.NOTRAY}}
