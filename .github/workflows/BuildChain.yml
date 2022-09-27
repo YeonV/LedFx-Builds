@@ -110,12 +110,7 @@ jobs:
                 pip install -e .
                 python3 setup.py develop      
             CMD_BUILD: >
-                cd src && pyinstaller mac.spec &&
-                # cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
-                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
-                # cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
-                # mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&                
+                cd src && pyinstaller mac.spec &&             
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx && cd .. &&
                 mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data &&
@@ -163,12 +158,7 @@ jobs:
                 pip install -e .
                 python3.10 setup.py develop      
             CMD_BUILD: >
-                cd src && pyinstaller3.10 mac.spec &&
-                # cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
-                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
-                # cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
-                # mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&                
+                cd src && pyinstaller3.10 mac.spec &&              
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx && cd .. &&
                 mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data &&
