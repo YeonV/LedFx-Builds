@@ -125,10 +125,10 @@ jobs:
             CMD_PACK: |
               rm -rf ./LedFx.app
               mv ./src/dist/LedFx/LedFx.app ./LedFx.app
-              tar -cvf my_files.tar ./LedFx.app
+              tar -czf my_files.tar ./LedFx.app
               rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
-              tar -cvf my_files2.tar ./LedFx-notray.app
+              tar -czf my_files2.tar ./LedFx-notray.app
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-x64.zip
             ASSET_PATH: my_files.tar
             ASSET_MIME: application/zip
@@ -172,10 +172,10 @@ jobs:
             CMD_PACK: |
               rm -rf ./LedFx.app
               mv ./src/dist/LedFx/LedFx.app ./LedFx.app
-              tar -cvf my_files.tar ./LedFx.app
+              tar -czf my_files.tar ./LedFx.app
               rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
-              tar -cvf my_files2.tar ./LedFx-notray.app
+              tar -czf my_files2.tar ./LedFx-notray.app
             OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip            
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
             ASSET_PATH: my_files.tar
