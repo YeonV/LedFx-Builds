@@ -206,7 +206,7 @@ jobs:
               python3 C:\hostedtoolcache\windows\Python\3.10.7\x64\Scripts\pywin32_postinstall.py -install
               # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
               ### pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
-              pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
+              pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
               pip install pystray==0.17
               pip install sounddevice==0.4.4
               pip install typing-extensions
