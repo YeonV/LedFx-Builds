@@ -200,7 +200,7 @@ jobs:
               python3 -m pip install --upgrade wheel              
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
-              cp src2/tools/win/aubio-0.5.0a0-cp310-cp310-win_amd64.whl src/yzwin-notray.spec              
+              cp src2/tools/win/aubio-0.5.0a0-cp310-cp310-win_amd64.whl src/aubio-0.5.0a0-cp310-cp310-win_amd64.whl              
               cd src 
               python3 -m pip install pywin32
               # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
