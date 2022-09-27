@@ -111,11 +111,17 @@ jobs:
                 python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
-                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
-                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
-                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
-                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                # cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
+                # cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                # mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&                
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx && cd .. &&
+                mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                
                 cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
                 cd dist/ && mkdir LedFxC && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app && cd .. &&
                 mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
@@ -123,9 +129,9 @@ jobs:
                 cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
-              rm -rf ./LedFx.app
-              mv ./src/dist/LedFx/LedFx.app ./LedFx.app
-              tar -cvf my_files.tar ./LedFx.app
+              rm -rf ./LedFx
+              mv ./src/dist/LedFx/LedFx ./LedFx
+              tar -cvf my_files.tar ./LedFx
               rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
               tar -cvf my_files2.tar ./LedFx-notray.app
@@ -135,7 +141,7 @@ jobs:
             # ASSET_NAME2: LedFx-notray--osx-x64.app.zip
             # ASSET_PATH2: my_files2.tar
             # ASSET_MIME2: application/zip
-            ASSET_NAME3: LedFx-notray--osx-x64.app.zip
+            ASSET_NAME3: LedFx-notray--osx-x64.zip
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip            
             
@@ -158,11 +164,16 @@ jobs:
                 python3.10 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller3.10 mac.spec &&
-                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
-                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
-                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
-                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
-                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                # cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                # mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
+                # cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                # mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&                
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx && cd .. &&
+                mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
                 cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller3.10 mac.spec &&                
                 cd dist/ && mkdir LedFxC && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app && cd .. &&
                 mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
@@ -170,9 +181,9 @@ jobs:
                 cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
-              rm -rf ./LedFx.app
-              mv ./src/dist/LedFx/LedFx.app ./LedFx.app
-              tar -cvf my_files.tar ./LedFx.app
+              rm -rf ./LedFx
+              mv ./src/dist/LedFx/LedFx ./LedFx
+              tar -cvf my_files.tar ./LedFx
               rm -rf ./LedFx-notray.app
               mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
               tar -cvf my_files2.tar ./LedFx-notray.app
@@ -183,56 +194,56 @@ jobs:
             # ASSET_NAME2: LedFx-notray--osx-x64.app.zip
             # ASSET_PATH2: my_files2.tar
             # ASSET_MIME2: application/zip
-            ASSET_NAME3: LedFx-notray--osx-arm64.app.zip
+            ASSET_NAME3: LedFx-notray--osx-arm64.zip
             ASSET_PATH3: my_files2.tar
             ASSET_MIME3: application/zip
                         
             arch: arm64
             NOTRAY: LedFx-notray--osx-arm64.app.zip
 
-          # - os: windows-latest         
-          #   continue-on-error: true
-          #   if: ${{ github.event.inputs.win == 'true' }}         
-          #   runtime: win-x64
-          #   TARGET: windows
-          #   CMD_DEP: |
-          #     python3 -m pip install --upgrade pip
-          #     python3 -m pip install --upgrade wheel              
-          #     cp src2/tools/win/yzwin.spec src/yzwin.spec
-          #     cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
-          #     cd src 
-          #     python3 -m pip install pywin32
-          #     # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
-          #     python3 C:\hostedtoolcache\windows\Python\3.10.7\x64\Scripts\pywin32_postinstall.py -install
-          #     # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
-          #     ### pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
-          #     pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
-          #     pip install pystray==0.17
-          #     pip install sounddevice==0.4.4
-          #     pip install typing-extensions
-          #     python3 setup.py develop
-          #     # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
-          #     del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
-          #     # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-          #     cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-          #     cd ..
-          #     pip install pyinstaller
-          #     pip install idna
-          #     pip install pyparsing
-          #   CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
-          #   CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
-          #   ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
-          #   ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
-          #   ASSET_MIME: application/zip
-          #   # ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
-          #   # ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
-          #   # ASSET_MIME2: application/vnd.microsoft.portable-executable
-          #   ASSET_NAME3: LedFx-notray--win.exe 
-          #   ASSET_PATH3: ./LedFx-notray--win.exe 
-          #   ASSET_MIME3: application/vnd.microsoft.portable-executable
+          - os: windows-latest         
+            continue-on-error: true
+            if: ${{ github.event.inputs.win == 'true' }}         
+            runtime: win-x64
+            TARGET: windows
+            CMD_DEP: |
+              python3 -m pip install --upgrade pip
+              python3 -m pip install --upgrade wheel              
+              cp src2/tools/win/yzwin.spec src/yzwin.spec
+              cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
+              cd src 
+              python3 -m pip install pywin32
+              # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
+              python3 C:\hostedtoolcache\windows\Python\3.10.7\x64\Scripts\pywin32_postinstall.py -install
+              # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
+              ### pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+              pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@master
+              pip install pystray==0.17
+              pip install sounddevice==0.4.4
+              pip install typing-extensions
+              python3 setup.py develop
+              # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              cd ..
+              pip install pyinstaller
+              pip install idna
+              pip install pyparsing
+            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
+            CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_MIME: application/zip
+            # ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            # ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            # ASSET_MIME2: application/vnd.microsoft.portable-executable
+            ASSET_NAME3: LedFx-notray--win.exe 
+            ASSET_PATH3: ./LedFx-notray--win.exe 
+            ASSET_MIME3: application/vnd.microsoft.portable-executable
 
-          #   arch: x64
-          #   NOTRAY: LedFx-notray--win.exe
+            arch: x64
+            NOTRAY: LedFx-notray--win.exe
 
          
     steps:
