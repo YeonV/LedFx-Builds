@@ -24,7 +24,48 @@ jobs:
         path: ledfx_frontend_v2.zip     
     - name: Get Messages
       run: |
-        unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >messages.md
+        unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
+        echo "### Core                                                                                                                                                                                           ✔
+        The LedFx you know. Run it and control it via Browser.
+
+        ### Client
+        A Desktop App to connect to a running core in the network (or the same machine).
+
+        ### CC
+        Client with integrated core: Full Desktop App, starting & connecting to the integrated core in the background.
+
+
+        ## These builds are not signed:
+
+        <details><summary>Mac-Users:</summary>
+
+        #### Infos:
+        Reports as damaged, because of unsiged.
+        To fix it open Terminal and type in the following (with a SPACE at the end):
+        \`sudo xattr -cr \`
+        Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
+
+        Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
+        Maybe at some point we might buy an apple dev-license for 99€/year, then the \`xattr\` voodoo would not be needed anymore.
+
+        </details>
+
+
+        <details><summary>Win-Users:</summary>
+
+        #### Infos:
+        Reports as unsave, because of unsiged.
+
+        Maybe at some point we might buy a microsoft dev-license
+
+        </details>
+
+        ## Changes
+
+        <details><summary>Expand</summary>
+        " >> ./messages.md
+        cat ./message.md >> ./messages.md
+        echo "\n\n </details>" >> ./messages.md
     - uses: actions/checkout@v2
       with:
         repository: LedFx/LedFx
