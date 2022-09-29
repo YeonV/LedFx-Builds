@@ -445,7 +445,7 @@ jobs:
     - name: Move Core-notray-win
       if: "startsWith(matrix.OS, 'win')"
       run: |
-         cp ${{matrix.NOTRAY}}/${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe         
+         cp ${{matrix.NOTRAY}} ./frontend/extraResources/LedFx-notray.exe         
 
     - name: Move Core-notray-mac
       if: "startsWith(matrix.TARGET, 'mac')"
