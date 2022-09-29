@@ -147,8 +147,8 @@ jobs:
                 python3 -m pip install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
-                pip install -r requirements-dev.txt
-                pip install -e .
+                python3 -m pip install -r requirements.txt
+                python3 -m pip install -r requirements-dev.txt
                 python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
