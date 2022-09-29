@@ -433,7 +433,7 @@ jobs:
         ref: main
         path: frontend
     - name: Load Core from previous job win
-      if: "!startsWith(matrix.OS, 'ubu')"
+      if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win')"
       uses: actions/download-artifact@v1
       with:
         name: ${{matrix.NOTRAY}}
