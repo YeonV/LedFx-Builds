@@ -142,7 +142,7 @@ jobs:
             runtime: osx-x64
             TARGET: macos
             CMD_DEP: |
-                brew install portaudio pulseaudio
+                brew install portaudio pulseaudio aubio
                 python3 -m pip install --upgrade pip
                 python3 -m pip install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
