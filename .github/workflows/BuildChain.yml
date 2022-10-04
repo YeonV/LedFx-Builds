@@ -150,7 +150,7 @@ jobs:
                 #cp src2/tools/mac/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
                 cd src 
                 #python3 -m pip install aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
-                python3 -m pip install numpy
+                #python3 -m pip install numpy
                 python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
                 python3 setup.py develop      
@@ -329,12 +329,12 @@ jobs:
         cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.10    
-      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx') && !startsWith(matrix.OS, 'mac')"  
+      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.10' 
     - name: Set up Python 3.9    
-      if: "startsWith(matrix.OS, 'win') || startsWith(matrix.OS, 'mac')"  
+      if: "startsWith(matrix.OS, 'win')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.9.13' 
