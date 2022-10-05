@@ -154,6 +154,7 @@ jobs:
                 # python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
                 # python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
+                pip install -e .
                 python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
