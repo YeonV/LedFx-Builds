@@ -142,16 +142,17 @@ jobs:
             runtime: osx-x64
             TARGET: macos
             CMD_DEP: |
-                brew install portaudio pulseaudio aubio numpy
-                python3 -m pip install --upgrade pip
-                python3 -m pip install --upgrade wheel
+                brew install portaudio pulseaudio
+                # python3 -m pip install --upgrade pip
+                # python3 -m pip install --upgrade wheel
                 cp src2/tools/mac/mac.spec src/mac.spec
-                #cp src2/tools/mac/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
+                cp src2/tools/mac/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
                 #cp src2/tools/mac/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
                 cd src 
                 #python3 -m pip install aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
                 #python3 -m pip install numpy
-                python3 -m pip install -r requirements.txt
+                python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
+                # python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
                 python3 setup.py develop      
             CMD_BUILD: >
