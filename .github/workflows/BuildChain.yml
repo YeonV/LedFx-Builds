@@ -271,8 +271,8 @@ jobs:
               # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-              cp ../src2/tools/win/libsamplerate-64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_samplerate_data\
-              cp ../src2/tools/win/libsamplerate-32bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_samplerate_data\
+              cp ../src2/tools/win/libsamplerate-64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
+              cp ../src2/tools/win/libsamplerate-32bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
               # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cd ..
             CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
