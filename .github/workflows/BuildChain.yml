@@ -323,7 +323,7 @@ jobs:
       run: |
         cd ./ledfx_frontend_v2
         ls
-        unzip -u ledfx_frontend_v2.zip
+        unzip -o -u ledfx_frontend_v2.zip
         cd ..
         cp -rf ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
