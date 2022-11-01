@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: '51'
+       default: '52'
        required: false
        
 jobs:
@@ -217,7 +217,7 @@ jobs:
                 mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data &&
                 cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
                 cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/ &&
-                mv -rf ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate.0.dylib &&
+                mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate.0.dylib &&
                 mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
             CMD_PACK: |
               rm -rf ./LedFx.app
