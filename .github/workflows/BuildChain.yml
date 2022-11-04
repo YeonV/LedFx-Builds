@@ -338,12 +338,12 @@ jobs:
         cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Set up Python 3.10    
-      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
+      if: "!startsWith(matrix.OS, 'winy') && !startsWith(matrix.OS, 'osx')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.10' 
     - name: Set up Python 3.9    
-      if: "startsWith(matrix.OS, 'win')"  
+      if: "startsWith(matrix.OS, 'winy')"  
       uses: actions/setup-python@v4
       with:
         python-version: '3.9.13' 
