@@ -354,6 +354,7 @@ jobs:
       with:
         node-version: 16
         cache: 'yarn'
+        cache-dependency-path: '**/yarn.lock'
     - name: Activate python venv
       if: "startsWith(matrix.OS, 'osx-arm64')" 
       id: pythonvenv
