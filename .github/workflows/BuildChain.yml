@@ -256,22 +256,22 @@ jobs:
               cd src 
               python3 -m pip install pywin32
               # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
-              python3 C:\hostedtoolcache\windows\Python\3.10.7\x64\Scripts\pywin32_postinstall.py -install
+              python3 C:\hostedtoolcache\windows\Python\3.10.8\x64\Scripts\pywin32_postinstall.py -install
               # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
               ## pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
               
               # pip install numpy
               # pip install aubio-0.5.0a0-cp39-cp39-win_amd64.whl
               # pip install numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
-              # pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
+              python3 -m pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
               # pip install pystray==0.17
               # pip install sounddevice==0.4.4
               # pip install samplerate
               # pip install typing-extensions
               # pip install -r requirements-dev.txt              
-              pip install -r req.txt
-              pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
-              pip install pyinstaller==5.2
+              python3 -m pip install -r req.txt
+              python3 -m pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
+              python3 -m pip install pyinstaller==5.2
               python3 setup.py develop
               # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
