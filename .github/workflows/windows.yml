@@ -1,0 +1,218 @@
+name: Build LedFx Chained
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      fversion:
+       description: 'Frontend Version'
+       default: '52'
+       required: false
+       
+jobs:
+  createrelease:
+    name: Get Files
+    runs-on: [ubuntu-latest]
+    steps:    
+    - name: Get latest frontend
+      run: |
+        curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+    - name: Save Frontend for publish
+      uses: actions/upload-artifact@v1
+      with:
+        name: ledfx_frontend_v2
+        path: ledfx_frontend_v2.zip     
+    - name: Get Messages
+      run: |
+        unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
+        echo "### Core
+        The LedFx you know. Run it and control it via Browser.
+
+        ### Client
+        A Desktop App to connect to a running core in the network (or the same machine).
+
+        ### CC
+        Client with integrated core: Full Desktop App, starting & connecting to the integrated core in the background.
+
+
+        ## These builds are not signed:
+
+        <details><summary>Mac-Users:</summary>
+
+        #### Infos:
+        Reports as damaged, because of unsiged.
+        To fix it open Terminal and type in the following (with a SPACE at the end):
+        \`sudo xattr -cr \`
+        Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
+
+        Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
+        Maybe at some point we might buy an apple dev-license for 99€/year, then the \`xattr\` voodoo would not be needed anymore.
+
+        </details>
+
+
+        <details><summary>Win-Users:</summary>
+
+        #### Infos:
+        Reports as unsave, because of unsiged.
+
+        Maybe at some point we might buy a microsoft dev-license
+
+        </details>
+
+        ## Changes
+
+        <details><summary>Expand</summary>
+        " >> ./messages.md
+        cat ./message.md >> ./messages.md
+        echo "\n\n </details>" >> ./messages.md
+    - uses: actions/checkout@v3
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: backend
+    - name: Get Backendver
+      id: getbackendver
+      run: |
+        cd backend/ledfx        
+        echo "::set-output name=bversion::$(python3 consts.py | cut -d- -f1)"
+        
+  core:
+    name: Build ${{ matrix.runtime }}
+    needs: createrelease
+    # if: ${{ github.event.inputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+          - os: windows-latest         
+            continue-on-error: true     
+            runtime: win-x64
+            TARGET: windows
+            CMD_DEP: |
+              python3 -m pip install --upgrade pip
+              python3 -m pip install --upgrade wheel              
+              cp src2/tools/win/yzwin.spec src/yzwin.spec
+              cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
+              cp src2/tools/win/req.txt src/req.txt
+              cp src2/tools/win/aubio-0.5.0a0-cp310-cp310-win_amd64.whl src/aubio-0.5.0a0-cp310-cp310-win_amd64.whl
+              # cp src2/tools/win/aubio-0.5.0a0-cp39-cp39-win_amd64.whl src/aubio-0.5.0a0-cp39-cp39-win_amd64.whl
+              # cp src2/tools/win/numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl src/numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
+              cd src 
+              python3 -m pip install pywin32
+              # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
+              python3 C:\hostedtoolcache\windows\Python\3.10.8\x64\Scripts\pywin32_postinstall.py -install
+              # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
+              ## pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
+              
+              # pip install numpy
+              # pip install aubio-0.5.0a0-cp39-cp39-win_amd64.whl
+              # pip install numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
+              python3 -m pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
+              # pip install pystray==0.17
+              # pip install sounddevice==0.4.4
+              # pip install samplerate
+              # pip install typing-extensions
+              # pip install -r requirements-dev.txt              
+              python3 -m pip install -r req.txt
+              python3 -m pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
+              python3 -m pip install pyinstaller==5.2
+              python3 setup.py develop
+              # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              # cp ../src2/tools/win/libsamplerate-64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
+              # cp ../src2/tools/win/libsamplerate-32bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              cd ..
+            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
+            CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_MIME: application/zip
+            # ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            # ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            # ASSET_MIME2: application/vnd.microsoft.portable-executable
+            ASSET_NAME3: LedFx-notray--win.exe 
+            ASSET_PATH3: ./LedFx-notray--win.exe 
+            ASSET_MIME3: application/vnd.microsoft.portable-executable
+
+            arch: x64
+            NOTRAY: LedFx-notray--win.exe
+
+         
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: src
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Builds
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: main
+        path: src2
+    - name: Delete old frontend
+      uses: JesseTG/rm@v1.0.3
+      with:
+        path: ./src/ledfx_frontend
+    - name: get git version
+      run: |        
+        cd src
+        git rev-parse HEAD >> ledfx/git_version          
+    - name: Load Frontend from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: ledfx_frontend_v2
+    - name: Include new frontend
+      if: "!startsWith(matrix.OS, 'win')"  
+      run: |
+        cd ./ledfx_frontend_v2
+        ls
+        unzip -o -u ledfx_frontend_v2.zip
+        cd ..
+        cp -rf ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
+    - name: Include new frontend win    
+      if: "startsWith(matrix.OS, 'win')"  
+      run: |
+        cd ./ledfx_frontend_v2
+        ls
+        tar -xf ledfx_frontend_v2.zip
+        cd ..
+        cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
+    - name: Set up Python 3.10    
+      if: "startsWith(matrix.OS, 'y')"  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    - name: Set up Python 3.9    
+      if: "startsWith(matrix.OS, 'win')"  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9.13'
+        cache: 'pip'
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: 'yarn'
+        cache-dependency-path: '**/yarn.lock'
+    - name: Get Backendver
+      id: getbackendver
+      run: |        
+        cd src/ledfx        
+        echo "::set-output name=bversion::$(python3 consts.py)"
+    - name: Install dependencies  
+      run: ${{matrix.CMD_DEP}}        
+    - name: Build with pyinstaller for ${{matrix.TARGET}}
+      run: ${{matrix.CMD_BUILD}}      
+    #- name: Delete .lib from numpy
+    #  run: |
+    #    Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
+    - name: Pack app
+      run: ${{matrix.CMD_PACK}}
