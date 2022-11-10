@@ -85,6 +85,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        include:
           - os: windows-latest         
             continue-on-error: true     
             runtime: win-x64
