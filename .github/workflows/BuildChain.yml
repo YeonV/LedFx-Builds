@@ -287,9 +287,9 @@ jobs:
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_MIME: application/zip
-            # ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
-            # ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
-            # ASSET_MIME2: application/vnd.microsoft.portable-executable
+            ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            ASSET_MIME2: application/vnd.microsoft.portable-executable
             ASSET_NAME3: LedFx-notray--win.exe 
             ASSET_PATH3: ./LedFx-notray--win.exe 
             ASSET_MIME3: application/vnd.microsoft.portable-executable
@@ -419,16 +419,16 @@ jobs:
         asset_name: ${{ matrix.ASSET_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
         
-    # - name: Upload Asset 2
-    #   id: upload-release-asset2
-    #   uses: YeonV/upload-release-asset@v1
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #   with:
-    #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-    #     asset_path: ${{ matrix.ASSET_PATH2}}
-    #     asset_name: ${{ matrix.ASSET_NAME2}}
-    #     asset_content_type: ${{ matrix.ASSET_MIME2}}
+    - name: Upload Asset 2
+      id: upload-release-asset2
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ${{ matrix.ASSET_PATH2}}
+        asset_name: ${{ matrix.ASSET_NAME2}}
+        asset_content_type: ${{ matrix.ASSET_MIME2}}
         
     - name: Upload Asset 3   
       id: upload-release-asset3
