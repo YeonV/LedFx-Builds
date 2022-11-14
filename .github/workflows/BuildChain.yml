@@ -273,6 +273,7 @@ jobs:
               ### python3 -m pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
               ### python3 -m pip install pyinstaller==5.2
               python3 setup.py develop
+              pip install samplerate
               # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
