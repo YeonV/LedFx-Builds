@@ -258,8 +258,7 @@ jobs:
               # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
               ### python3 C:\hostedtoolcache\windows\Python\3.10.8\x64\Scripts\pywin32_postinstall.py -install
               # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
-              ## pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl
-              
+              ## pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl              
               # pip install numpy
               # pip install aubio-0.5.0a0-cp39-cp39-win_amd64.whl
               # pip install numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
@@ -268,12 +267,12 @@ jobs:
               # pip install sounddevice==0.4.4
               # pip install samplerate
               # pip install typing-extensions
-              pip install -r requirements.txt              
+              pip install -r requirements.txt          
+              pip install -r requirements-dev.txt
               ### python3 -m pip install -r req.txt
               ### python3 -m pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
               ### python3 -m pip install pyinstaller==5.2
               python3 setup.py develop
-              pip install samplerate
               # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
@@ -422,7 +421,8 @@ jobs:
         asset_name: ${{ matrix.ASSET_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
         
-    - name: Upload Asset 2
+    - name: Upload Asset 2    
+      if: "startsWith(matrix.OS, 'win')"      
       id: upload-release-asset2
       uses: YeonV/upload-release-asset@v1
       env:
