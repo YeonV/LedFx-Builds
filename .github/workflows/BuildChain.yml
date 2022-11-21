@@ -355,6 +355,8 @@ jobs:
       uses: peter-evans/create-pull-request@v4
       with:
         path: ./src
+        token: ${{ secrets.LEDFX_TOKEN }}
+        
     - name: Set up Python 3.10    
       if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
       uses: actions/setup-python@v4
