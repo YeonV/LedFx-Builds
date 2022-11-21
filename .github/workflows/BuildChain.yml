@@ -245,47 +245,20 @@ jobs:
             runtime: win-x64
             TARGET: windows
             CMD_DEP: |
-              ### python3 -m pip install --upgrade pip
-              ### python3 -m pip install --upgrade wheel              
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
-              ### cp src2/tools/win/req.txt src/req.txt
-              ### cp src2/tools/win/aubio-0.5.0a0-cp310-cp310-win_amd64.whl src/aubio-0.5.0a0-cp310-cp310-win_amd64.whl
-              # cp src2/tools/win/aubio-0.5.0a0-cp39-cp39-win_amd64.whl src/aubio-0.5.0a0-cp39-cp39-win_amd64.whl
-              # cp src2/tools/win/numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl src/numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
               cd src               
               python3 -m pip install pywin32
-              # python3 C:\hostedtoolcache\windows\Python\3.9.13\x64\Scripts\pywin32_postinstall.py -install
-              ### python3 C:\hostedtoolcache\windows\Python\3.10.8\x64\Scripts\pywin32_postinstall.py -install
-              # python3 C:\Python310\Scripts\pywin32_postinstall.py -install
-              ## pip install https://download.lfd.uci.edu/pythonlibs/w4tscw6k/PyAudio-0.2.11-cp39-cp39-win_amd64.whl              
-              # pip install numpy
-              # pip install aubio-0.5.0a0-cp39-cp39-win_amd64.whl
-              # pip install numpy-1.22.4+vanilla-cp310-cp310-win_amd64.whl
-              ### python3 -m pip install --upgrade git+https://github.com/Digital-Sapphire/PyUpdater.git@main
               pip install pystray==0.17
-              # pip install sounddevice==0.4.4
-              # pip install samplerate
-              # pip install typing-extensions
               pip install -r requirements.txt          
               pip install -r requirements-dev.txt
-              ### python3 -m pip install -r req.txt
-              ### python3 -m pip install aubio-0.5.0a0-cp310-cp310-win_amd64.whl
-              ### python3 -m pip install pyinstaller==5.2
               pip install pyinstaller-hooks-contrib
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
-              python3 setup.py develop
-              # del c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
-              # del c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio64bit.dll
+              python3 setup.py develop              
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-              # # cp ../src2/tools/win/libsamplerate-64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
-              # # cp ../src2/tools/win/libsamplerate-64bit.dll .
-              # # cp ../src2/tools/win/libsamplerate-32bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
-              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.10.7\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-              # # dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
               cd ..
             CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
@@ -356,6 +329,11 @@ jobs:
       with:
         path: ./src
         token: ${{ secrets.LEDFX_TOKEN }}
+        delete-branch: true
+        branch: new-frontend
+        commit-message: "[new-frontend] v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}"
+        title: Release v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        body: New version incoming!
         
     - name: Set up Python 3.10    
       if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
