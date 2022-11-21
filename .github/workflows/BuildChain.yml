@@ -345,6 +345,15 @@ jobs:
         cd ..
         cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
+    - name: Bump version    
+      if: "startsWith(matrix.OS, 'win')"  
+      run: |
+        cp ./src2/tools/windows/version-bump.ps1 ./
+        ./version-bump.ps1 ${{ github.event.inputs.fversion }}
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v4
+      with:
+        path: ./src
     - name: Set up Python 3.10    
       if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
       uses: actions/setup-python@v4
