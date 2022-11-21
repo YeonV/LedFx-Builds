@@ -1,4 +1,4 @@
-name: Build LedFx Chained
+name: Build LedFx
 
 on: 
   workflow_dispatch:
