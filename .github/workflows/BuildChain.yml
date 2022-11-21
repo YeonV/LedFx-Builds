@@ -348,7 +348,7 @@ jobs:
     - name: Bump version    
       if: "startsWith(matrix.OS, 'win')"  
       run: |
-        cp ./src2/tools/windows/version-bump.ps1 ./
+        cp ./src2/tools/win/version-bump.ps1 ./
         ./version-bump.ps1 ${{ github.event.inputs.fversion }}
     - name: Create Pull Request
       if: "startsWith(matrix.OS, 'win')"  
