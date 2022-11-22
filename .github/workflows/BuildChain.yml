@@ -324,9 +324,15 @@ jobs:
         cp ./src2/tools/win/version-bump.ps1 ./
         ./version-bump.ps1 ${{ github.event.inputs.fversion }}
     - name: Bump version unix   
-      if: "!startsWith(matrix.OS, 'win')"  
+      if: "startsWith(matrix.OS, 'ubu')"  
       run: |
         sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
+        
+    - name: Bump version osx
+      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"  
+      run: |
+        brew install gnu-sed
+        gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
         
     - name: Create Pull Request
       if: "startsWith(matrix.OS, 'win')"  
