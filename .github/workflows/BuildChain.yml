@@ -323,6 +323,11 @@ jobs:
       run: |
         cp ./src2/tools/win/version-bump.ps1 ./
         ./version-bump.ps1 ${{ github.event.inputs.fversion }}
+    - name: Bump version unix   
+      if: "!startsWith(matrix.OS, 'win')"  
+      run: |
+        sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
+        
     - name: Create Pull Request
       if: "startsWith(matrix.OS, 'win')"  
       uses: peter-evans/create-pull-request@v4
