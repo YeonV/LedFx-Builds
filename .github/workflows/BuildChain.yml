@@ -282,6 +282,12 @@ jobs:
         repository: LedFx/LedFx
         ref: main
         path: src
+    - name: Get Version
+      id: getversion
+      run: |
+        cd src        
+        echo "::set-output name=bversion::$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)"
+        cd ..
     - uses: actions/checkout@v2
       with:
         repository: YeonV/LedFx-Builds
@@ -343,7 +349,7 @@ jobs:
         delete-branch: true
         branch: new-frontend
         commit-message: "[new-frontend] v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}"
-        title: Release v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        title: Release v${{ steps.getversion.outputs.bversion }}.${{ github.event.inputs.fversion }}
         body: New version incoming!
         
     - name: Set up Python 3.10    
