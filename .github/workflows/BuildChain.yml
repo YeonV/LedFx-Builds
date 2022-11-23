@@ -75,16 +75,16 @@ jobs:
       id: getbackendver
       run: |
         cd backend/ledfx        
-        echo "::set-output name=bversion::$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)"
+        echo "action_state=$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)" >> $GITHUB_ENV
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
         #tag_name: v2.0.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        release_name: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
         body_path: ./messages.md
         draft: false
         prerelease: false
@@ -282,12 +282,6 @@ jobs:
         repository: LedFx/LedFx
         ref: main
         path: src
-    - name: Get Version
-      id: getversion
-      run: |
-        cd src        
-        echo "::set-output name=bversion::$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)"
-        cd ..
     - uses: actions/checkout@v2
       with:
         repository: YeonV/LedFx-Builds
@@ -348,8 +342,8 @@ jobs:
         token: ${{ secrets.LEDFX_TOKEN }}
         delete-branch: true
         branch: new-frontend
-        commit-message: "[new-frontend] v${{ steps.getbackendver.outputs.bversion }}.${{ github.event.inputs.fversion }}"
-        title: Release v${{ steps.getversion.outputs.bversion }}.${{ github.event.inputs.fversion }}
+        commit-message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+        title: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
         body: New version incoming!
         
     - name: Set up Python 3.10    
@@ -375,11 +369,6 @@ jobs:
       id: pythonvenv
       run: |        
         source ~/led/bin/activate
-    - name: Get Backendver
-      id: getbackendver
-      run: |        
-        cd src/ledfx        
-        echo "::set-output name=bversion::$(python3 consts.py)"
     - name: Update    
       if: "startsWith(matrix.OS, 'ubuntu')"   
       run: |
