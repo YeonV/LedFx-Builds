@@ -203,7 +203,6 @@ jobs:
                 pip install -r requirements-dev.txt
                 pip install zeroconf==0.39.4
                 pip install -e .
-                python setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller3.10 mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
