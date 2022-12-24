@@ -201,6 +201,7 @@ jobs:
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
+                pip install zeroconf==0.39.4
                 pip install -e .
                 python3.10 setup.py develop      
             CMD_BUILD: >
