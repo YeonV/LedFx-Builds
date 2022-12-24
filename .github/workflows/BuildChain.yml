@@ -333,11 +333,11 @@ jobs:
       run: |
         brew install gnu-sed
         gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
-    - uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
-        push_options: --force   
-        repository: ./src
+    #- uses: stefanzweifel/git-auto-commit-action@v4
+    #  with:
+    #    commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+    #    push_options: --force   
+    #    repository: ./src
         # token: ${{ secrets.LEDFX_TOKEN }}
 #         tagging_message: '${{ env.action_state }}.${{ github.event.inputs.fversion }}'
         
