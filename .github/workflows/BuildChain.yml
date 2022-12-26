@@ -122,16 +122,16 @@ jobs:
                 python3 setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. && cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller linux.spec && cd dist && mkdir LedFx-linux-notray && mv ./LedFx ./LedFx-linux-notray/LedFx && cd .. 
-            CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip ../../ && tar -czf LedFx-notray--linux-x64.zip ./LedFx-linux-notray && mv LedFx-notray--linux-x64.zip ../../
-            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip
-            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.zip
+            CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../ && tar -czf LedFx-notray--linux-x64.tar.gz ./LedFx-linux-notray && mv LedFx-notray--linux-x64.tar.gz ../../
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
+            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
             ASSET_MIME: application/zip
             # ASSET_NAME2: LedFx-notray--linux-x64.zip
             # ASSET_PATH2: ./LedFx-notray--linux-x64.zip
             # ASSET_MIME2: application/zip
-            ASSET_NAME3: LedFx-notray--linux-x64.zip
-            ASSET_PATH3: ./LedFx-notray--linux-x64.zip
-            ASSET_MIME3: application/zip
+            ASSET_NAME3: LedFx-notray--linux-x64.tar.gz
+            ASSET_PATH3: ./LedFx-notray--linux-x64.tar.gz
+            ASSET_MIME3: application/gzip
             
             arch: x64
             NOTRAY: LedFx-notray--linux-x64.zip
