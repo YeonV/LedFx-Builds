@@ -125,7 +125,7 @@ jobs:
             CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../ && tar -czf LedFx-notray--linux-x64.tar.gz ./LedFx-linux-notray && mv LedFx-notray--linux-x64.tar.gz ../../
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
-            ASSET_MIME: application/zip
+            ASSET_MIME: application/gzip
             # ASSET_NAME2: LedFx-notray--linux-x64.zip
             # ASSET_PATH2: ./LedFx-notray--linux-x64.zip
             # ASSET_MIME2: application/zip
