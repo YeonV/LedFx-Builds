@@ -134,7 +134,7 @@ jobs:
             ASSET_MIME3: application/gzip
             
             arch: x64
-            NOTRAY: LedFx-notray--linux-x64.zip
+            NOTRAY: LedFx-notray--linux-x64.tar.gz
 
           - os: macos-latest          
             continue-on-error: true
