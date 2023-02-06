@@ -118,6 +118,7 @@ jobs:
                 cp src2/tools/linux/yzlinux.spec src/linux.spec
                 cd src
                 pip install -r requirements-dev.txt
+                pip install yappi
                 pip install -e .    
                 python3 setup.py develop                  
             CMD_BUILD: >
