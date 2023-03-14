@@ -119,7 +119,8 @@ jobs:
                 cd src
                 pip install -r requirements-dev.txt
                 pip install yappi
-                pip install -e .    
+                pip install -e .  
+                pip install notify-py
                 python3 setup.py develop                  
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. && cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller linux.spec && cd dist && mkdir LedFx-linux-notray && mv ./LedFx ./LedFx-linux-notray/LedFx && cd .. 
@@ -155,6 +156,7 @@ jobs:
                 # python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
                 # python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
+                pip install notify-py
                 pip install -e .
                 python3 setup.py develop      
             CMD_BUILD: >
@@ -251,6 +253,7 @@ jobs:
               cd src               
               python3 -m pip install pywin32
               pip install pystray==0.17
+              pip install notify-py
               pip install -r requirements.txt          
               pip install -r requirements-dev.txt
               pip install pyinstaller-hooks-contrib
