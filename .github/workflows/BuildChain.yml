@@ -252,11 +252,11 @@ jobs:
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src               
               python3 -m pip install pywin32
-              pip install pystray==0.17
-              pip install notify-py
-              pip install -r requirements.txt          
-              pip install -r requirements-dev.txt
-              pip install pyinstaller-hooks-contrib
+              python3 -m pip install pystray==0.17
+              python3 -m pip install notify-py
+              python3 -m pip install -r requirements.txt          
+              python3 -m pip install -r requirements-dev.txt
+              python3 -m pip install pyinstaller-hooks-contrib
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
               python3 setup.py develop              
@@ -264,7 +264,7 @@ jobs:
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
               cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               cd ..
-            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
+            CMD_BUILD: cd src && python3 -m pyinstaller win.spec && python3 -m pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe && cp ../src2/tools/win/win-notray.md ./ledfx/__main__.py && python3 -m pyinstaller yzwin-notray.spec && mv ./dist/LedFx-notray.exe ../LedFx-notray--win.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
