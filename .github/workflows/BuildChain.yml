@@ -249,6 +249,8 @@ jobs:
             runtime: win-x64
             TARGET: windows
             CMD_DEP: |
+              del src/win.spec
+              cp src2/tools/win/win.spec src/win.spec
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cp src2/tools/win/yzwin-notray.spec src/yzwin-notray.spec
               cd src               
