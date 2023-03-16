@@ -423,17 +423,17 @@ jobs:
         
       
       
-#    - name: Upload Asset 1
-#      id: upload-release-asset1
-#      uses: softprops/action-gh-release@v0.1.15
-#      env:
-#      with:
-#        token: ${{ secrets.GITHUB_TOKEN }}
-#
-#        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-#        asset_path: ${{ matrix.ASSET_PATH}}
-#        asset_name: ${{ matrix.ASSET_NAME}}
-#        asset_content_type: ${{ matrix.ASSET_MIME}}
+    - name: Upload Asset 1
+      id: upload-release-asset1
+      uses: softprops/action-gh-release@v0.1.15
+      env:
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ${{ matrix.ASSET_PATH}}
+        asset_name: ${{ matrix.ASSET_NAME}}
+        asset_content_type: ${{ matrix.ASSET_MIME}}
 
     - name: Upload Asset 1
       id: upload-release-asset1
