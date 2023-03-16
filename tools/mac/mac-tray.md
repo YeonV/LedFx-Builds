@@ -16,17 +16,22 @@ For non-development purposes run:
 """
 
 import argparse
+import importlib
 import logging
 import os
 import subprocess
 import sys
-import importlib
 from logging.handlers import RotatingFileHandler
 
-import psutil
-import yappi
+try:
+    import psutil
+
+    have_psutil = True
+except ImportError:
+    have_psutil = False
 try:
     from pyupdater.client import Client
+
     have_updater = True
 except ImportError:
     have_updater = False
@@ -39,7 +44,7 @@ from ledfx.consts import (
     REQUIRED_PYTHON_VERSION,
 )
 from ledfx.core import LedFxCore
-from ledfx.utils import currently_frozen
+from ledfx.utils import currently_frozen, get_icon_path
 
 # Logger Variables
 PYUPDATERLOGLEVEL = 35
@@ -96,12 +101,8 @@ def setup_logging(loglevel, config_dir):
         backupCount=5,  # once it hits 2.5MB total, start removing logs.
     )
     file_handler.setLevel(file_loglevel)  # set loglevel
-    file_formatter = logging.Formatter(
-        file_logformat
-    )  # a simple log file format
-    file_handler.setFormatter(
-        file_formatter
-    )  # tell the file_handler to use this format
+    file_formatter = logging.Formatter(file_logformat)
+    file_handler.setFormatter(file_formatter)
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_loglevel)  # set loglevel
@@ -199,12 +200,6 @@ def parse_args():
         help="Hide LedFx console to the system tray",
     )
     parser.add_argument(
-        "--performance",
-        dest="performance",
-        action="store_true",
-        help="Profile LedFx's performance. A developer can use this to diagnose performance issues.",
-    )
-    parser.add_argument(
         "--offline",
         dest="offline_mode",
         action="store_true",
@@ -220,12 +215,11 @@ def parse_args():
 
 
 def installed_via_pip():
-
     """Check to see if LedFx is installed via pip
     Returns:
         boolean
     """
-    pip_spec = importlib.util.find_spec('pip')
+    pip_spec = importlib.util.find_spec("pip")
     if pip_spec is None:
         return False
     pip_package_command = subprocess.check_output(
@@ -304,28 +298,32 @@ def main():
     config_helpers.load_logger()
 
     # Set some process priority optimisations
-    p = psutil.Process(os.getpid())
+    if have_psutil:
+        p = psutil.Process(os.getpid())
 
-    if psutil.WINDOWS:
-        try:
-            p.nice(psutil.HIGH_PRIORITY_CLASS)
-        except psutil.Error:
-            _LOGGER.info(
-                "Unable to set priority, please run as Administrator if you are experiencing frame rate issues"
-            )
-        # p.ionice(psutil.IOPRIO_HIGH)
-    elif psutil.LINUX:
-        try:
+        if psutil.WINDOWS:
+            try:
+                p.nice(psutil.HIGH_PRIORITY_CLASS)
+            except psutil.Error:
+                _LOGGER.info(
+                    "Unable to set priority, please run as Administrator if you are experiencing frame rate issues"
+                )
+            # p.ionice(psutil.IOPRIO_HIGH)
+        elif psutil.LINUX:
+            try:
+                p.nice(15)
+                p.ionice(psutil.IOPRIO_CLASS_RT, value=7)
+            except psutil.Error:
+                _LOGGER.info(
+                    "Unable to set priority, please run as root or sudo if you are experiencing frame rate issues",
+                )
+        else:
             p.nice(15)
-            p.ionice(psutil.IOPRIO_CLASS_RT, value=7)
-        except psutil.Error:
-            _LOGGER.info(
-                "Unable to set priority, please run as root or sudo if you are experiencing frame rate issues",
-            )
-    else:
-        p.nice(15)
 
-    if not (currently_frozen() or installed_via_pip()) and args.offline_mode is False:
+    if (
+        not (currently_frozen() or installed_via_pip())
+        and args.offline_mode is False
+    ):
         import ledfx.sentry_config  # noqa: F401
 
     if args.sentry_test:
@@ -345,18 +343,11 @@ def main():
 
         from PIL import Image
 
-        if currently_frozen():
-            current_directory = os.path.dirname(__file__)
-            icon_location = os.path.join(current_directory, "tray.png")
-        else:
-            current_directory = os.path.dirname(__file__)
-            icon_location = os.path.join(
-                current_directory, "..", "icons/" "tray.png"
-            )
+        icon_location = get_icon_path("tray.png")
+
         icon = pystray.Icon(
             "LedFx", icon=Image.open(icon_location), title="LedFx"
         )
-        icon.visible = True
     else:
         icon = None
     # icon = None
@@ -374,13 +365,12 @@ def entry_point(icon=None):
     # have to re-parse args here :/ no way to pass them through pysicon's setup
     args = parse_args()
 
+    if icon:
+        icon.visible = True
+
     exit_code = 4
     while exit_code == 4:
         _LOGGER.info("LedFx Core is initializing")
-
-        if args.performance:
-            print("Collecting performance data...")
-            yappi.start()
 
         ledfx = LedFxCore(
             config_dir=args.config,
@@ -391,22 +381,6 @@ def entry_point(icon=None):
         )
 
         exit_code = ledfx.start(open_ui=args.open_ui)
-
-        if args.performance:
-            print("Finished collecting performance data")
-            filename = config_helpers.get_profile_dump_location(
-                config_dir=args.config
-            )
-            yappi.stop()
-            stats = yappi.get_func_stats()
-            yappi.get_thread_stats().print_all()
-            stats.save(filename, type="pstat")
-            print(
-                f"Saved performance data to config directory      : {filename}"
-            )
-            print(
-                "Please send the performance data to a developer : https://ledfx.app/contact/"
-            )
 
     if icon:
         icon.stop()
