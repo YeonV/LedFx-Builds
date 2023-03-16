@@ -405,8 +405,8 @@ jobs:
       shell: bash
       run: |
         value=`cat release_url/release_url.txt`
-        echo ::set-output name=upload_url::$value
-        #echo "upload_url=$value" >> $GITHUB_OUTPUT
+        #echo ::set-output name=upload_url::$value
+        echo "upload_url=${{value}}" >> $GITHUB_OUTPUT
     - name: Pack app
       run: ${{matrix.CMD_PACK}}
       
