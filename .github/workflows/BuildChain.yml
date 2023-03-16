@@ -76,18 +76,18 @@ jobs:
       run: |
         cd backend/ledfx        
         echo "action_state=$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)" >> $GITHUB_ENV
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
-        #tag_name: v2.0.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
-        body_path: ./messages.md
-        draft: false
-        prerelease: false
+#    - name: Create Release
+#      id: create_release
+#      uses: actions/create-release@v1
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      with:
+#        tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+#        #tag_name: v2.0.${{ github.event.inputs.fversion }}
+#        release_name: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+#        body_path: ./messages.md
+#        draft: false
+#        prerelease: false
     - name: Output Release URL File
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
