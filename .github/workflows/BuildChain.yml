@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: '54'
+       default: '62'
        required: false
        
 jobs:
@@ -256,6 +256,7 @@ jobs:
               python3 -m pip install notify-py
               python3 -m pip install -r requirements.txt          
               python3 -m pip install -r requirements-dev.txt
+              python3 -m pip install pyinstaller
               python3 -m pip install pyinstaller-hooks-contrib
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
