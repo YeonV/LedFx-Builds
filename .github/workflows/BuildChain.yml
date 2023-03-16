@@ -157,7 +157,7 @@ jobs:
                 # python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
                 pip install notify-py
-                pip install -e .
+                pip install -e .                
                 python3 setup.py develop      
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
@@ -205,6 +205,7 @@ jobs:
                 cd src 
                 pip install -r requirements-dev.txt
                 pip install zeroconf==0.39.4
+                pip install notify-py
                 pip install -e .
             CMD_BUILD: >
                 cd src && pyinstaller3.10 mac.spec &&
