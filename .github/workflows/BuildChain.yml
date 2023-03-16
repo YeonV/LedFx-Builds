@@ -66,7 +66,7 @@ jobs:
         " >> ./messages.md
         cat ./message.md >> ./messages.md
         echo "\n\n </details>" >> ./messages.md
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3.4.0
       with:
         repository: LedFx/LedFx
         ref: main
@@ -284,12 +284,12 @@ jobs:
 
          
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3.4.0
       with:
         repository: LedFx/LedFx
         ref: main
         path: src
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3.4.0
       with:
         repository: YeonV/LedFx-Builds
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -404,7 +404,8 @@ jobs:
       shell: bash
       run: |
         value=`cat release_url/release_url.txt`
-        echo ::set-output name=upload_url::$value
+#        echo ::set-output name=upload_url::$value
+        echo "{upload_url}={value}" >> $GITHUB_OUTPUT
     - name: Pack app
       run: ${{matrix.CMD_PACK}}
       
@@ -423,6 +424,18 @@ jobs:
         
       
       
+#    - name: Upload Asset 1
+#      id: upload-release-asset1
+#      uses: softprops/action-gh-release@v0.1.15
+#      env:
+#      with:
+#        token: ${{ secrets.GITHUB_TOKEN }}
+#
+#        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+#        asset_path: ${{ matrix.ASSET_PATH}}
+#        asset_name: ${{ matrix.ASSET_NAME}}
+#        asset_content_type: ${{ matrix.ASSET_MIME}}
+
     - name: Upload Asset 1
       id: upload-release-asset1
       uses: YeonV/upload-release-asset@v1
@@ -433,7 +446,7 @@ jobs:
         asset_path: ${{ matrix.ASSET_PATH}}
         asset_name: ${{ matrix.ASSET_NAME}}
         asset_content_type: ${{ matrix.ASSET_MIME}}
-        
+
     - name: Upload Asset 2    
       if: "startsWith(matrix.OS, 'win')"      
       id: upload-release-asset2
@@ -465,7 +478,7 @@ jobs:
 
     # Client
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3.4.0
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
