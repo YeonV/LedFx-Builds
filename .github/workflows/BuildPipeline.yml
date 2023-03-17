@@ -340,25 +340,26 @@ jobs:
       run: |
         brew install gnu-sed
         gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
-    #- uses: stefanzweifel/git-auto-commit-action@v4
-    #  with:
-    #    commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
-    #    push_options: --force   
-    #    repository: ./src
-        # token: ${{ secrets.LEDFX_TOKEN }}
-#         tagging_message: '${{ env.action_state }}.${{ github.event.inputs.fversion }}'
+
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+        push_options: --force   
+        repository: ./src
+        token: ${{ secrets.LEDFX_TOKEN }}
+        tagging_message: '${{ env.action_state }}.${{ github.event.inputs.fversion }}'
         
-#     - name: Create Pull Request
-#       if: "startsWith(matrix.OS, 'win')"  
-#       uses: peter-evans/create-pull-request@v4
-#       with:
-#         path: ./src
-#         token: ${{ secrets.LEDFX_TOKEN }}
-#         delete-branch: true
-#         branch: new-frontend
-#         commit-message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
-#         title: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
-#         body: New version incoming!
+    - name: Create Pull Request
+      if: "startsWith(matrix.OS, 'win')"  
+      uses: peter-evans/create-pull-request@v4
+      with:
+        path: ./src
+        token: ${{ secrets.LEDFX_TOKEN }}
+        delete-branch: true
+        branch: new-frontend
+        commit-message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+        title: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        body: New version incoming!
         
     - name: Set up Python 3.10    
       if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
@@ -447,6 +448,7 @@ jobs:
         asset_content_type: ${{ matrix.ASSET_MIME2}}
         
     - name: Upload Asset 3   
+      if: "!startsWith(matrix.OS, 'win')"  
       id: upload-release-asset3
       uses: YeonV/upload-release-asset@v1
       env:
