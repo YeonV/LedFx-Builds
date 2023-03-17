@@ -208,6 +208,7 @@ jobs:
                 pip install notify-py --force
                 pip install -e .
             CMD_BUILD: >
+                pip uninstall notifypy && pip install notify-py --force &&
                 cd src && pyinstaller3.10 mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
