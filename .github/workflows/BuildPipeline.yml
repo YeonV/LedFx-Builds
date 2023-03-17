@@ -317,7 +317,7 @@ jobs:
         cp -rf ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
         ls ./src/ledfx_frontend
     - name: Include new frontend win    
-      if: "startsWith(matrix.OS, 'win')"  
+      if: "startsWith(matrix.OS, 'win')"
       run: |
         cd ./ledfx_frontend_v2
         ls
@@ -342,14 +342,16 @@ jobs:
         gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
 
     - uses: stefanzweifel/git-auto-commit-action@v4
+      continue-on-error: true
       with:
-        commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+        commit_message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
         push_options: --force   
         repository: ./src
         token: ${{ secrets.LEDFX_TOKEN }}
-        tagging_message: '${{ env.action_state }}.${{ github.event.inputs.fversion }}'
+        tagging_message: 'v2.0.${{ github.event.inputs.fversion }}'
         
     - name: Create Pull Request
+      continue-on-error: true
       if: "startsWith(matrix.OS, 'win')"  
       uses: peter-evans/create-pull-request@v4
       with:
@@ -357,8 +359,8 @@ jobs:
         token: ${{ secrets.LEDFX_TOKEN }}
         delete-branch: true
         branch: new-frontend
-        commit-message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
-        title: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        commit-message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
+        title: Release v2.0.${{ github.event.inputs.fversion }}
         body: New version incoming!
         
     - name: Set up Python 3.10    
