@@ -1,4 +1,4 @@
-name: Build LedFx
+name: LedFx Build-Pipeline
 
 on: 
   workflow_dispatch:
