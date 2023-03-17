@@ -1,0 +1,640 @@
+name: LedFx BuildPipeline
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      fversion:
+       description: 'Frontend Version'
+       default: '62'
+       required: false
+       
+jobs:
+  createrelease:
+    name: Create Release
+    runs-on: [ubuntu-latest]
+    steps:    
+    - name: Get latest frontend
+      run: |
+        curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+    - name: Save Frontend for publish
+      uses: actions/upload-artifact@v1
+      with:
+        name: ledfx_frontend_v2
+        path: ledfx_frontend_v2.zip     
+    - name: Get Messages
+      run: |
+        unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
+        echo "### Core
+        The LedFx you know. Run it and control it via Browser.
+
+        ### Client
+        A Desktop App to connect to a running core in the network (or the same machine).
+
+        ### CC
+        Client with integrated core: Full Desktop App, starting & connecting to the integrated core in the background.
+
+
+        ## These builds are not signed:
+
+        <details><summary>Mac-Users:</summary>
+
+        #### Infos:
+        Reports as damaged, because of unsiged.
+        To fix it open Terminal and type in the following (with a SPACE at the end):
+        \`sudo xattr -cr \`
+        Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
+
+        Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
+        Maybe at some point we might buy an apple dev-license for 99€/year, then the \`xattr\` voodoo would not be needed anymore.
+
+        </details>
+
+
+        <details><summary>Win-Users:</summary>
+
+        #### Infos:
+        Reports as unsave, because of unsiged.
+
+        Maybe at some point we might buy a microsoft dev-license
+
+        </details>
+
+        ## Changes
+
+        <details><summary>Expand</summary>
+        " >> ./messages.md
+        cat ./message.md >> ./messages.md
+        echo "\n\n </details>" >> ./messages.md
+    - uses: actions/checkout@v3
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: backend
+    - name: Get Backendver
+      id: getbackendver
+      run: |
+        cd backend/ledfx        
+        echo "action_state=$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)" >> $GITHUB_ENV
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        #tag_name: v2.0.${{ github.event.inputs.fversion }}
+        release_name: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        body_path: ./messages.md
+        draft: false
+        prerelease: false
+    - name: Output Release URL File
+      run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+    - name: Save Release URL File for publish
+      uses: actions/upload-artifact@v1
+      with:
+        name: release_url
+        path: release_url.txt
+        
+  core:
+    name: Build ${{ matrix.runtime }}
+    needs: createrelease
+    # if: ${{ github.event.inputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            continue-on-error: true
+            # if: ${{ github.event.inputs.linux == 'true' }}
+            TARGET: ubuntu
+            runtime: linux-x64
+            CMD_DEP: |
+                sudo apt install libatlas3-base \
+                  libavformat58 \
+                  portaudio19-dev \
+                  pulseaudio                
+                cp src2/tools/linux/yzlinux.spec src/linux.spec
+                cd src
+                pip install -r requirements-dev.txt
+                pip install yappi
+                pip install -e .  
+                pip install notify-py --force
+                python3 setup.py develop                  
+            CMD_BUILD: >
+                cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. && cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller linux.spec && cd dist && mkdir LedFx-linux-notray && mv ./LedFx ./LedFx-linux-notray/LedFx && cd .. 
+            CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../ && tar -czf LedFx-notray--linux-x64.tar.gz ./LedFx-linux-notray && mv LedFx-notray--linux-x64.tar.gz ../../
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
+            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
+            ASSET_MIME: application/gzip
+            # ASSET_NAME2: LedFx-notray--linux-x64.zip
+            # ASSET_PATH2: ./LedFx-notray--linux-x64.zip
+            # ASSET_MIME2: application/zip
+            ASSET_NAME3: LedFx-notray--linux-x64.tar.gz
+            ASSET_PATH3: ./LedFx-notray--linux-x64.tar.gz
+            ASSET_MIME3: application/gzip
+            
+            arch: x64
+            NOTRAY: LedFx-notray--linux-x64.tar.gz
+
+          - os: macos-latest          
+            continue-on-error: true
+            # if: ${{ github.event.inputs.mac == 'true' }}
+            runtime: osx-x64
+            TARGET: macos
+            CMD_DEP: |
+                brew install portaudio pulseaudio
+                # python3 -m pip install --upgrade pip
+                # python3 -m pip install --upgrade wheel
+                cp src2/tools/mac/mac.spec src/mac.spec
+                #cp src2/tools/mac/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
+                #cp src2/tools/mac/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
+                cd src 
+                #python3 -m pip install aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
+                #python3 -m pip install numpy==1.20.2
+                # python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
+                # python3 -m pip install -r requirements.txt
+                python3 -m pip install -r requirements-dev.txt
+                pip install notify-py --force
+                pip install -e .                
+                python3 setup.py develop      
+            CMD_BUILD: >
+                cd src && pyinstaller mac.spec &&
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller mac.spec &&                
+                cd dist/ && mkdir LedFxC && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app && cd .. &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-x86-x64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
+            CMD_PACK: |
+              rm -rf ./LedFx.app
+              mv ./src/dist/LedFx/LedFx.app ./LedFx.app
+              tar -czf my_files.tar ./LedFx.app
+              rm -rf ./LedFx-notray.app
+              mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
+              tar -czf my_files2.tar ./LedFx-notray.app
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-x64.zip
+            ASSET_PATH: my_files.tar
+            ASSET_MIME: application/zip
+            # ASSET_NAME2: LedFx-notray--osx-x64.app.zip
+            # ASSET_PATH2: my_files2.tar
+            # ASSET_MIME2: application/zip
+            ASSET_NAME3: LedFx-notray--osx-x64.app.zip
+            ASSET_PATH3: my_files2.tar
+            ASSET_MIME3: application/zip            
+            
+            arch: x64
+            NOTRAY: LedFx-notray--osx-x64.app.zip
+
+          - os: osx-arm64          
+            continue-on-error: true
+            # if: ${{ github.event.inputs.macarm == 'true' }}
+            runtime: osx-arm64
+            TARGET: macos
+            CMD_DEP: |
+                # brew install portaudio pulseaudio
+                # python3.10 -m pip3.10 install --upgrade pip
+                # python3.10 -m pip3.10 install --upgrade wheel
+                cp src2/tools/mac/mac.spec src/mac.spec
+                cd src 
+                pip install -r requirements-dev.txt
+                pip install zeroconf==0.39.4
+                pip install notify-py --force
+                pip install -e .
+            CMD_BUILD: >
+                pip uninstall -y notifypy && pip install notify-py --force &&
+                cd src && pyinstaller3.10 mac.spec &&
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                mv ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib &&
+                cp ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/libsamplerate.0.dylib &&
+                cp ../src2/tools/mac/mac-notray.md ./ledfx/__main__.py && pyinstaller3.10 mac.spec &&                
+                cd dist/ && mkdir LedFxC && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFxC/LedFx-notray.app && cd .. &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate &&
+                mkdir ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/ &&
+                cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/ &&
+                mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/libsamplerate.0.dylib &&
+                mv ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate-arm64.dylib ./dist/LedFxC/LedFx-notray.app/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib
+            CMD_PACK: |
+              rm -rf ./LedFx.app
+              mv ./src/dist/LedFx/LedFx.app ./LedFx.app
+              tar -czf my_files.tar ./LedFx.app
+              rm -rf ./LedFx-notray.app
+              mv ./src/dist/LedFxC/LedFx-notray.app ./LedFx-notray.app
+              tar -czf my_files2.tar ./LedFx-notray.app
+            OUT_FILE_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip            
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--osx-arm64.zip
+            ASSET_PATH: my_files.tar
+            ASSET_MIME: application/zip
+            # ASSET_NAME2: LedFx-notray--osx-x64.app.zip
+            # ASSET_PATH2: my_files2.tar
+            # ASSET_MIME2: application/zip
+            ASSET_NAME3: LedFx-notray--osx-arm64.app.zip
+            ASSET_PATH3: my_files2.tar
+            ASSET_MIME3: application/zip
+                        
+            arch: arm64
+            NOTRAY: LedFx-notray--osx-arm64.app.zip
+
+          - os: windows-latest         
+            continue-on-error: true     
+            runtime: win-x64
+            TARGET: windows
+            CMD_DEP: |
+              del src/win.spec
+              cp src2/tools/win/win.spec src/win.spec
+              cp src2/tools/win/yzwin.spec src/yzwin.spec
+              cd src               
+              python3 -m pip install pywin32
+              python3 -m pip install pystray==0.17
+              python3 -m pip install notify-py --force
+              python3 -m pip install -r requirements.txt          
+              python3 -m pip install -r requirements-dev.txt
+              python3 -m pip install pyinstaller-hooks-contrib
+              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
+              cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
+              python3 setup.py develop              
+              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
+              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
+              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              cd ..
+            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe
+            CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
+            ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
+            ASSET_MIME: application/zip
+            ASSET_NAME2: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            ASSET_PATH2: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+            ASSET_MIME2: application/vnd.microsoft.portable-executable
+            # ASSET_NAME3: LedFx-notray--win.exe 
+            # ASSET_PATH3: ./LedFx-notray--win.exe 
+            # ASSET_MIME3: application/vnd.microsoft.portable-executable
+
+            arch: x64
+            NOTRAY: LedFx-notray--win.exe
+
+         
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        repository: LedFx/LedFx
+        ref: main
+        path: src
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Builds
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: main
+        path: src2
+    - name: Delete old frontend
+      uses: JesseTG/rm@v1.0.3
+      with:
+        path: ./src/ledfx_frontend
+    - name: get git version
+      run: |        
+        cd src
+        git rev-parse HEAD >> ledfx/git_version          
+    - name: Load Frontend from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: ledfx_frontend_v2
+    - name: Include new frontend
+      if: "!startsWith(matrix.OS, 'win')"  
+      run: |
+        cd ./ledfx_frontend_v2
+        ls
+        unzip -o -u ledfx_frontend_v2.zip
+        cd ..
+        cp -rf ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
+    - name: Include new frontend win    
+      if: "startsWith(matrix.OS, 'win')"  
+      run: |
+        cd ./ledfx_frontend_v2
+        ls
+        tar -xf ledfx_frontend_v2.zip
+        cd ..
+        cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./src/ledfx_frontend
+        ls ./src/ledfx_frontend
+    - name: Bump version    
+      if: "startsWith(matrix.OS, 'win')"  
+      run: |
+        cp ./src2/tools/win/version-bump.ps1 ./
+        ./version-bump.ps1 ${{ github.event.inputs.fversion }}
+    - name: Bump version unix   
+      if: "startsWith(matrix.OS, 'ubu')"  
+      run: |
+        sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
+        
+    - name: Bump version osx
+      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"  
+      run: |
+        brew install gnu-sed
+        gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
+    #- uses: stefanzweifel/git-auto-commit-action@v4
+    #  with:
+    #    commit_message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+    #    push_options: --force   
+    #    repository: ./src
+        # token: ${{ secrets.LEDFX_TOKEN }}
+#         tagging_message: '${{ env.action_state }}.${{ github.event.inputs.fversion }}'
+        
+#     - name: Create Pull Request
+#       if: "startsWith(matrix.OS, 'win')"  
+#       uses: peter-evans/create-pull-request@v4
+#       with:
+#         path: ./src
+#         token: ${{ secrets.LEDFX_TOKEN }}
+#         delete-branch: true
+#         branch: new-frontend
+#         commit-message: "[new-frontend] v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+#         title: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+#         body: New version incoming!
+        
+    - name: Set up Python 3.10    
+      if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx')"  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    - name: Set up Python 3.9    
+      if: "startsWith(matrix.OS, 'win')"  
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9.13'
+        cache: 'pip'
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: 'yarn'
+        cache-dependency-path: '**/yarn.lock'
+    - name: Activate python venv
+      if: "startsWith(matrix.OS, 'osx-arm64')" 
+      id: pythonvenv
+      run: |        
+        source ~/led/bin/activate
+    - name: Update    
+      if: "startsWith(matrix.OS, 'ubuntu')"   
+      run: |
+        sudo apt update   
+    - name: Install dependencies
+      if: "!startsWith(runner.name, 'BLADE')"       
+      run: ${{matrix.CMD_DEP}}        
+    - name: Build with pyinstaller for ${{matrix.TARGET}}
+      run: ${{matrix.CMD_BUILD}}      
+    #- name: Delete .lib from numpy
+    #  run: |
+    #    Remove-Item -path ./src/dist/LedFx/numpy/.libs -recurse -force -ErrorAction Ignore    
+    - name: Load Release URL File from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+    - name: Get Release File Name & Upload URL
+      id: get_release_info
+      shell: bash
+      run: |
+        value=`cat release_url/release_url.txt`
+        echo ::set-output name=upload_url::$value
+    - name: Pack app
+      run: ${{matrix.CMD_PACK}}
+      
+    - name: Upload Frontend Build as Asset
+      if: "startsWith(matrix.OS, 'win')"      
+      continue-on-error: true
+      id: upload-release-asset-2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./ledfx_frontend_v2/ledfx_frontend_v2.zip
+        asset_name: ledfx_frontend-v2.0.${{ github.event.inputs.fversion }}.zip
+        asset_content_type: ${{ matrix.ASSET_MIME}}
+        
+      
+      
+    - name: Upload Asset 1
+      id: upload-release-asset1
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ${{ matrix.ASSET_PATH}}
+        asset_name: ${{ matrix.ASSET_NAME}}
+        asset_content_type: ${{ matrix.ASSET_MIME}}
+        
+    - name: Upload Asset 2    
+      if: "startsWith(matrix.OS, 'win')"      
+      id: upload-release-asset2
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ${{ matrix.ASSET_PATH2}}
+        asset_name: ${{ matrix.ASSET_NAME2}}
+        asset_content_type: ${{ matrix.ASSET_MIME2}}
+        
+    - name: Upload Asset 3   
+      id: upload-release-asset3
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ${{ matrix.ASSET_PATH3}}
+        asset_name: ${{ matrix.ASSET_NAME3}}
+        asset_content_type: ${{ matrix.ASSET_MIME3}}
+        
+    - name: Save Notray for CC
+      if: "!startsWith(matrix.OS, 'win')"
+      uses: actions/upload-artifact@v1
+      with:
+        name: ${{ matrix.ASSET_NAME3}}
+        path: ${{ matrix.ASSET_PATH3}}       
+
+    # Client
+
+    - uses: actions/checkout@v2
+      with:
+        repository: YeonV/LedFx-Frontend-v2
+        ref: main
+        path: frontend
+    - name: Load Core from previous job win
+      if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win')"
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{matrix.NOTRAY}}
+        
+    - name: cd
+      run: |
+         cd frontend    
+        
+    - name: Move Core-notray-win
+      if: "startsWith(matrix.OS, 'win')"
+      run: |
+         cp ${{matrix.ASSET_NAME}} ./frontend/extraResources/LedFx_core.exe         
+
+    - name: Move Core-notray-mac
+      if: "startsWith(matrix.TARGET, 'mac')"
+      run: |
+         cd ${{matrix.NOTRAY}}
+         tar -xf my_files2.tar
+         cd ..
+         cp -r ${{matrix.NOTRAY}}/LedFx-notray.app ./frontend/extraResources/LedFx_core.app
+         
+
+    - name: Move Core-notray-linux
+      if: "startsWith(matrix.OS, 'ubu')"
+      run: |
+         ls ${{matrix.NOTRAY}}
+      # cp {{matrix.NOTRAY}}/{{matrix.NOTRAY}}.zip ./frontend/extraResources/LedFx_core.app
+      
+    - name: Building Clients
+      run: |
+         cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Load Release URL File from release job
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+
+    - name: Move Client Linux
+      if: "startsWith(matrix.OS, 'ubu')"
+      run: |
+         ls ./frontend/dist/
+         mv ./frontend/dist/ledfx-2.0.${{ github.event.inputs.fversion }}.AppImage ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage
+         mv ./frontend/dist/ledfx_2.0.${{ github.event.inputs.fversion }}_amd64.snap ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap
+         
+    - name: Upload Win-Portable as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-portable
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+
+    - name: Upload Win-Setup as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-setup
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+
+    - name: Upload Win-Zip as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-zip
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
+        asset_content_type: application/zip
+
+    - name: Upload Win-CC as Asset      
+      if: "startsWith(matrix.OS, 'win')"
+      id: upload-release-asset-cc
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+        asset_content_type: application/vnd.microsoft.portable-executable
+        
+    - name: Upload Mac-Zip as Asset      
+      if: "startsWith(matrix.runtime, 'osx')"
+      id: upload-release-asset-zip-mac
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
+        asset_content_type: application/zip
+        
+    - name: Upload Mac-CC as Asset      
+      if: "startsWith(matrix.runtime, 'osx')"
+      id: upload-release-asset-cc-mac
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.zip
+        asset_content_type: application/zip
+        
+    - name: Upload Mac-Dmg as Asset      
+      if: "startsWith(matrix.runtime, 'osx')"
+      id: upload-release-asset-dmg-mac
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Mac-CC-Dmg as Asset      
+      if: "startsWith(matrix.runtime, 'osx')"
+      id: upload-release-asset-cc-mac-dmg
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}        
+        asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--mac-${{matrix.arch}}.dmg
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Linux as Asset      
+      if: "startsWith(matrix.OS, 'ubu')"
+      id: upload-release-asset-linux
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.AppImage 
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Linux as Asset      
+      if: "startsWith(matrix.OS, 'ubu')"
+      id: upload-release-asset-linux2
+      uses: YeonV/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+        asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
+        asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
+        asset_content_type: application/octet-stream
