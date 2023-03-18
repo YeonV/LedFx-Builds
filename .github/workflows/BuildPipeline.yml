@@ -467,11 +467,22 @@ jobs:
 
     - name: Move Core-mac
       if: "startsWith(matrix.TARGET, 'mac')"
-      run: |
-         cd ${{matrix.ASSET_NAME}}
+      run: |      
+         ls
          tar -xf my_files2.tar
+         cp -r ./LedFx.app ../frontend/extraResources/LedFx_core.app
+         ls         
+         cd ${{matrix.ASSET_NAME}}
+         ls
+         tar -xf my_files2.tar
+         ls
          cd ..
-         cp -r ${{matrix.ASSET_NAME}}/${{matrix.ASSET_NAME}} ./frontend/extraResources/LedFx_core.app
+         ls
+         cp -r ${{matrix.ASSET_NAME}}/LedFx.app ./frontend/extraResources/LedFx_core.app
+      # cd ${{matrix.ASSET_NAME}}
+      # tar -xf my_files2.tar
+      # cd ..
+      # cp -r ${{matrix.ASSET_NAME}}/${{matrix.ASSET_NAME}} ./frontend/extraResources/LedFx_core.app
          
 
     - name: Move Core-linux
