@@ -438,6 +438,7 @@ jobs:
     #     asset_content_type: ${{ matrix.ASSET_MIME3}}
         
     - name: Save Core for CC
+      if: "!startsWith(matrix.OS, 'osx-arm64')"
       uses: actions/upload-artifact@v1
       with:
         name: ${{ matrix.ASSET_NAME}}
@@ -451,7 +452,7 @@ jobs:
         ref: main
         path: frontend
     - name: Load Core from previous job win
-      if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win')"
+      if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx-arm64')"
       uses: actions/download-artifact@v1
       with:
         name: ${{matrix.ASSET_NAME}}
@@ -467,18 +468,8 @@ jobs:
 
     - name: Move Core-mac
       if: "startsWith(matrix.TARGET, 'mac')"
-      run: |      
-         ls
-         tar -xf my_files.tar
-         cp -r ./LedFx.app ../frontend/extraResources/LedFx_core.app
-         ls         
-         cd ${{matrix.ASSET_NAME}}
-         ls
-         tar -xf my_files.tar
-         ls
-         cd ..
-         ls
-         cp -r ${{matrix.ASSET_NAME}}/LedFx.app ./frontend/extraResources/LedFx_core.app
+      run: |
+         cp -r ./LedFx.app ./frontend/extraResources/LedFx_core.app
       # cd ${{matrix.ASSET_NAME}}
       # tar -xf my_files2.tar
       # cd ..
