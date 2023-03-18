@@ -469,12 +469,12 @@ jobs:
       if: "startsWith(matrix.TARGET, 'mac')"
       run: |      
          ls
-         tar -xf my_files2.tar
+         tar -xf my_files.tar
          cp -r ./LedFx.app ../frontend/extraResources/LedFx_core.app
          ls         
          cd ${{matrix.ASSET_NAME}}
          ls
-         tar -xf my_files2.tar
+         tar -xf my_files.tar
          ls
          cd ..
          ls
