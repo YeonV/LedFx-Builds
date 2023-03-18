@@ -194,10 +194,9 @@ jobs:
                 cd src 
                 pip install -r requirements-dev.txt
                 pip install zeroconf==0.39.4
-                pip install notify-py --force
                 pip install -e .
             CMD_BUILD: >
-                pip uninstall -y notifypy && pip install notify-py --force &&
+                pip install notify-py --force &&
                 cd src && pyinstaller3.10 mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
@@ -218,8 +217,7 @@ jobs:
             # ASSET_MIME2: application/zip
             # ASSET_NAME3: LedFx-notray--osx-arm64.app.zip
             # ASSET_PATH3: my_files2.tar
-            # ASSET_MIME3: application/zip
-                        
+            # ASSET_MIME3: application/zip                        
             arch: arm64
 
           - os: windows-latest         
@@ -355,6 +353,7 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 16
+        architecture: ${{ matrix.arch }}
         cache: 'yarn'
         cache-dependency-path: '**/yarn.lock'
     - name: Activate python venv
@@ -367,7 +366,7 @@ jobs:
       run: |
         sudo apt update   
     - name: Install dependencies
-      if: "!startsWith(runner.name, 'BLADE')"       
+      # if: "!startsWith(runner.name, 'BLADE')"       
       run: ${{matrix.CMD_DEP}}        
     - name: Build with pyinstaller for ${{matrix.TARGET}}
       run: ${{matrix.CMD_BUILD}}      
@@ -437,12 +436,12 @@ jobs:
     #     asset_name: ${{ matrix.ASSET_NAME3}}
     #     asset_content_type: ${{ matrix.ASSET_MIME3}}
         
-    - name: Save Core for CC
-      if: "!startsWith(matrix.OS, 'osx-arm64')"
-      uses: actions/upload-artifact@v1
-      with:
-        name: ${{ matrix.ASSET_NAME}}
-        path: ${{ matrix.ASSET_PATH}}       
+    # - name: Save Core for CC
+    #   if: "!startsWith(matrix.OS, 'osx-arm64')"
+    #   uses: actions/upload-artifact@v1
+    #   with:
+    #     name: ${{ matrix.ASSET_NAME}}
+    #     path: ${{ matrix.ASSET_PATH}}       
 
     # Client
 
@@ -451,11 +450,11 @@ jobs:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
         path: frontend
-    - name: Load Core from previous job win
-      if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx-arm64')"
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{matrix.ASSET_NAME}}
+    # - name: Load Core from previous job win
+    #   if: "!startsWith(matrix.OS, 'ubu') && !startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'osx-arm64')"
+    #   uses: actions/download-artifact@v1
+    #   with:
+    #     name: ${{matrix.ASSET_NAME}}
         
     - name: cd
       run: |
