@@ -66,7 +66,7 @@ jobs:
         " >> ./messages.md
         cat ./message.md >> ./messages.md
         echo "\n\n </details>" >> ./messages.md
-    - uses: actions/checkout@v3.4.0
+    - uses: actions/checkout@v3
       with:
         repository: LedFx/LedFx
         ref: main
@@ -284,12 +284,12 @@ jobs:
 
          
     steps:
-    - uses: actions/checkout@v3.4.0
+    - uses: actions/checkout@v3
       with:
         repository: LedFx/LedFx
         ref: main
         path: src
-    - uses: actions/checkout@v3.4.0
+    - uses: actions/checkout@v3
       with:
         repository: YeonV/LedFx-Builds
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -465,7 +465,7 @@ jobs:
 
     # Client
 
-    - uses: actions/checkout@v3.4.0
+    - uses: actions/checkout@v3
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
