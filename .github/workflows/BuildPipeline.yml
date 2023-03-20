@@ -18,7 +18,7 @@ jobs:
       run: |
         curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
     - name: Save Frontend for publish
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
@@ -91,7 +91,7 @@ jobs:
     - name: Output Release URL File
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: release_url
         path: release_url.txt
