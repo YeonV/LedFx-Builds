@@ -465,8 +465,9 @@ jobs:
         
     - name: Move Core-win
       if: "startsWith(matrix.OS, 'win')"
-      run: |
-         cp ${{matrix.ASSET_NAME}} ./frontend/extraResources/LedFx_core.exe         
+      run: |      
+         cp ./src/dist/LedFx/ ./frontend/extraResources/ &&
+         dir ./frontend/extraResources/
 
     - name: Move Core-mac
       if: "startsWith(matrix.TARGET, 'mac')"
