@@ -467,7 +467,7 @@ jobs:
       if: "startsWith(matrix.OS, 'win')"
       run: |      
          cp ./src/dist/LedFx/ ./frontend/extraResources/ -Recurse &&
-         dir ./frontend/extraResources/
+         dir ./frontend/extraResources/LedFx
 
     - name: Move Core-mac
       if: "startsWith(matrix.TARGET, 'mac')"
