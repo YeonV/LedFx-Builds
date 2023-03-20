@@ -190,6 +190,7 @@ jobs:
                 # brew install portaudio pulseaudio
                 # python3.10 -m pip3.10 install --upgrade pip
                 # python3.10 -m pip3.10 install --upgrade wheel
+                source ~/led/bin/activate
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
