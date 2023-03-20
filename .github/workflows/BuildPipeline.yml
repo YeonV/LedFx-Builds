@@ -193,8 +193,10 @@ jobs:
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
+                pip install notify-py --force
                 pip install zeroconf==0.39.4
                 pip install -e .
+                python3 setup.py develop
             CMD_BUILD: >
                 pip install notify-py --force &&
                 cd src && pyinstaller3.10 mac.spec &&
@@ -258,12 +260,12 @@ jobs:
 
          
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         repository: LedFx/LedFx
         ref: main
         path: src
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         repository: YeonV/LedFx-Builds
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -382,7 +384,7 @@ jobs:
       shell: bash
       run: |
         value=`cat release_url/release_url.txt`
-        echo ::set-output name=upload_url::$value
+        echo "upload_url=$value" >> $GITHUB_OUTPUT
     - name: Pack app
       run: ${{matrix.CMD_PACK}}
       
@@ -445,7 +447,7 @@ jobs:
 
     # Client
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
