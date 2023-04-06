@@ -191,7 +191,7 @@ jobs:
                 # python3.10 -m pip3.10 install --upgrade pip
                 # python3.10 -m pip3.10 install --upgrade wheel
                 source ~/led/bin/activate
-                cp src2/tools/mac/mac.spec src/mac.spec
+                cp src2/tools/mac/mac-arm64.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt      
                 python3 -m pip install pillow
@@ -200,8 +200,8 @@ jobs:
                 python3 setup.py develop                          
                 python3 -m pip install pyinstaller
             CMD_BUILD: >
-                cd src && pyinstaller3.10 mac.spec &&
-                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+                cd src && pyinstaller mac.spec &&
+                cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
                 cp -rf ../src2/tools/mac/libsamplerate-arm64.dylib ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data/ &&
