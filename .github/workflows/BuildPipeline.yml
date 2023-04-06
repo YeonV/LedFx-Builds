@@ -119,9 +119,9 @@ jobs:
                 cd src
                 pip install -r requirements-dev.txt
                 pip install yappi
-                pip install -e .  
-                pip install notify-py --force
-                python3 setup.py develop                  
+                pip install -e .                
+                python3 setup.py develop     
+                pip install pyinstaller
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
             CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
@@ -155,7 +155,6 @@ jobs:
                 # python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
                 # python3 -m pip install -r requirements.txt
                 python3 -m pip install -r requirements-dev.txt
-                pip install notify-py --force
                 pip install -e .                
                 python3 setup.py develop      
             CMD_BUILD: >
@@ -194,12 +193,10 @@ jobs:
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
                 pip install -r requirements-dev.txt
-                pip install notify-py --force
                 pip install zeroconf==0.39.4
                 pip install -e .
                 python3 setup.py develop
             CMD_BUILD: >
-                pip install notify-py --force &&
                 cd src && pyinstaller3.10 mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
@@ -234,7 +231,6 @@ jobs:
               cd src               
               python3 -m pip install pywin32
               python3 -m pip install pystray
-              python3 -m pip install notify-py --force
               python3 -m pip install -r requirements.txt          
               python3 -m pip install -r requirements-dev.txt
               python3 -m pip install pyinstaller-hooks-contrib
