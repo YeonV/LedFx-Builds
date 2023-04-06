@@ -157,6 +157,7 @@ jobs:
                 python3 -m pip install -r requirements-dev.txt
                 pip install -e .                
                 python3 setup.py develop      
+                python3 -m pip install pyinstaller
             CMD_BUILD: >
                 cd src && pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -192,10 +193,12 @@ jobs:
                 source ~/led/bin/activate
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
-                pip install -r requirements-dev.txt
+                pip install -r requirements-dev.txt      
+                python3 -m pip install pillow
                 pip install zeroconf==0.39.4
                 pip install -e .
-                python3 setup.py develop
+                python3 setup.py develop                          
+                python3 -m pip install pyinstaller
             CMD_BUILD: >
                 cd src && pyinstaller3.10 mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -233,6 +236,7 @@ jobs:
               python3 -m pip install pystray
               python3 -m pip install -r requirements.txt          
               python3 -m pip install -r requirements-dev.txt
+              python3 -m pip install pyinstaller
               python3 -m pip install pyinstaller-hooks-contrib
               dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
