@@ -233,7 +233,7 @@ jobs:
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cd src               
               python3 -m pip install pywin32
-              python3 -m pip install pystray==0.17
+              python3 -m pip install pystray
               python3 -m pip install notify-py --force
               python3 -m pip install -r requirements.txt          
               python3 -m pip install -r requirements-dev.txt
