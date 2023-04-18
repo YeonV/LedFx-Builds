@@ -120,7 +120,7 @@ jobs:
           python --version
           pip --version
           python -m pip install numpy --compile --pre
-          python -m pip install --user -U pip wheel setuptools
+          python -m pip install -U pip wheel setuptools
           python setup.py bdist_wheel
       - name: Install LedFx
         run: |
