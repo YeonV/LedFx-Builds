@@ -1,4 +1,4 @@
-name: CI Build LedFx
+name: Test CI Build LedFx
 
 on:
   push:
