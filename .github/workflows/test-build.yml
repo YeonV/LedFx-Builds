@@ -116,6 +116,7 @@ jobs:
       #    python-version: ${{ matrix.python }}
       - name: Build a binary wheel
         run: |
+          source ~/led/bin/activate
           python --version
           pip --version
           python -m pip install numpy --compile --pre
