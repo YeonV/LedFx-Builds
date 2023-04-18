@@ -14,6 +14,10 @@ jobs:
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v3
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          #path: backend
       - name: Install build dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y \
@@ -41,6 +45,10 @@ jobs:
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v3
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          #path: backend
       - name: Setup Python ${{ matrix.python }}
         id: python
         uses: actions/setup-python@v4
@@ -64,6 +72,10 @@ jobs:
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v3
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          #path: backend
       - name: Install build dependencies
         run: |
           brew install portaudio
@@ -82,7 +94,7 @@ jobs:
           pip install --pre --find-links=dist .
           
   build-ledfx-osx-arm64:
-    name: Build LedFx (OS X)
+    name: Build LedFx (OS X arm64)
     runs-on: osx-arm64
     strategy:
       matrix:
@@ -90,6 +102,10 @@ jobs:
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v3
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          #path: backend
       - name: Install build dependencies
         run: |
           brew install portaudio
