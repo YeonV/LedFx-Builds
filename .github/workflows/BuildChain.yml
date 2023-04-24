@@ -201,8 +201,10 @@ jobs:
                 # brew install portaudio pulseaudio
                 # python3.10 -m pip3.10 install --upgrade pip
                 # python3.10 -m pip3.10 install --upgrade wheel
+                cp src2/tools/mac/selfhosted.py src/selfhosted.py
                 cp src2/tools/mac/mac.spec src/mac.spec
                 cd src 
+                python3.10 selfhosted.py
                 pip install -r requirements-dev.txt
                 pip install zeroconf==0.39.4
                 pip install notify-py --force
