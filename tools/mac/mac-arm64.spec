@@ -11,7 +11,7 @@ print(f'{spec_root}')
 a = Analysis([f'{spec_root}/ledfx/__main__.py'],
              pathex=[f'{spec_root}', f'{spec_root}/ledfx'],
              binaries=[],
-             datas=[(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/icons', 'icons/'),(f'{spec_root}/icons/tray.png','.')],
+             datas=[(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/icons', 'icons/'),(f'{spec_root}/icons/tray.png','.'), copy_metadata('bokeh')],
              hiddenimports=hiddenimports,
              hookspath=[f'{venv_root}/lib/site-packages/pyupdater/hooks'],
              runtime_hooks=[],
