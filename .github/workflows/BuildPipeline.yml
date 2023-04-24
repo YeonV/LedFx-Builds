@@ -192,7 +192,9 @@ jobs:
                 # python3.10 -m pip3.10 install --upgrade wheel
                 source ~/led/bin/activate
                 cp src2/tools/mac/mac-arm64.spec src/mac.spec
-                cd src 
+                cp src2/tools/mac/selfhosted.py src/selfhosted.py
+                cd src
+                python3 selfhosted.py
                 pip install -r requirements-dev.txt      
                 python3 -m pip install pillow
                 pip install zeroconf==0.39.4
