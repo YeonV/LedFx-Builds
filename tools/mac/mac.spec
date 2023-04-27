@@ -1,6 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 from hiddenimports import hiddenimports
+from PyInstaller.utils.hooks import copy_metadata
+from PyInstaller.utils.hooks import collect_data_files
 spec_root = os.path.abspath(SPECPATH)
 
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
@@ -36,7 +38,7 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False,
+          console=True,
           icon=f'{spec_root}/icons/discord.ico')
 app = BUNDLE(exe,              
           a.binaries,
