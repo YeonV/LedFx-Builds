@@ -26,13 +26,21 @@ jobs:
       run: |
         unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
         echo "### Core
-        The LedFx you know. Run it and control it via Browser.
+        If you don't know where to start, get this, open an internet browser, go to https://localhost:8888/ and off you go.
+        This is the server/backend that takes in audio, does the calculations and outputs blinking lights. Runs in the background on a Windows/Mac/Linux computer. You can then open the frontend in an internet browser, by going to https://localhost:8888/ on the same computer that is running the Core.
+        You can also pull up the frontend on your smartphone (or any other computer on the same network) by finding out what local IP your computer running the Core uses (most likely something like this 192.168.1.XXX, or 192.168.0.XXX) and opening a Browser on your smartphone and going to eg. https://192.168.1.123:8888/
+
 
         ### Client
-        A Desktop App to connect to a running core in the network (or the same machine).
+        This is a Desktop App that opens the frontend of LedFx in a window on your desktop.
+        This app does NOT include the LedFx backend/server and cannot run LedFx by itself without the Core.
+        This Client app is useful for connecting to a running Core on your network (or the same machine).
 
-        ### CC
-        Client with integrated core: Full Desktop App, starting & connecting to the integrated core in the background.
+        ### CC (Client + Core = CC)
+        This is the Client and Core integrated into one Desktop App.
+        This Desktop App opens the Client frontend of LedFx in a window on your desktop AND runs the Core backend/server in the background.
+        This is useful for people who want the whole LedFx experience in one nice and tidy package.
+        With this, you can still connect to the backend server via a Client or browser.
 
 
         ## These builds are not signed:
