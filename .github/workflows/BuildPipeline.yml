@@ -6,7 +6,7 @@ on:
     inputs:
       fversion:
        description: 'Frontend Version'
-       default: '62'
+       default: '66'
        required: false
        
 jobs:
