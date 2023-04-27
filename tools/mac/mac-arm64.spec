@@ -10,6 +10,7 @@ block_cipher = None
 print(venv_root)
 print(f'{spec_root}')
 yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/icons', 'icons/'),(f'{spec_root}/icons/tray.png','.')]
+yzdata += collect_data_files('bokeh')
 yzdata += copy_metadata('bokeh')
 
 a = Analysis([f'{spec_root}/ledfx/__main__.py'],
