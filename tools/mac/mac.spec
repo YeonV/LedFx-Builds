@@ -38,7 +38,7 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=True,
+          console=False,
           icon=f'{spec_root}/icons/discord.ico')
 app = BUNDLE(exe,              
           a.binaries,
