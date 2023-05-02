@@ -9,10 +9,10 @@ venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
 print(venv_root)
 yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/icons', 'icons/'),(f'{spec_root}/icons/tray.png','.')]
-yzdata += collect_data_files('bokeh')
-yzdata += collect_data_files('xyzservices')
-yzdata += copy_metadata('bokeh')
-yzdata += copy_metadata('xyzservices')
+# yzdata += collect_data_files('bokeh')
+# yzdata += collect_data_files('xyzservices')
+# yzdata += copy_metadata('bokeh')
+# yzdata += copy_metadata('xyzservices')
 
 a = Analysis([f'{spec_root}\\ledfx\\__main__.py'],
              pathex=[f'{spec_root}', f'{spec_root}\\ledfx'],
