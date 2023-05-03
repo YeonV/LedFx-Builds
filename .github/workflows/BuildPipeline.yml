@@ -210,7 +210,7 @@ jobs:
                 python3 setup.py develop                          
                 python3 -m pip install pyinstaller
             CMD_BUILD: >
-                cd src && pyinstaller mac.spec &&
+                cd src && python3.10 -m PyInstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
