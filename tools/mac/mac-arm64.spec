@@ -44,13 +44,13 @@ exe = EXE(pyz,
           # target_arch='universal2',
           # target_arch='arm64',
           # target_arch='x86_64',
-          icon=f'{spec_root}/icons/discord.ico')
+          icon=f'{spec_root}/icons/logo.icns')
 app = BUNDLE(exe,              
           a.binaries,
           a.zipfiles,
           a.datas,
           name='LedFx_v2',
-          icon=f'{spec_root}/icons/discord.ico',
+          icon=f'{spec_root}/icons/logo.icns',
           bundle_identifier='com.blade.ledfx',
           version='2.0.65',
           info_plist={
