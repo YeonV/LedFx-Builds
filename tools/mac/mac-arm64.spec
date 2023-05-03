@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 from hiddenimports import hiddenimports
-from PyInstaller.utils.hooks import copy_metadata
-from PyInstaller.utils.hooks import collect_data_files
-from PyInstaller.utils.hooks import copy_metadata
+# from PyInstaller.utils.hooks import copy_metadata
+# from PyInstaller.utils.hooks import collect_data_files
+
 
 spec_root = os.path.abspath(SPECPATH)
 
