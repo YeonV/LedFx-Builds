@@ -14,6 +14,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Send Discord Post
-      if: "startsWith(matrix.OS, 'osx-arm64')"
       run: |
         curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/latest", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
