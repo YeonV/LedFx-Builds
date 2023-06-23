@@ -1,0 +1,20 @@
+name: Discord Release
+
+on: 
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      message:
+       description: 'Message'
+       default: 'Test'
+       required: false
+       
+jobs:
+  createrelease:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Discord Webhook Action
+      uses: tsickert/discord-webhook@v5.3.0
+      with:
+        webhook-url: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        content: "${{ github.event.inputs.message }}"
