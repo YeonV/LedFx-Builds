@@ -634,3 +634,8 @@ jobs:
         asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
         asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--linux-${{matrix.arch}}.snap 
         asset_content_type: application/octet-stream
+        
+    - name: Send Discord Post
+      if: "startsWith(matrix.OS, 'win')"
+      run: |
+        curl -H "Content-Type: application/json" -d "{\"content\":\"https://github.com/YeonV/LedFx-Builds/releases/latest\", \"thread_name\": \"[testing] Release 2.0.${{ github.event.inputs.fversion }}\"}" ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
