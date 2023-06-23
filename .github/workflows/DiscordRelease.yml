@@ -14,7 +14,7 @@ on:
        required: false
        
 jobs:
-  createrelease:
+  Send_Messages:
     runs-on: ubuntu-latest
     steps:
     - name: Discord Webhook Action
@@ -27,3 +27,4 @@ jobs:
       with:
         discord_bot_token: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
         destination: https://discord.com/channels/469985374052286474/
+        thread_name: "YOOO"
