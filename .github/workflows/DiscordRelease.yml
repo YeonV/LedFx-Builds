@@ -8,6 +8,10 @@ on:
        description: 'Message'
        default: 'Test'
        required: false
+      thread-id:
+       description: 'Message'
+       default: '1103983115531206696'
+       required: false
        
 jobs:
   createrelease:
@@ -18,3 +22,4 @@ jobs:
       with:
         webhook-url: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
         content: "${{ github.event.inputs.message }}"
+        thread-id: "${{ github.event.inputs.thread-id }}"
