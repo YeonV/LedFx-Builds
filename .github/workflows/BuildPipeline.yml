@@ -198,19 +198,20 @@ jobs:
                 # brew install portaudio pulseaudio
                 # python3.10 -m pip3.10 install --upgrade pip
                 # python3.10 -m pip3.10 install --upgrade wheel
-                source ~/led/bin/activate
+                #source ~/led/bin/activate
+                source ~/projects/tsworkspace/led311/bin/activate
                 cp src2/tools/mac/mac-arm64.spec src/mac.spec
                 cp src2/tools/mac/selfhosted.py src/selfhosted.py
                 cd src
-                python3 selfhosted.py
+                python3.11 selfhosted.py
                 pip install -r requirements-dev.txt      
-                arch -arm64 python3.10 -m pip install icmplib --force
+                arch -arm64 python3.11 -m pip install icmplib --force
                 pip install zeroconf==0.39.4
                 pip install -e .
-                python3.10 setup.py develop                          
-                python3.10 -m pip install pyinstaller
+                python3.11 setup.py develop                          
+                python3.11 -m pip install pyinstaller
             CMD_BUILD: >
-                cd src && arch -arm64 python3.10 -m PyInstaller mac.spec &&
+                cd src && arch -arm64 python3.11 -m PyInstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
