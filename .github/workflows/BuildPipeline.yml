@@ -27,11 +27,9 @@ jobs:
         unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
         echo "## New LedFx binaries available:
 
-        | Variant | Description |
-        |:---|:---|
-        | Core | Browser-Based |
-        | Client | Desktop-App (needs a running Core) |
-        | CC | Desktop-App (Core-integrated) |
+        ### Core:  -- Browser-Based
+        ### Client:   -- Desktop-App (needs a running Core)
+        ### CC:  -- Desktop-App (Core-integrated)
 
         ---
 
