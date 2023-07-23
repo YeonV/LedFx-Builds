@@ -216,6 +216,7 @@ jobs:
                 cp src2/tools/mac/selfhosted.py src/selfhosted.py
                 cd src
                 arch -arm64 python3.11 selfhosted.py
+                arch -arm64 python3.11 -m pip install pillow==9.3.0
                 arch -arm64 python3.11 -m pip install -r requirements-dev.txt
                 # arch -arm64 python3.11 -m pip install -r requirements.txt
                 # arch -arm64 python3.11 -m pip install icmplib --force
