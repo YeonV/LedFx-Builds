@@ -65,7 +65,7 @@ jobs:
         #### Infos:
         Reports as damaged, because of unsiged.
         To fix it open Terminal and type in the following (with a SPACE at the end):
-        `sudo xattr -cr `
+        ```sudo xattr -cr ```
         Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
 
         Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
