@@ -650,4 +650,5 @@ jobs:
       run: |
        curl -H "Content-Type: application/json" -d '{"content": "[download] https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
        curl -H "Content-Type: application/json" -d '{"content": "[preview] https://preview.ledfx.app", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+       curl -H "Content-Type: application/json" -d '{"content": "Please do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
        curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
