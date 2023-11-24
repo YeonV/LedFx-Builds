@@ -388,7 +388,7 @@ jobs:
         python-version: '3.9.13'
         cache: 'pip'
     - name: Set up Node.js
-      if: "!startsWith(matrix.OS, 'osx-arm64')" 
+      # if: "!startsWith(matrix.OS, 'osx-arm64')" 
       uses: actions/setup-node@v3
       with:
         node-version: 20
