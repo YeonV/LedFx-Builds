@@ -191,6 +191,7 @@ jobs:
                 poetry install
                 poetry run pip install pyinstaller
             CMD_BUILD: >
+                export PATH="/Users/runner/.local/bin:$PATH" &&
                 cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
@@ -230,6 +231,7 @@ jobs:
                 poetry install
                 poetry run pip install pyinstaller
             CMD_BUILD: >
+                export PATH="/Users/runner/.local/bin:$PATH" &&
                 cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
@@ -263,7 +265,7 @@ jobs:
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cd src               
               curl -sSL https://install.python-poetry.org | python - -y
-              echo "$APPDATA\Python\Scripts" >> $PATH
+              echo "C:\Users\runneradmin\AppData\Roaming\Python\Scripts" >> $PATH
               poetry install
               poetry run ledfx-loopback-install
               poetry run pip install pyinstaller
