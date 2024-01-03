@@ -228,8 +228,8 @@ jobs:
                 cp src2/tools/mac/mac-arm64.spec src/mac.spec
                 cp src2/tools/mac/selfhosted.py src/selfhosted.py
                 cd src
-                arch -arm64 python3.11 selfhosted.py
-                curl -sSL https://install.python-poetry.org | arch -arm64 python3.11 - -y
+                arch -arm64 python selfhosted.py
+                curl -sSL https://install.python-poetry.org | arch -arm64 python - -y
                 export PATH="$HOME/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
