@@ -56,11 +56,8 @@ jobs:
       - name: Include new frontend win    
         if: "startsWith(matrix.OS, 'win')"
         run: |
-          cd ./ledfx_frontend_v2
-          ls
-          tar -xf ledfx_frontend_v2.zip
-          cd ..
-          cp -r ./ledfx_frontend_v2/ledfx_frontend_v2 ./ledfx_frontend
+          unzip ledfx_frontend_v2.zip
+          cp -r ./ledfx_frontend_v2 ./ledfx_frontend
           ls ./ledfx_frontend
       - name: Bump version    
         if: "startsWith(matrix.OS, 'win')"  
