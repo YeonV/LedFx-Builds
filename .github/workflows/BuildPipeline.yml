@@ -155,8 +155,6 @@ jobs:
                 echo "$HOME/.local/bin" >> $GITHUB_PATH
                 poetry install
                 poetry run pip install pyinstaller
-                poetry run pip install python-rtmidi
-                poetry run pip install rtmidi
                 poetry run pip install mido
             CMD_BUILD: >
                 cd src && poetry run pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
@@ -190,8 +188,6 @@ jobs:
                 export PATH="/Users/runner/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
-                poetry run pip install python-rtmidi
-                poetry run pip install rtmidi
                 poetry run pip install mido
             CMD_BUILD: >
                 export PATH="/Users/runner/.local/bin:$PATH" &&
@@ -239,8 +235,6 @@ jobs:
                 export PATH="$HOME/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
-                poetry run pip install python-rtmidi
-                poetry run pip install rtmidi
                 poetry run pip install mido
             CMD_BUILD: >
                 export PATH="/Users/runner/.local/bin:$PATH" &&
@@ -283,8 +277,6 @@ jobs:
               poetry install
               poetry run ledfx-loopback-install
               poetry run pip install pyinstaller
-              poetry run pip install python-rtmidi
-              poetry run pip install rtmidi
               poetry run pip install mido
               # dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               # cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
