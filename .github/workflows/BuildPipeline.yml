@@ -155,6 +155,9 @@ jobs:
                 echo "$HOME/.local/bin" >> $GITHUB_PATH
                 poetry install
                 poetry run pip install pyinstaller
+                poetry run pip install mido
+                poetry run pip install python-rtmidi
+                poetry run pip install rtmidi
             CMD_BUILD: >
                 cd src && poetry run pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
             CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
@@ -184,7 +187,7 @@ jobs:
                 #cp src2/tools/mac/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
                 cd src
                 curl -sSL https://install.python-poetry.org | python - -y
-                echo "$HOME/.local/bin" >> $GITHUB_PATH
+                export PATH="/Users/runner/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
             CMD_BUILD: >
@@ -223,7 +226,7 @@ jobs:
                 cd src
                 arch -arm64 python3.11 selfhosted.py
                 curl -sSL https://install.python-poetry.org | arch -arm64 python3.11 - -y
-                export PATH="$HOME/.local/bin:$PATH"
+                export PATH="/Users/runner/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
             CMD_BUILD: >
@@ -260,7 +263,7 @@ jobs:
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cd src               
               curl -sSL https://install.python-poetry.org | python - -y
-              echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
+              echo "$APPDATA\Python\Scripts" >> $PATH
               poetry install
               poetry run ledfx-loopback-install
               poetry run pip install pyinstaller
