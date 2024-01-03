@@ -151,9 +151,12 @@ jobs:
                   pulseaudio                
                 cp src2/tools/linux/yzlinux.spec src/linux.spec
                 cd src
-                pip install -r requirements-dev.txt
-                pip install yappi
-                pip install -e .
+                curl -sSL https://install.python-poetry.org | python - -y
+                echo "$HOME/.local/bin" >> $GITHUB_PATH
+                poetry install
+                ls
+                ls ..
+                cp ../hiddenimports.py ./hiddenimports.py
                 pip install pyinstaller
             CMD_BUILD: >
                 cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
