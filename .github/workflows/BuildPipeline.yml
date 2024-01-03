@@ -272,9 +272,12 @@ jobs:
               cd src               
               curl -sSL https://install.python-poetry.org | python - -y
               setx /M path "%path%;C:\Users\runneradmin\AppData\Roaming\Python\Scripts"
-              poetry install
-              poetry run ledfx-loopback-install
-              poetry run pip install pyinstaller
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry install
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run ledfx-loopback-install
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run pip install pyinstaller
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run pip install python-rtmidi
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run pip install rtmidi
+              C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run pip install mido
               # dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
               # cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
               # python3 -m pip install -e .             
@@ -282,7 +285,7 @@ jobs:
               # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
               # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
               # cd ..
-            CMD_BUILD: cd src && poetry run pyinstaller win.spec && poetry run pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe
+            CMD_BUILD: cd src && C:\Users\runneradmin\AppData\Roaming\Python\Scripts\poetry run pyinstaller win.spec && poetry run pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
