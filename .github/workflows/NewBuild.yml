@@ -59,11 +59,14 @@ jobs:
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./ledfx_frontend
           ls ./ledfx_frontend
+          
       - name: Bump version    
         if: "startsWith(matrix.OS, 'win')"  
         run: |
           cp ./src2/tools/win/version-bump2.ps1 ./
           ./version-bump2.ps1 ${{ github.event.inputs.fversion }}
+        shell: pwsh
+
       - name: Bump version unix   
         if: "startsWith(matrix.OS, 'ubu')"  
         run: |
