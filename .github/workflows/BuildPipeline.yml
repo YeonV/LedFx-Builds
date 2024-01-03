@@ -116,9 +116,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        tag_name: v${{ env.action_state || 2.0}}.${{ github.event.inputs.fversion }}
         #tag_name: v2.0.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+        release_name: Release v${{ env.action_state || 2.0 }}.${{ github.event.inputs.fversion }}
         body_path: ./messages.md
         draft: false
         prerelease: false
