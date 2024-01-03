@@ -11,7 +11,7 @@ venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
 print(venv_root)
 print(f'{spec_root}')
-yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/icons', 'icons/'),(f'{spec_root}/icons/tray.png','.')]
+yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.')]
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')
@@ -44,13 +44,13 @@ exe = EXE(pyz,
           # target_arch='universal2',
           # target_arch='arm64',
           # target_arch='x86_64',
-          icon=f'{spec_root}/icons/logo.icns')
+          icon=f'{spec_root}/ledfx_assets/logo.icns')
 app = BUNDLE(exe,              
           a.binaries,
           a.zipfiles,
           a.datas,
           name='LedFx_v2',
-          icon=f'{spec_root}/icons/logo.icns',
+          icon=f'{spec_root}/ledfx_assets/logo.icns',
           bundle_identifier='com.blade.ledfx',
           version='2.0.65',
           info_plist={
