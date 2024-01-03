@@ -234,6 +234,8 @@ jobs:
                 poetry install
                 poetry run pip install pyinstaller
                 poetry run pip install mido
+                poetry run pip install pythonosc
+                poetry run pip install python-mbedtls
             CMD_BUILD: >
                 export PATH="$HOME/.local/bin:$PATH" &&
                 cd src && poetry run pyinstaller mac.spec &&
