@@ -182,16 +182,13 @@ jobs:
                 cp src2/tools/mac/mac.spec src/mac.spec
                 #cp src2/tools/mac/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
                 #cp src2/tools/mac/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl src/aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
-                cd src 
-                #python3 -m pip install aubio-0.5.0a0-cp39-cp39-macosx_10_9_x86_64.whl
-                #python3 -m pip install numpy==1.20.2
-                # python3 -m pip install aubio-0.4.9-cp39-cp39-macosx_10_9_x86_64.whl
-                # python3 -m pip install -r requirements.txt
-                python3 -m pip install -r requirements-dev.txt
-                pip install -e .     
-                python3 -m pip install pyinstaller
+                cd src
+                curl -sSL https://install.python-poetry.org | python - -y
+                echo "$HOME/.local/bin" >> $GITHUB_PATH
+                poetry install
+                poetry run pipx install pyinstaller
             CMD_BUILD: >
-                cd src && pyinstaller mac.spec &&
+                cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
@@ -225,15 +222,12 @@ jobs:
                 cp src2/tools/mac/selfhosted.py src/selfhosted.py
                 cd src
                 arch -arm64 python3.11 selfhosted.py
-                arch -arm64 python3.11 -m pip install pillow==9.3.0
-                arch -arm64 python3.11 -m pip install -r requirements-dev.txt
-                # arch -arm64 python3.11 -m pip install -r requirements.txt
-                # arch -arm64 python3.11 -m pip install icmplib --force
-                # arch -arm64 python3.11 -m pip install zeroconf==0.39.4
-                arch -arm64 python3.11 -m pip install -e .
-                # arch -arm64 python3.11 setup.py develop
+                curl -sSL https://install.python-poetry.org | arch -arm64 python3.11 - -y
+                echo "$HOME/.local/bin" >> $GITHUB_PATH
+                poetry install
+                poetry run pipx install pyinstaller
             CMD_BUILD: >
-                cd src && source ~/projects/tsworkspace/led311/bin/activate && arch -arm64 python3.11 -m pip install PyInstaller && arch -arm64 python3.11 -m PyInstaller mac.spec &&
+                cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
