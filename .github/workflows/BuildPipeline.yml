@@ -154,7 +154,7 @@ jobs:
                 curl -sSL https://install.python-poetry.org | python - -y
                 echo "$HOME/.local/bin" >> $GITHUB_PATH
                 poetry install
-                poetry run pipx install pyinstaller
+                poetry run pip install pyinstaller
             CMD_BUILD: >
                 cd src && poetry run pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
             CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
@@ -186,7 +186,7 @@ jobs:
                 curl -sSL https://install.python-poetry.org | python - -y
                 echo "$HOME/.local/bin" >> $GITHUB_PATH
                 poetry install
-                poetry run pipx install pyinstaller
+                poetry run pip install pyinstaller
             CMD_BUILD: >
                 cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -223,9 +223,9 @@ jobs:
                 cd src
                 arch -arm64 python3.11 selfhosted.py
                 curl -sSL https://install.python-poetry.org | arch -arm64 python3.11 - -y
-                echo "$HOME/.local/bin" >> $GITHUB_PATH
+                export PATH="$HOME/.local/bin:$PATH"
                 poetry install
-                poetry run pipx install pyinstaller
+                poetry run pip install pyinstaller
             CMD_BUILD: >
                 cd src && poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
@@ -259,20 +259,19 @@ jobs:
               cp src2/tools/win/win.spec src/win.spec
               cp src2/tools/win/yzwin.spec src/yzwin.spec
               cd src               
-              python3 -m pip install pywin32
-              python3 -m pip install pystray
-              python3 -m pip install -r requirements.txt          
-              python3 -m pip install -r requirements-dev.txt
-              python3 -m pip install pyinstaller
-              python3 -m pip install pyinstaller-hooks-contrib
-              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
-              cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
-              python3 -m pip install -e .             
-              dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
-              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
-              cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
-              cd ..
-            CMD_BUILD: cd src && pyinstaller win.spec && pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe
+              curl -sSL https://install.python-poetry.org | python - -y
+              echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
+              poetry install
+              poetry run ledfx-loopback-install
+              poetry run pip install pyinstaller
+              # dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\              
+              # cp ../src2/tools/win/hook-samplerate.py c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_pyinstaller_hooks_contrib\hooks\stdhooks\hook-samplerate.py
+              # python3 -m pip install -e .             
+              # dir c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\samplerate\_samplerate_data\
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\libportaudio-64bit.dll
+              # cp ../src2/tools/win/libportaudio64bit.dll c:\hostedtoolcache\windows\python\3.9.13\x64\lib\site-packages\_sounddevice_data\portaudio-binaries\
+              # cd ..
+            CMD_BUILD: cd src && poetry run pyinstaller win.spec && poetry run pyinstaller yzwin.spec && mv ./dist/LedFx.exe ../LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe
             CMD_PACK: 7z.exe a -tzip LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip ./src/dist/LedFx "-mx5" "-xr!.git" "-xr!.github"
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--win.zip
