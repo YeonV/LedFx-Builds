@@ -224,8 +224,6 @@ jobs:
                 echo 'export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"' >> ~/.zshrc
                 export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
                 export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
-                arch -arm64 brew install libsamplerate
-                sudo ln -s /opt/homebrew/lib/libsamplerate.dylib /usr/local/lib/
                 source ~/projects/tsworkspace/led311/bin/activate
                 cp src2/tools/mac/mac-arm64.spec src/mac.spec
                 cp src2/tools/mac/selfhosted.py src/selfhosted.py
