@@ -230,7 +230,7 @@ jobs:
                 cd src
                 arch -arm64 python3.11 selfhosted.py
                 curl -sSL https://install.python-poetry.org | arch -arm64 python3.11 - -y
-                export PATH="/Users/runner/.local/bin:$PATH"
+                export PATH="$HOME/.local/bin:$PATH"
                 poetry install
                 poetry run pip install pyinstaller
                 poetry run pip install python-rtmidi
