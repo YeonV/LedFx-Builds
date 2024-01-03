@@ -8,6 +8,10 @@ on:
        description: 'Frontend Version'
        default: '87'
        required: false
+      portaudio:
+       description: 'Build Portaudio'
+       default: false
+       required: false
 
 jobs:
   build:
@@ -167,7 +171,7 @@ jobs:
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
 
       - name: Portaudio dependency for windows
-        if: startsWith(runner.os, 'Windows') 
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio
         uses: msys2/setup-msys2@v2
 #        shell: msys2 {0}
         with:
@@ -183,7 +187,7 @@ jobs:
               mingw-w64-x86_64-ninja
 
       - name: Build portaudio
-        if: startsWith(runner.os, 'Windows')
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio
         shell: msys2 {0}
         run: |
           export CYGPATH=$(cygpath -m /)
@@ -212,6 +216,7 @@ jobs:
       - name: Build ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
         run: |
+            cp src2/tools/win/yzwin.spec ./win-portable.spec
             pyinstaller win-portable.spec
             ls dist/
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
