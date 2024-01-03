@@ -39,4 +39,4 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           console=False,
-          icon=f'{spec_root}\\icons\\discord.ico')
+          icon=f'{spec_root}\\ledfx_assets\\discord.ico')
