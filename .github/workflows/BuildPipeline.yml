@@ -231,7 +231,6 @@ jobs:
                 arch -arm64 python selfhosted.py
                 arch -arm64 python --version
                 curl -sSL https://install.python-poetry.org | arch -arm64 python - --uninstall
-                arch -arm64 pipx uninstall poetry
                 arch -arm64 pip uninstall poetry
                 curl -sSL https://install.python-poetry.org | arch -arm64 python - -y
                 export PATH="$HOME/.local/bin:$PATH"
