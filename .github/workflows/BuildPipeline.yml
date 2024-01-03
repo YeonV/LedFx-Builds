@@ -154,12 +154,9 @@ jobs:
                 curl -sSL https://install.python-poetry.org | python - -y
                 echo "$HOME/.local/bin" >> $GITHUB_PATH
                 poetry install
-                ls
-                ls ..
-                cp ../hiddenimports.py ./hiddenimports.py
                 pip install pyinstaller
             CMD_BUILD: >
-                cd src && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
+                cd src && ls && pyinstaller linux.spec && cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd .. 
             CMD_PACK: cd src/dist && ls && tar -czf LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
             ASSET_NAME: LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
             ASSET_PATH: ./LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz
