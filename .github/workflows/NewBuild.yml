@@ -12,6 +12,7 @@ on:
        description: 'Build Portaudio | Sorry you need to write true to enable'
        default: 'No'
        required: false
+       type: choice
        options:
          - 'Yes'
          - 'No'
