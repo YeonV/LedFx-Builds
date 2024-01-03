@@ -224,11 +224,11 @@ jobs:
             TARGET: macos
             CMD_DEP: |
                 # brew install portaudio pulseaudio
-                brew install mbedtls@2
+                arch -arm64 brew install mbedtls@2
                 echo 'export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"' >> ~/.zshrc
                 export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
                 export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
-                brew install libsamplerate
+                arch -arm64 brew install libsamplerate
                 sudo ln -s /opt/homebrew/lib/libsamplerate.dylib /usr/local/lib/
                 source ~/projects/tsworkspace/led311/bin/activate
                 cp src2/tools/mac/mac-arm64.spec src/mac.spec
