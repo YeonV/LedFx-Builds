@@ -9,9 +9,12 @@ on:
        default: '87'
        required: false
       portaudio:
-       description: 'Build Portaudio'
-       default: false
+       description: 'Build Portaudio | Sorry you need to write true to enable'
+       default: 'No'
        required: false
+       options:
+         - 'Yes'
+         - 'No'
 
 jobs:
   build:
@@ -171,7 +174,7 @@ jobs:
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
 
       - name: Portaudio dependency for windows
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
         uses: msys2/setup-msys2@v2
 #        shell: msys2 {0}
         with:
@@ -187,7 +190,7 @@ jobs:
               mingw-w64-x86_64-ninja
 
       - name: Build portaudio
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
         shell: msys2 {0}
         run: |
           export CYGPATH=$(cygpath -m /)
