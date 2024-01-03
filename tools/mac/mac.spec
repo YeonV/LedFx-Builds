@@ -39,7 +39,7 @@ exe = EXE(pyz,
           strip=False,
           upx=True,
           console=False,
-          icon=f'{spec_root}//discord.ico')
+          icon=f'{spec_root}/ledfx_assets/discord.ico')
 app = BUNDLE(exe,              
           a.binaries,
           a.zipfiles,
