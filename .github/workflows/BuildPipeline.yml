@@ -237,7 +237,7 @@ jobs:
                 arch -arm64 poetry run pip install pyinstaller
                 arch -arm64 poetry run pip install mido
                 arch -arm64 poetry run pip install python-osc
-                arch -arm64poetry run pip install python-mbedtls
+                arch -arm64 poetry run pip install python-mbedtls
             CMD_BUILD: >
                 export PATH="$HOME/.local/bin:$PATH" &&
                 cd src && arch -arm64 poetry run pyinstaller mac.spec &&
