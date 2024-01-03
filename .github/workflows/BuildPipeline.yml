@@ -391,8 +391,8 @@ jobs:
       with:
         node-version: 20
         architecture: ${{ matrix.arch }}
-        cache: 'yarn'
-        cache-dependency-path: '**/yarn.lock'
+        # cache: 'yarn'
+        # cache-dependency-path: '**/yarn.lock'
     - name: Update    
       if: "startsWith(matrix.OS, 'ubuntu')"   
       run: |
