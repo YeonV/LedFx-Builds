@@ -233,14 +233,14 @@ jobs:
                 curl -sSL https://install.python-poetry.org | arch -arm64 python - --uninstall
                 curl -sSL https://install.python-poetry.org | arch -arm64 python - -y
                 export PATH="$HOME/.local/bin:$PATH"
-                poetry install
-                poetry run pip install pyinstaller
-                poetry run pip install mido
-                poetry run pip install python-osc
-                poetry run pip install python-mbedtls
+                arch -arm64 poetry install
+                arch -arm64 poetry run pip install pyinstaller
+                arch -arm64 poetry run pip install mido
+                arch -arm64 poetry run pip install python-osc
+                arch -arm64poetry run pip install python-mbedtls
             CMD_BUILD: >
                 export PATH="$HOME/.local/bin:$PATH" &&
-                cd src && poetry run pyinstaller mac.spec &&
+                cd src && arch -arm64 poetry run pyinstaller mac.spec &&
                 cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate &&
                 mkdir ./dist/LedFx/LedFx.app/Contents/MacOS/samplerate/_samplerate_data &&
