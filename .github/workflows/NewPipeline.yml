@@ -147,6 +147,7 @@ jobs:
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo $action_state
           echo $BINARY_NAME
+          echo $poetry_venv_location
 
       - name: Portaudio dependency for windows
         if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
