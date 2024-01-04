@@ -108,7 +108,7 @@ jobs:
         path: backend
     - name: Get Backend Changelog
       run: |
-        cd backend/ledfx        
+        cd backend        
         echo "
         <details><summary>Expand</summary>
         " >> ./messages.md
