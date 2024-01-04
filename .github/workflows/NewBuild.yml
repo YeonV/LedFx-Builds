@@ -85,7 +85,14 @@ jobs:
         run: |
           brew install gnu-sed
           gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./ledfx/consts.py
-
+      - name: Log the bumped version    
+        if: "startsWith(matrix.OS, 'win')"  
+        run: |
+          echo ------------------------
+          cat ./ledfx/consts.py
+          echo ------------------------
+          cat pyproject.toml
+          echo ------------------------
       #- name: Create Pull Request
       #  continue-on-error: true
       #  if: "startsWith(matrix.OS, 'win')"  
