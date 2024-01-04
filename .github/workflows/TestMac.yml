@@ -27,6 +27,35 @@ jobs:
       - name: Check Python version
         run: |
           arch -arm64 poetry --version
+      - name: Check out code from GitHub
+        uses: actions/checkout@v4
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          fetch-depth: 0
+      - name: Configure poetry
+        run: |
+          arch -arm64 poetry config virtualenvs.in-project true
+          arch -arm64 poetry env info
+
+      - name: Check lock file
+        run: arch -arm64 poetry check --lock
+
+      - name: Build a binary wheel
+        run: |
+          arch -arm64 poetry build
+
+      - name: Install LedFx
+        run: |
+          arch -arm64 poetry install
+
+      - name: Check version
+        run: |
+          arch -arm64 poetry run ledfx --version
+
+      - name: Smoketest LedFx
+        run: |
+          arch -arm64 poetry run ledfx -vv --ci-smoke-test
       #    arch -arm64 python3 -V
       # - name: Build LedFx wheel
       #   run: |
