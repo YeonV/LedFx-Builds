@@ -154,7 +154,7 @@ jobs:
       - name: Bump version    
         if: "startsWith(matrix.OS, 'win')"  
         run: |
-          sed -i 's/\bPROJECT_VERSION = .*\b/PROJECT_VERSION = ${{ github.event.inputs.fversion }}/' ./ledfx/consts.py
+          sed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py
           sed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./pyproject.toml
       # cp ./src2/tools/win/version-bump2.ps1 ./
       # $version = $(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)
