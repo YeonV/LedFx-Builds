@@ -370,7 +370,6 @@ jobs:
           name: ledfx_frontend_v2
       - name: Upload Frontend Build as Asset
         if: startsWith(runner.os, 'Windows')       
-        continue-on-error: true
         id: upload-release-asset-2
         uses: actions/upload-release-asset@v1
         env:
@@ -436,6 +435,7 @@ jobs:
           path: frontend
           
       - name: Move Core-win
+        continue-on-error: true
         if: startsWith(runner.os, 'Windows') 
         run: |
            ls
