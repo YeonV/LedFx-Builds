@@ -435,8 +435,8 @@ jobs:
       - name: Move Core-win
         if: startsWith(runner.os, 'Windows') 
         run: |      
-           cp ./src/dist/LedFx/ ./frontend/extraResources/ -Recurse &&
-           dir ./frontend/extraResources/LedFx
+           cp -r ./src/dist/LedFx/ ./frontend/extraResources/ &&
+           ls ./frontend/extraResources/LedFx
         
       - name: Building Clients
         run: |
