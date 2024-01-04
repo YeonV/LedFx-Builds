@@ -73,7 +73,7 @@ jobs:
         Reports as damaged, because of unsiged.
         To fix it open Terminal and type in the following (with a SPACE at the end):
         
-        ```sudo xattr -cr ```
+        <code>sudo xattr -cr </code>
         
         Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
 
