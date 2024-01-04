@@ -16,7 +16,7 @@ on:
          - 'Yes'
          - 'No'
       release:
-       description: 'Create Release and upload assets to that. Else upload as workflow artifact'
+       description: 'Create Release'
        default: 'Yes'
        required: false
        type: choice
