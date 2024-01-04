@@ -100,16 +100,15 @@ jobs:
         echo "
         </details>
         " >> ./messages.md
+        cat ./messages.md
     - uses: actions/checkout@v3
       with:
         repository: LedFx/LedFx
         ref: main
         path: backend
-    - name: Get Backendver
-      id: getbackendver
+    - name: Get Backend Changelog
       run: |
         cd backend/ledfx        
-        echo "action_state=$(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)" >> $GITHUB_ENV
         echo "
         <details><summary>Expand</summary>
         " >> ./messages.md
@@ -117,6 +116,7 @@ jobs:
         echo "
         </details>
         " >> ./messages.md
+        cat ./messages.md
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -125,10 +125,10 @@ jobs:
       with:
         tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}-beta
         #tag_name: v2.0.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}
+        release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}-beta
         body_path: ./messages.md
-        draft: true
-        prerelease: false
+        draft: false
+        prerelease: true
     - name: Output Release URL File
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
