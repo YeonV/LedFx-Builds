@@ -364,7 +364,10 @@ jobs:
         run: |
           value=`cat release_url/release_url.txt`
           echo "upload_url=$value" >> $GITHUB_OUTPUT
-          
+      - name: Load Frontend Build File from release job
+        uses: actions/download-artifact@v1
+        with:
+          name: ledfx_frontend_v2
       - name: Upload Frontend Build as Asset
         if: startsWith(runner.os, 'Windows')       
         continue-on-error: true
