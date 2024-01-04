@@ -160,7 +160,7 @@ jobs:
       # $version = $(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)
       # ./version-bump2.ps1 "$version.${{ github.event.inputs.fversion }}"
 
-        shell: pwsh
+       # shell: pwsh
 
       - name: Bump version unix   
         if: "startsWith(matrix.OS, 'ubu')"  
