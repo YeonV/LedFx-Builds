@@ -38,7 +38,7 @@ jobs:
         name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
     - name: Get Messages    
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       run: |
         unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
         echo "## New LedFx binaries available:
@@ -103,7 +103,7 @@ jobs:
         " >> ./messages.md
         
     - uses: actions/checkout@v3      
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
@@ -111,7 +111,7 @@ jobs:
         fetch-depth: 0
         
     - name: Get frontend Changelog    
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       run: |
         cd frontend
         echo "
@@ -126,7 +126,7 @@ jobs:
         " >> ../messages.md
         cat ../messages.md
     - uses: actions/checkout@v3
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       with:
         repository: LedFx/LedFx
         ref: main
@@ -134,7 +134,7 @@ jobs:
         fetch-depth: 0
         
     - name: Get Backend Changelog
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       run: |
         cd backend
         echo "
@@ -149,7 +149,7 @@ jobs:
         " >> ../messages.md
         cat ../messages.md
     - name: Create Release
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -162,10 +162,10 @@ jobs:
         draft: false
         prerelease: true
     - name: Output Release URL File
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
-      if: github.event.inputs.release == 'true'
+      if: github.event.inputs.release == 'Yes'
       uses: actions/upload-artifact@v3
       with:
         name: release_url
@@ -379,7 +379,7 @@ jobs:
           asset_content_type: application/zip
           
       - name: Upload Core Win To Release
-        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -397,7 +397,7 @@ jobs:
             path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
 
       - name: Build ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
-        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes'
         run: |
             cp src2/tools/win/yzwin.spec ./src/win-portable.spec
             cd src
@@ -450,7 +450,7 @@ jobs:
           name: release_url
 
       - name: Upload Win-Portable as Asset      
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         id: upload-release-asset-portable
         uses: YeonV/upload-release-asset@v1
         env:
@@ -462,7 +462,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Setup as Asset      
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         id: upload-release-asset-setup
         uses: YeonV/upload-release-asset@v1
         env:
@@ -474,7 +474,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Zip as Asset      
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         id: upload-release-asset-zip
         uses: YeonV/upload-release-asset@v1
         env:
@@ -486,7 +486,7 @@ jobs:
           asset_content_type: application/zip
   
       - name: Upload Win-CC as Asset      
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         id: upload-release-asset-cc
         uses: YeonV/upload-release-asset@v1
         env:
