@@ -20,7 +20,7 @@ jobs:
           arch -arm64 brew install portaudio
           arch -arm64 brew install mbedtls@2
           arch -arm64 brew install libsamplerate
-          arch -arm64 brww install poetry
+          arch -arm64 brew install poetry
       - name: Setup mbedtls path
         run: |
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
