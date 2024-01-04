@@ -197,7 +197,7 @@ jobs:
         run: |
             cp src2/tools/win/yzwin.spec ./src/win-portable.spec
             cd src
-            pyinstaller win-portable.spec
+            poetry run pyinstaller win-portable.spec
             ls dist/
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
