@@ -171,7 +171,7 @@ jobs:
         id: getbackendver
         run: |
           poetry run ledfx --version | cut -d' '
-          echo "action_state=$(poetry run ledfx --version | cut -d- -f1 | cut -d. -f1,2).${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
+          echo "action_state=$(poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2).${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo $action_state
