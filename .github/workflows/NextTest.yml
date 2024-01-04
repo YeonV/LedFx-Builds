@@ -27,7 +27,6 @@ on:
 jobs:
   createrelease:
     name: Create Release
-    if: github.event.inputs.release == 'true'
     runs-on: [ubuntu-latest]
     steps:    
     - name: Get latest frontend
@@ -38,7 +37,8 @@ jobs:
       with:
         name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
-    - name: Get Messages
+    - name: Get Messages    
+      if: github.event.inputs.release == 'true'
       run: |
         unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
         echo "## New LedFx binaries available:
@@ -102,14 +102,16 @@ jobs:
         </details>
         " >> ./messages.md
         
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3      
+      if: github.event.inputs.release == 'true'
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
         path: frontend        
         fetch-depth: 0
         
-    - name: Get frontend Changelog
+    - name: Get frontend Changelog    
+      if: github.event.inputs.release == 'true'
       run: |
         cd frontend
         echo "
@@ -124,6 +126,7 @@ jobs:
         " >> ../messages.md
         cat ../messages.md
     - uses: actions/checkout@v3
+      if: github.event.inputs.release == 'true'
       with:
         repository: LedFx/LedFx
         ref: main
@@ -131,6 +134,7 @@ jobs:
         fetch-depth: 0
         
     - name: Get Backend Changelog
+      if: github.event.inputs.release == 'true'
       run: |
         cd backend
         echo "
@@ -145,6 +149,7 @@ jobs:
         " >> ../messages.md
         cat ../messages.md
     - name: Create Release
+      if: github.event.inputs.release == 'true'
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -157,8 +162,10 @@ jobs:
         draft: false
         prerelease: true
     - name: Output Release URL File
+      if: github.event.inputs.release == 'true'
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
+      if: github.event.inputs.release == 'true'
       uses: actions/upload-artifact@v3
       with:
         name: release_url
