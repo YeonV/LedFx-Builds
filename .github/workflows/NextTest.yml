@@ -101,11 +101,14 @@ jobs:
         </details>
         " >> ./messages.md
         cat ./messages.md
+        
     - uses: actions/checkout@v3
       with:
         repository: YeonV/LedFx-Frontend-v2
         ref: main
-        path: frontend
+        path: frontend        
+        fetch-depth: 0
+        
     - name: Get frontend Changelog
       run: |
         cd frontend
@@ -122,6 +125,8 @@ jobs:
         repository: LedFx/LedFx
         ref: main
         path: backend
+        fetch-depth: 0
+        
     - name: Get Backend Changelog
       run: |
         cd backend        
