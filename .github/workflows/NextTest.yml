@@ -439,8 +439,12 @@ jobs:
         if: startsWith(runner.os, 'Windows') 
         run: |
            ls ./src
+           echo ------------
+           ls ./src/LedFx_core--v2.0.87
+           echo ------------
            ls ./src/dist
-           cp -r ./src/dist/LedFx/ ./frontend/extraResources/ &&
+           echo ------------           
+           cp -r ./src/dist/LedFx_core--v2.0.87 ./frontend/extraResources/ &&
            ls ./frontend/extraResources/LedFx
       - name: Set up Node.js
         # if: "!startsWith(matrix.OS, 'osx-arm64')" 
