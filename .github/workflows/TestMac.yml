@@ -26,8 +26,8 @@ jobs:
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
       - name: Check Python version
         run: |
-          arch -arm64 python -V
-          arch -arm64 python3 -V
+          arch -arm64 poetry --version
+      #    arch -arm64 python3 -V
       # - name: Build LedFx wheel
       #   run: |
       #     poetry build
