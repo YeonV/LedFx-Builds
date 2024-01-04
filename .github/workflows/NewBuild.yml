@@ -72,9 +72,8 @@ jobs:
         if: "startsWith(matrix.OS, 'win')"  
         run: |
           cp ./src2/tools/win/version-bump2.ps1 ./
-          ./version-bump2.ps1 ${{ github.event.inputs.fversion }}
+          ./version-bump2.ps1 $(poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2).${{ github.event.inputs.fversion }}
         shell: pwsh
-
 
       - name: Bump version unix   
         if: "startsWith(matrix.OS, 'ubu')"  
@@ -95,19 +94,19 @@ jobs:
           cat pyproject.toml
           echo ------------------------
 
-      - name: Bump version win/unix-style
-        if: "startsWith(matrix.OS, 'win')"  
-        run: |
-          sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./ledfx/consts.py      
+      # - name: Bump version win/unix-style
+      #   if: "startsWith(matrix.OS, 'win')"  
+      #   run: |
+      #     sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./ledfx/consts.py      
 
-      - name: Log the unix-styled bumped version    
-        if: "startsWith(matrix.OS, 'win')"  
-        run: |
-          echo ------------------------
-          cat ./ledfx/consts.py
-          echo ------------------------
-          cat pyproject.toml
-          echo ------------------------
+      # - name: Log the unix-styled bumped version    
+      #   if: "startsWith(matrix.OS, 'win')"  
+      #   run: |
+      #     echo ------------------------
+      #     cat ./ledfx/consts.py
+      #     echo ------------------------
+      #     cat pyproject.toml
+      #     echo ------------------------
       #- name: Create Pull Request
       #  continue-on-error: true
       #  if: "startsWith(matrix.OS, 'win')"  
