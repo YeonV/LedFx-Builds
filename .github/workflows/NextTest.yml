@@ -8,7 +8,7 @@ on:
        default: '87'
        required: false
       portaudio:
-       description: 'Build Portaudio | Sorry you need to write true to enable'
+       description: 'Build Portaudio'
        default: 'No'
        required: false
        type: choice
