@@ -112,11 +112,18 @@ jobs:
     - name: Get frontend Changelog
       run: |
         cd frontend
+        echo -----1------
         git describe --tags --abbrev=0 @^
+        echo -----2------
         git log --pretty=format:"+ %s \!by-blue.svg?logo=github&logoColor=white)" $(git describe --tags --abbrev=0 @^)..@
+        echo -----3------
         git log --pretty=format:"+ %s \!by-blue.svg?logo=github&logoColor=white)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)'
+        echo -----4------
+        git log --pretty=format:"+ %s [\![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'
+        echo -----5------
         git log --pretty=format:"+ %s [\![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'
-
+        echo -----6------
+        
     - uses: actions/checkout@v3
       with:
         repository: LedFx/LedFx
