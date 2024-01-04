@@ -27,7 +27,7 @@ on:
 jobs:
   createrelease:
     name: Create Release
-    if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'true'
+    if: github.event.inputs.release == 'true'
     runs-on: [ubuntu-latest]
     steps:    
     - name: Get latest frontend
@@ -443,7 +443,7 @@ jobs:
           name: release_url
 
       - name: Upload Win-Portable as Asset      
-        if: startsWith(runner.os, 'Windows') 
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
         id: upload-release-asset-portable
         uses: YeonV/upload-release-asset@v1
         env:
@@ -455,7 +455,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Setup as Asset      
-        if: startsWith(runner.os, 'Windows') 
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
         id: upload-release-asset-setup
         uses: YeonV/upload-release-asset@v1
         env:
@@ -467,7 +467,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Zip as Asset      
-        if: startsWith(runner.os, 'Windows') 
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
         id: upload-release-asset-zip
         uses: YeonV/upload-release-asset@v1
         env:
@@ -479,7 +479,7 @@ jobs:
           asset_content_type: application/zip
   
       - name: Upload Win-CC as Asset      
-        if: startsWith(runner.os, 'Windows') 
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'true'
         id: upload-release-asset-cc
         uses: YeonV/upload-release-asset@v1
         env:
