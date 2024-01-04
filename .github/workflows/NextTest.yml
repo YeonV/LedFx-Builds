@@ -90,7 +90,8 @@ jobs:
 
         Maybe at some point we might buy a microsoft dev-license
 
-        </details>"
+        </details>
+        " >> ../messages.md
         
     - uses: actions/checkout@v3
       with:
@@ -102,12 +103,11 @@ jobs:
     - name: Get frontend Changelog
       run: |
         cd frontend
-        # git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'        
         git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'  
         echo "
         ### Frontend-Changes:
         " >> ../messages.md
-        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
+        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
         cat ../messages.md
     - uses: actions/checkout@v3
       with:
@@ -119,12 +119,11 @@ jobs:
     - name: Get Backend Changelog
       run: |
         cd backend
-        # git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'
-        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ./messages.md
+        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }'
         echo "
         ### Backend Changes
         " >> ../messages.md
-        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
+        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo '%an' | sed 's/ /_/g')-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
         cat ../messages.md
     - name: Create Release
       id: create_release
