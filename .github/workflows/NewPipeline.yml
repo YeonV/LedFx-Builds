@@ -2,7 +2,6 @@ name: New LedFx Build Pipeline
 
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
       fversion:
        description: 'Frontend Version'
@@ -70,34 +69,6 @@ jobs:
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
-          
-   
-
-      # - name: Bump version win/unix-style
-      #   if: "startsWith(matrix.OS, 'win')"  
-      #   run: |
-      #     sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./ledfx/consts.py      
-
-      # - name: Log the unix-styled bumped version    
-      #   if: "startsWith(matrix.OS, 'win')"  
-      #   run: |
-      #     echo ------------------------
-      #     cat ./ledfx/consts.py
-      #     echo ------------------------
-      #     cat pyproject.toml
-      #     echo ------------------------
-      #- name: Create Pull Request
-      #  continue-on-error: true
-      #  if: "startsWith(matrix.OS, 'win')"  
-      #  uses: peter-evans/create-pull-request@v4
-      #  with:
-      #    path: ./src
-      #    token: ${{ secrets.LEDFX_TOKEN }}
-      #    delete-branch: true
-      #    branch: new-frontend
-      #    commit-message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
-      #    title: Release v2.0.${{ github.event.inputs.fversion }}
-      #    body: New version incoming!
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -116,9 +87,6 @@ jobs:
         run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
 
       - name: Enable long paths for git on Windows
-
-        # Enable handling long path names (+260 char) on the Windows platform
-        # https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
         run: git config --system core.longpaths true
 
       - name: Configure poetry
@@ -137,63 +105,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-
-      # - name: Set up cache
-      #   uses: actions/cache@v3
-      #   id: cache
-      #   with:
-      #     path: .venv
-      #     key: venv-${{ runner.os }}-${{ steps.full-python-version.outputs.version }}-${{ hashFiles('**/poetry.lock') }}
-
-      # - name: Ensure cache is healthy
-      #   if: steps.cache.outputs.cache-hit == 'true'
-      #   run: |
-      #     # `timeout` is not available on macOS, so we define a custom function.
-      #     [ "$(command -v timeout)" ] || function timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
-
-      #     # Using `timeout` is a safeguard against the Poetry command hanging for some reason.
-      #     timeout 10s poetry run pip --version || rm -rf .venv
-
       - name: Bump version    
-        if: "startsWith(matrix.OS, 'win')"  
+        if: "startsWith(matrix.OS, 'win') || startsWith(matrix.OS, 'ubu')"  
         run: |
           sed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
           sed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
-      # cp ./src2/tools/win/version-bump2.ps1 ./
-      # $version = $(python3 consts.py | cut -d- -f1 | cut -d. -f1,2)
-      # ./version-bump2.ps1 "$version.${{ github.event.inputs.fversion }}"
-
-       # shell: pwsh
-
-      - name: Bump version unix   
-        if: "startsWith(matrix.OS, 'ubu')"  
-        run: |
-          sed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
           
       - name: Bump version osx
         if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"  
         run: |
           brew install gnu-sed
-          gsed -i 's/\bMICRO_VERSION = .*\b/MICRO_VERSION = ${{ github.event.inputs.fversion }}/' ./src/ledfx/consts.py
-      - name: Log the bumped version    
-        if: "startsWith(matrix.OS, 'win')"  
-        run: |
-          echo ------------------------
-          cat ./src/ledfx/consts.py
-          echo ------------------------
-          cat ./src/pyproject.toml
-          echo ------------------------
+          gsed -i 's/\bPROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
+          gsed -i 's/\b(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
+          
       - name: Check lock file
         run: |
           cd src
           poetry check --lock
-          cd ..
 
       - name: Build a binary wheel
         run: |        
           cd src
           poetry build
-          cd ..
 
       - name: Install LedFx
         run: |
@@ -202,7 +135,6 @@ jobs:
           poetry env info
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
-          cd ..
 
       - name: Get Backend Version
         id: getbackendver
@@ -214,12 +146,10 @@ jobs:
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo $action_state
           echo $BINARY_NAME
-          cd ..
 
       - name: Portaudio dependency for windows
         if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
         uses: msys2/setup-msys2@v2
-#        shell: msys2 {0}
         with:
           msystem: MINGW64
           update: true
@@ -252,7 +182,6 @@ jobs:
           pyinstaller win.spec
           mv dist/LedFx $BINARY_NAME-v$action_state
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
-          cd ..
 
       - name: Upload ${{ env.BINARY_NAME }} core ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
@@ -269,7 +198,6 @@ jobs:
             pyinstaller win-portable.spec
             ls dist/
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
-            cd ..
 
 
       - name: Upload ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
