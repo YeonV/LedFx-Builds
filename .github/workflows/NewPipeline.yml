@@ -184,7 +184,9 @@ jobs:
           cat ./src/pyproject.toml
           echo ------------------------
       - name: Check lock file
-        run: poetry check --lock
+        run: |
+          cd src
+          poetry check --lock
 
       - name: Build a binary wheel
         run: |
@@ -192,7 +194,6 @@ jobs:
 
       - name: Install LedFx
         run: |
-          cd src
           poetry install          
           poetry env info
           poetry run ledfx-loopback-install
