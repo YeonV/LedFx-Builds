@@ -21,7 +21,7 @@ jobs:
         run: |
           brew install portaudio
           brew install mbedtls@2
-          brew install libsamplerate
+          echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
       - name: Setup mbedtls path
         run: |
           echo 'export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"' >> /Users/runner/.bash_profile
