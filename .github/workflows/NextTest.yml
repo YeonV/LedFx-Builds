@@ -437,7 +437,8 @@ jobs:
           
       - name: Move Core-win
         if: startsWith(runner.os, 'Windows') 
-        run: |      
+        run: |
+           ls
            cp -r ./src/dist/LedFx/ ./frontend/extraResources/ &&
            ls ./frontend/extraResources/LedFx
         
