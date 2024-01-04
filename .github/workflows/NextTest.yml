@@ -214,7 +214,7 @@ jobs:
           ls ./src/ledfx_frontend
 
       - name: Include new frontend win    
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         run: |
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
@@ -270,7 +270,7 @@ jobs:
 
       # - name: Create Pull Request
       #   continue-on-error: true
-      #   if: "startsWith(matrix.OS, 'win')"  
+      #   if: startsWith(runner.os, 'Windows')   
       #   uses: peter-evans/create-pull-request@v4
       #   with:
       #     path: ./src
@@ -359,7 +359,7 @@ jobs:
           echo "upload_url=$value" >> $GITHUB_OUTPUT
           
       - name: Upload Frontend Build as Asset
-        if: "startsWith(matrix.OS, 'win')"      
+        if: startsWith(runner.os, 'Windows')       
         continue-on-error: true
         id: upload-release-asset-2
         uses: actions/upload-release-asset@v1
@@ -426,7 +426,7 @@ jobs:
           path: frontend
           
       - name: Move Core-win
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         run: |      
            cp ./src/dist/LedFx/ ./frontend/extraResources/ -Recurse &&
            dir ./frontend/extraResources/LedFx
@@ -443,49 +443,49 @@ jobs:
           name: release_url
 
       - name: Upload Win-Portable as Asset      
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         id: upload-release-asset-portable
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
-          asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-portable.exe 
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+          asset_name: LedFx_client-v${{ env.action_state }}--win-portable.exe
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Setup as Asset      
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         id: upload-release-asset-setup
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
-          asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe 
+          asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe 
           asset_content_type: application/vnd.microsoft.portable-executable
   
       - name: Upload Win-Zip as Asset      
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         id: upload-release-asset-zip
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
-          asset_name: LedFx_client-v2.0.${{ github.event.inputs.fversion }}--win.zip 
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip 
+          asset_name: LedFx_client-v${{ env.action_state }}--win.zip 
           asset_content_type: application/zip
   
       - name: Upload Win-CC as Asset      
-        if: "startsWith(matrix.OS, 'win')"
+        if: startsWith(runner.os, 'Windows') 
         id: upload-release-asset-cc
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe
-          asset_name: LedFx_CC-v2.0.${{ github.event.inputs.fversion }}--win-setup.exe 
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
+          asset_name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
           asset_content_type: application/vnd.microsoft.portable-executable
