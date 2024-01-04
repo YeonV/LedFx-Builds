@@ -91,7 +91,7 @@ jobs:
         Maybe at some point we might buy a microsoft dev-license
 
         </details>
-        " >> ../messages.md
+        " >> ./messages.md
         
     - uses: actions/checkout@v3
       with:
