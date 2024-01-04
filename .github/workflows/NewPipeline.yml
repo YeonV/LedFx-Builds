@@ -187,21 +187,27 @@ jobs:
         run: |
           cd src
           poetry check --lock
+          cd ..
 
       - name: Build a binary wheel
-        run: |
+        run: |        
+          cd src
           poetry build
+          cd ..
 
       - name: Install LedFx
         run: |
+          cd src
           poetry install          
           poetry env info
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
+          cd ..
 
       - name: Get Backend Version
         id: getbackendver
         run: |
+          cd src
           poetry run ledfx --version | cut -d' '
           echo "action_state=$(poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2).${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
