@@ -185,10 +185,10 @@ jobs:
 
       - name: Install LedFx
         run: |
-          poetry install
+          poetry install          
+          poetry env info
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
-          poetry env info
 
       - name: Get Backend Version
         id: getbackendver
