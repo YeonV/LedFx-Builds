@@ -72,8 +72,11 @@ jobs:
         if: "startsWith(matrix.OS, 'win')"  
         run: |
           cp ./src2/tools/win/version-bump2.ps1 ./
-          $version = poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2
+          $version = (poetry run ledfx --version) -split ' ' | Select-Object -Index 1
+          $versionParts = $version -split '\.'
+          $version = "$($versionParts[0]).$($versionParts[1])"
           ./version-bump2.ps1 "$version.${{ github.event.inputs.fversion }}"
+
         shell: pwsh
 
       - name: Bump version unix   
