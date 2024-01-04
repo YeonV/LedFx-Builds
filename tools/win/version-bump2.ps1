@@ -6,6 +6,10 @@ $versionNumber = $args[0] # get the first argument
 
 (Get-Content "ledfx\\consts.py") -replace "CONFIG_MICRO__YZ_VERSION ", "CONFIG_MICRO_VERSION " | Set-Content "ledfx\\consts.py"
 
+(Get-Content "pyproject.toml") -replace "version ", "yz_version " | Set-Content "pyproject.toml"
+
 (Get-Content "pyproject.toml") -replace "version = \d+", "version = $versionNumber" | Set-Content "pyproject.toml"
+
+(Get-Content "pyproject.toml") -replace "yz_version ", "version " | Set-Content "ledfx\\consts.py"
 
 
