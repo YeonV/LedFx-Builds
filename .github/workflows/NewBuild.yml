@@ -208,7 +208,7 @@ jobs:
           mv tools/hook-samplerate.py $pythonLocation/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
           pyinstaller win.spec
           mv dist/LedFx $BINARY_NAME-v$action_state
-          7z.exe a -tzip $BINARY_NAME-v$action_state.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
+          7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
 
       - name: Upload ${{ env.BINARY_NAME }} core ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
