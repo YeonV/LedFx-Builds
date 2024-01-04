@@ -155,7 +155,7 @@ jobs:
         if: "startsWith(matrix.OS, 'win')"  
         run: |
           cp ./src2/tools/win/version-bump2.ps1 ./
-          $version = $(poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2)
+          $version = $(python3 consts.py | cut -d' ' -f2| cut -d. -f1,2)
           ./version-bump2.ps1 "$version.${{ github.event.inputs.fversion }}"
 
         shell: pwsh
