@@ -90,7 +90,7 @@ jobs:
         run: git config --system core.longpaths true
 
       - name: Configure poetry
-        run: poetry config virtualenvs.create false
+        run: poetry config virtualenvs.create true
 
       - name: Get pip cache dir
         id: pip-cache
@@ -133,10 +133,11 @@ jobs:
           cd src
           poetry install          
           poetry env info
+          echo "poetry_venv_location=$(poetry env info --path)" >> $GITHUB_ENV
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
 
-      - name: Get Backend Version
+      - name: Get Backend Version and poetry-venv-path
         id: getbackendver
         run: |
           cd src
@@ -172,12 +173,12 @@ jobs:
           cmake --build portaudio/.build/
           cmake --install portaudio/.build/
           rm -rf portaudio
-          mv $CYGPATH/mingw64/bin/libportaudio.dll $pythonLocation/lib/site-packages/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
+          mv $CYGPATH/mingw64/bin/libportaudio.dll $poetry_venv_location/lib/site-packages/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
 
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
         run: |
-          mv src2/tools/win/hook-samplerate.py $pythonLocation/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
+          mv src2/tools/win/hook-samplerate.py $poetry_venv_location/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
           cd src
           pyinstaller win.spec
           mv dist/LedFx $BINARY_NAME-v$action_state
