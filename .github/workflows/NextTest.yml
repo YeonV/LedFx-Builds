@@ -528,9 +528,7 @@ jobs:
         if: "startsWith(matrix.OS, 'osx')" 
         continue-on-error: true
         run: |
-           ls ./src
-           echo ------------
-           tar -xzf ./src/my_files.tar -C ./frontend/extraResources/ --transform 's/LedFx/LedFx_core/'
+           cp ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
            echo ------------           
            ls ./frontend/extraResources
            
