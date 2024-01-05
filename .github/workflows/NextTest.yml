@@ -359,7 +359,6 @@ jobs:
           arch -arm64 poetry install
           
       - name: Get Backend Version and poetry-venv-path
-        if: startsWith(matrix.OS, 'win')
         id: getbackendver
         run: |
           cd src
