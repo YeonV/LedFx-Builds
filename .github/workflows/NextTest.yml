@@ -175,6 +175,7 @@ jobs:
         
   build:
     needs: createrelease
+    continue-on-error: true
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -522,6 +523,17 @@ jobs:
            echo ------------           
            cp -r ./src/LedFx_core--v2.0.87/ ./frontend/extraResources/LedFx/ &&
            ls ./frontend/extraResources/LedFx
+           
+      - name: Move Core-osx
+        if: "startsWith(matrix.OS, 'osx')" 
+        continue-on-error: true
+        run: |
+           ls ./src
+           echo ------------
+           tar -xzf ./src/my_files.tar -C ./frontend/extraResources/ --transform 's/LedFx/LedFx_core/'
+           echo ------------           
+           ls ./frontend/extraResources
+           
       - name: Set up Node.js
         # if: "!startsWith(matrix.OS, 'osx-arm64')" 
         uses: actions/setup-node@v3
