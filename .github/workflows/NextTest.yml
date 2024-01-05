@@ -410,11 +410,12 @@ jobs:
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
+          
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
           arch -arm64 poetry run pip install pyinstaller
           arch -arm64 poetry run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && cp -rf src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib && cp -rf src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app && cd .. &&
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
@@ -533,11 +534,19 @@ jobs:
            ls ./frontend/extraResources
            
       - name: Set up Node.js
-        # if: "!startsWith(matrix.OS, 'osx-arm64')" 
+        if: "!startsWith(matrix.OS, 'osx-arm64')" 
         uses: actions/setup-node@v3
         with:
           node-version: 20
           # architecture: ${{ matrix.arch }}
+          # cache: 'yarn'
+          # cache-dependency-path: '**/yarn.lock'
+      - name: Set up Node.js osx-arm64
+        if: "startsWith(matrix.OS, 'osx-arm64')" 
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          architecture: arm64
           # cache: 'yarn'
           # cache-dependency-path: '**/yarn.lock'
       - name: Building Clients
