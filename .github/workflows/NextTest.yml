@@ -528,7 +528,7 @@ jobs:
         if: "startsWith(matrix.OS, 'osx')" 
         continue-on-error: true
         run: |
-           cp ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
            echo ------------           
            ls ./frontend/extraResources
            
