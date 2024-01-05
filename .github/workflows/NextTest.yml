@@ -269,10 +269,11 @@ jobs:
         run: git config --system core.longpaths true
 
       - name: Configure poetry
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: poetry config virtualenvs.in-project true
         
       - name: Configure poetry osx-arm64
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           arch -arm64 poetry config virtualenvs.in-project true
           arch -arm64 poetry env info
@@ -407,7 +408,7 @@ jobs:
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
           
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
-        if: startsWith(runner.os, 'osx-arm64')
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
@@ -456,7 +457,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Osx To Release        
-        if: startsWith(runner.os, 'osx-arm64')
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
