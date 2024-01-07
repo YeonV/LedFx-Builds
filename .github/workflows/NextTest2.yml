@@ -408,9 +408,21 @@ jobs:
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
           
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
-        if: "startsWith(matrix.OS, 'osx-arm64')"
-        run: |
+        if: "startsWith(matrix.OS, 'mac')"
+        run: |          
+          mv src2/tools/mac/mac.spec src/mac.spec
+          cd src
+          poetry run pip install pyinstaller
+          poetry run pyinstaller mac.spec
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd ..
+          rm -rf ./LedFx.app
+          mv ./dist/LedFx/LedFx.app ./LedFx.app
+          tar -czf my_files.tar ./LedFx.app
           
+      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-x64
+        if: "startsWith(matrix.OS, 'osx-arm64')"
+        run: |          
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
           arch -arm64 poetry run pip install pyinstaller
@@ -420,6 +432,18 @@ jobs:
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
+
+      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} linux
+        if: "startsWith(matrix.OS, 'ubuntu')"
+        run: |          
+          mv src2/tools/linux/yzlinux.spec.spec src/linux.spec
+          cd src
+          poetry run pip install pyinstaller
+          poetry run pyinstaller linux.spec
+          cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
+          cd ..
+          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
+
 
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v1
@@ -459,7 +483,7 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
           asset_content_type: application/zip
 
-      - name: Upload Core Osx To Release        
+      - name: Upload Core Osx-arm64 To Release        
         if: "startsWith(matrix.OS, 'osx-arm64')"
         uses: YeonV/upload-release-asset@v1
         env:
@@ -468,6 +492,17 @@ jobs:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/my_files.tar
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-arm64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Core Osx To Release        
+        if: "startsWith(matrix.OS, 'osx-arm64')"
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: src/my_files.tar
+          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-x64.zip
           asset_content_type: application/zip
           
       - name: Upload ${{ env.BINARY_NAME }} core ${{ env.action_state }}        
@@ -486,7 +521,17 @@ jobs:
             ls dist/
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
-
+      - name: Upload Core Linux To Release
+        if: startsWith(runner.os, 'ubuntu')
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+          asset_content_type: application/gzip
+          
       - name: Upload Core Win To Release
         if: startsWith(runner.os, 'Windows')
         uses: YeonV/upload-release-asset@v1
