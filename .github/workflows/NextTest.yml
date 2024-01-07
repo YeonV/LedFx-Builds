@@ -415,7 +415,7 @@ jobs:
           cd src
           arch -arm64 poetry run pip install pyinstaller
           arch -arm64 poetry run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib && cp -rf src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/MacOS/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
