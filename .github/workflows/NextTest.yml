@@ -616,8 +616,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-Client zip      
@@ -627,8 +627,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
           asset_content_type: application/zip
           
       - name: Upload OSX-arm64-CC dmg      
@@ -638,8 +638,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
-          asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+          asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-CC zip      
@@ -649,6 +649,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
-          asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
+          asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           asset_content_type: application/zip
