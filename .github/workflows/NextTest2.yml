@@ -436,7 +436,7 @@ jobs:
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} linux
         if: "startsWith(matrix.OS, 'ubuntu')"
         run: |          
-          mv src2/tools/linux/yzlinux.spec.spec src/linux.spec
+          mv src2/tools/linux/yzlinux.spec src/linux.spec
           cd src
           poetry run pip install pyinstaller
           poetry run pyinstaller linux.spec
