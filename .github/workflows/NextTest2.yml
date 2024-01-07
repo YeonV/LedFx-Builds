@@ -266,7 +266,7 @@ jobs:
         run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
 
       - name: Enable long paths for git on Windows
-        if: "!startsWith(matrix.OS, 'osx-arm64')"
+        if: "startsWith(matrix.OS, 'win')"
         run: git config --system core.longpaths true
 
       - name: Configure poetry
