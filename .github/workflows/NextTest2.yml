@@ -182,7 +182,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: [windows-latest, osx-arm64, ubuntu-latest, osx]
+        os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
     steps:
       - name: Check out code from GitHub
@@ -212,7 +212,7 @@ jobs:
         run: |
           curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
       - name: Include new frontend
-        if: "!startsWith(matrix.OS, 'win')"  
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd ./ledfx_frontend_v2
           ls
@@ -222,7 +222,7 @@ jobs:
           ls ./src/ledfx_frontend
 
       - name: Include new frontend win    
-        if: startsWith(runner.os, 'Windows') 
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
