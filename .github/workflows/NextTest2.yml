@@ -436,13 +436,18 @@ jobs:
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} linux
         if: "startsWith(matrix.OS, 'ubuntu')"
         run: |          
+          sudo apt install libatlas3-base \
+            libavformat58 \
+            portaudio19-dev \
+            pulseaudio 
           mv src2/tools/linux/yzlinux.spec src/linux.spec
           cd src
           poetry run pip install pyinstaller
+          poetry run pip install mido
           poetry run pyinstaller linux.spec
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
           cd ..
-          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ./LedFx-linux && mv LedFx_core-v2.0.${{ github.event.inputs.fversion }}--linux-x64.tar.gz ../../
+          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ./LedFx-linux && ls && mv LedFx_core-v${{ env.action_state }}}--linux-x64.tar.gz ../../
 
 
       - name: Load Release URL File from release job
