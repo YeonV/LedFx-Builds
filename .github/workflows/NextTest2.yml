@@ -447,7 +447,7 @@ jobs:
           poetry run pyinstaller linux.spec
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
           cd ..
-          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ./LedFx-linux && ls && mv LedFx_core-v${{ env.action_state }}}--linux-x64.tar.gz ../../
+          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ./LedFx-linux && ls && mv LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ../../
 
 
       - name: Load Release URL File from release job
