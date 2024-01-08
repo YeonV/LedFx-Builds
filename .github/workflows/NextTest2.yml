@@ -761,7 +761,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
           asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
 
@@ -785,7 +785,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/ledfx_${{ env.action_state }}_amd64.snap
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
 
@@ -797,7 +797,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/ledfx-${{ env.action_state }}.AppImage
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
           
