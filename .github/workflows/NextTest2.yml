@@ -500,7 +500,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Osx To Release        
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+        if: "startsWith(matrix.OS, 'macos')"
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
