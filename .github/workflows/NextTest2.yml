@@ -533,7 +533,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+          asset_path: src\dist\ledfx-${{ env.action_state }}.tar.gz
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
           
