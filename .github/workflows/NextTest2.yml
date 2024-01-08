@@ -527,7 +527,7 @@ jobs:
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
       - name: Upload Core Linux To Release
-        if: startsWith(runner.os, 'ubuntu')
+        if: startsWith(matrix.os, 'ubuntu')
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
