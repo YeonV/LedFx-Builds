@@ -23,7 +23,38 @@ on:
        options:
          - 'Yes'
          - 'No'
-
+      macos-latest:
+        description: 'macOS'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
+      osx-arm64:
+        description: 'macOS ARM64'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
+      ubuntu-latest:
+        description: 'Ubuntu'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
+      windows:
+        description: 'Windows'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
 jobs:
   createrelease:
     name: Create Release
@@ -182,7 +213,8 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
+        os: [ "${{ github.event.inputs.ubuntu-latest == 'Yes' && 'ubuntu-latest' || '' }}", "${{ github.event.inputs.macos-latest == 'Yes' && 'macos-latest' || '' }}", "${{ github.event.inputs.osx-arm64 == 'Yes' && ',osx-arm64' || '' }}", "${{ github.event.inputs.windows == 'Yes' && ',osx-arm64' || '' }}" ]
+        #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
     steps:
       - name: Check out code from GitHub
