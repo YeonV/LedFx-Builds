@@ -749,3 +749,26 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           asset_content_type: application/zip
+
+      - name: Upload Linux Client snap      
+        if: "startsWith(matrix.OS, 'ubuntu')"
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./frontend/dist/ledfx_${{ env.action_state }}_amd64.snap
+          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux Client AppImage      
+        if: "startsWith(matrix.OS, 'ubuntu')"
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./frontend/dist/ledfx-${{ env.action_state }}.AppImage
+          asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+          asset_content_type: application/octet-stream
+          
