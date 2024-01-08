@@ -528,14 +528,29 @@ jobs:
 
       - name: Upload Core Linux To Release
         if: startsWith(matrix.os, 'ubuntu')
+        continue-on-error: true
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: src\dist\ledfx-${{ env.action_state }}.tar.gz
+          asset_path: src/dist/ledfx-${{ env.action_state }}.tar.gz
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
+
+      - name: Upload Core Linux To Release
+        if: startsWith(matrix.os, 'ubuntu')
+        continue-on-error: true
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
+          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-test2-x64.tar.gz
+          asset_content_type: application/gzip
+          
+        
           
       - name: Upload Core Win To Release
         if: startsWith(runner.os, 'Windows')
