@@ -213,8 +213,8 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: [ "${{ github.event.inputs.ubuntu-latest == 'Yes' && 'ubuntu-latest' || '' }}", "${{ github.event.inputs.macos-latest == 'Yes' && 'macos-latest' || '' }}", "${{ github.event.inputs.osx-arm64 == 'Yes' && ',osx-arm64' || '' }}", "${{ github.event.inputs.windows == 'Yes' && ',osx-arm64' || '' }}" ]
-        #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
+        # os: [ ${{ github.event.inputs.ubuntu-latest == 'Yes' && 'ubuntu-latest, ' || '' }}${{ github.event.inputs.macos-latest == 'Yes' && 'macos-latest, ' || '' }}${{ github.event.inputs.osx-arm64 == 'Yes' && 'osx-arm64, ' || '' }}{{ github.event.inputs.windows == 'Yes' && 'windows-latest' || '' }} ]
+        os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
     steps:
       - name: Check out code from GitHub
