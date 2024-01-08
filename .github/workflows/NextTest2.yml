@@ -562,17 +562,6 @@ jobs:
             ls dist/
             mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
-      - name: Upload Core Linux To Release
-        if: startsWith(matrix.os, 'ubuntu')
-        continue-on-error: true
-        uses: YeonV/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: src/dist/ledfx-${{ env.action_state }}.tar.gz
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
-          asset_content_type: application/gzip
 
       - name: Upload Core Linux To Release
         if: startsWith(matrix.os, 'ubuntu')
@@ -583,7 +572,7 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-test2-x64.tar.gz
+          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
           
         
@@ -632,6 +621,15 @@ jobs:
         continue-on-error: true
         run: |
            cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+           echo ------------           
+           ls ./frontend/extraResources
+
+      - name: Move Core Linux
+        if: "startsWith(matrix.OS, 'ubuntu')" 
+        continue-on-error: true
+        run: |
+           ls
+           cp -r ./src/dist/LedFx-linux/LedFx ./frontend/extraResources/LedFx
            echo ------------           
            ls ./frontend/extraResources
            
@@ -773,6 +771,6 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ./frontend/dist/ledfx-${{ env.action_state }}.AppImage
-          asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
           
