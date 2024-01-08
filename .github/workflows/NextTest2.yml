@@ -801,3 +801,25 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
           
+      - name: Upload OSX-x64-CC dmg      
+        if: "startsWith(matrix.OS, 'mac')"
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+          asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Upload OSX-x64-CC zip      
+        if: "startsWith(matrix.OS, 'mac')"
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+          asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
+          asset_content_type: application/zip
