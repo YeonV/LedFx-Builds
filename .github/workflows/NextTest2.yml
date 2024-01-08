@@ -294,8 +294,12 @@ jobs:
           curl -sSL https://install.python-poetry.org | python - -y
 
       - name: Update Path for Windows
-        if: "!startsWith(matrix.OS, 'osx-arm64')"
+        if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos')"
         run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
+
+      - name: Update Path for MacOS
+        if: "startsWith(matrix.OS, 'macos')"
+        run: echo "$HOME/.local/bin:$PATH" >> $GITHUB_PATH
 
       - name: Enable long paths for git on Windows
         if: "startsWith(matrix.OS, 'win')"
