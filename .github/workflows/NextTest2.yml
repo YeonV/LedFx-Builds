@@ -209,6 +209,9 @@ jobs:
         if [ "${{ github.event.inputs.macos }}" = "true" ]; then
           os_list+=('macos-latest')
         fi
+        if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
+          os_list+=('osx-arm64')
+        fi
 
         matrix_json="{\"os\": ["
         for os in "${os_list[@]}"; do
