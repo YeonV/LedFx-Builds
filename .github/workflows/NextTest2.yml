@@ -25,22 +25,22 @@ on:
          - 'No'
       macos-latest:
         description: 'MacOS (intel)'
-        default: true
+        default: 'true'
         required: false
         type: boolean
       osx-arm64:
         description: 'MacOS (m1/m2)'
-        default: true
+        default: false
         required: false
         type: boolean
       ubuntu-latest:
         description: 'Ubuntu'
-        default: true
+        default: "false"
         required: false
         type: boolean
       windows-latest:
         description: 'Windows'
-        default: true
+        default: "true"
         required: false
         type: boolean
 jobs:
@@ -210,16 +210,16 @@ jobs:
         python-version: ['3.12.x']
         include:
           - os: windows-latest
-            if: ${{ github.event.inputs.windows-latest == 'true' }}
+            if: ${{ github.event.inputs.windows == 'true' }}
             continue-on-error: true
           - os: ubuntu-latest
-            if: ${{ github.event.inputs.ubuntu-latest == 'true' }}
+            if: ${{ github.event.inputs.ubuntu == 'true' }}
             continue-on-error: true
           - os: macos-latest
-            if: ${{ github.event.inputs.macos-latest == 'true' }}
+            if: ${{ github.event.inputs.macos == 'true' }}
             continue-on-error: true
           - os: osx-arm64
-            if: ${{ github.event.inputs.osx-arm64 == true }}
+            if: ${{ github.event.inputs.osx == 'true' }}
             continue-on-error: true
     steps:
       - name: Check out code from GitHub
