@@ -25,12 +25,9 @@ on:
          - 'No'
       macos-latest:
         description: 'macOS'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: boolean
       osx-arm64:
         description: 'macOS ARM64'
         default: 'Yes'
