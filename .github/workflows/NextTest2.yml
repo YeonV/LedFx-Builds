@@ -25,24 +25,36 @@ on:
          - 'No'
       macos-latest:
         description: 'MacOS (intel)'
-        default: true
-        required: false
-        type: boolean
+       default: 'Yes'
+       required: false
+       type: choice
+       options:
+         - 'Yes'
+         - 'No'
       osx-arm64:
         description: 'MacOS (m1/m2)'
-        default: true
-        required: false
-        type: boolean
+       default: 'Yes'
+       required: false
+       type: choice
+       options:
+         - 'Yes'
+         - 'No'
       ubuntu-latest:
         description: 'Ubuntu'
-        default: true
-        required: false
-        type: boolean
+       default: 'Yes'
+       required: false
+       type: choice
+       options:
+         - 'Yes'
+         - 'No'
       windows-latest:
         description: 'Windows'
-        default: true
-        required: false
-        type: boolean
+       default: 'Yes'
+       required: false
+       type: choice
+       options:
+         - 'Yes'
+         - 'No'
 jobs:
   createrelease:
     name: Create Release
@@ -206,21 +218,21 @@ jobs:
     strategy:
       matrix:
         # os: [ ${{ github.event.inputs.ubuntu-latest == 'Yes' && 'ubuntu-latest, ' || '' }}${{ github.event.inputs.macos-latest == 'Yes' && 'macos-latest, ' || '' }}${{ github.event.inputs.osx-arm64 == 'Yes' && 'osx-arm64, ' || '' }}{{ github.event.inputs.windows == 'Yes' && 'windows-latest' || '' }} ]
-        os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
+        # os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
-        #include:
-        #  - os: windows-latest
-        #    if: ${{ github.event.inputs.windows-latest == 'true' }}
-        #    continue-on-error: true
-        #  - os: ubuntu-latest
-        #    if: ${{ github.event.inputs.ubuntu-latest == 'true' }}
-        #    continue-on-error: true
-        #  - os: macos-latest
-        #    if: ${{ github.event.inputs.macos-latest == 'true' }}
-        #    continue-on-error: true
-        #  - os: osx-arm64
-        #    if: ${{ github.event.inputs.osx-arm64 == true }}
-        #    continue-on-error: true
+        include:
+         - os: windows-latest
+           if: ${{ github.event.inputs.windows-latest == 'true' }}
+           continue-on-error: true
+         - os: ubuntu-latest
+           if: ${{ github.event.inputs.ubuntu-latest == 'true' }}
+           continue-on-error: true
+         - os: macos-latest
+           if: ${{ github.event.inputs.macos-latest == 'true' }}
+           continue-on-error: true
+         - os: osx-arm64
+           if: ${{ github.event.inputs.osx-arm64 == 'true' }}
+           continue-on-error: true
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4
