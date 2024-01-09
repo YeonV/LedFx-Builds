@@ -222,16 +222,16 @@ jobs:
         python-version: ['3.12.x']
         include:
          - os: windows-latest
-           if: ${{ github.event.inputs.windows-latest == 'true' }}
+           if: ${{ github.event.inputs.windows-latest == 'Yes' }}
            continue-on-error: true
          - os: ubuntu-latest
-           if: ${{ github.event.inputs.ubuntu-latest == 'true' }}
+           if: ${{ github.event.inputs.ubuntu-latest == 'Yes' }}
            continue-on-error: true
          - os: macos-latest
-           if: ${{ github.event.inputs.macos-latest == 'true' }}
+           if: ${{ github.event.inputs.macos-latest == 'Yes' }}
            continue-on-error: true
          - os: osx-arm64
-           if: ${{ github.event.inputs.osx-arm64 == 'true' }}
+           if: ${{ github.event.inputs.osx-arm64 == 'Yes' }}
            continue-on-error: true
     steps:
       - name: Check out code from GitHub
