@@ -54,35 +54,6 @@ jobs:
     - name: Get latest frontend and prepare matrix
       run: |
         curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
-        echo windows: ${{ github.event.inputs.windows }}
-        echo ubuntu: ${{ github.event.inputs.ubuntu }}
-        echo macos: ${{ github.event.inputs.macos }}
-        echo osx-arm64: ${{ github.event.inputs.osxarm64 }}
-
-        os_list=()
-        if [ "${{ github.event.inputs.windows }}" = "true" ]; then
-          os_list+=('windows-latest')
-        fi
-        if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
-          os_list+=('ubuntu-latest')
-        fi
-        if [ "${{ github.event.inputs.macos }}" = "true" ]; then
-          os_list+=('macos-latest')
-        fi
-        if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
-          os_list+=('osx-arm64')
-        fi
-
-        matrix_json="{\"os\": ["
-        for os in "${os_list[@]}"; do
-          matrix_json+="\"$os\","
-        done
-        matrix_json=${matrix_json%?} # remove trailing comma
-        matrix_json+="], \"python-version\": [\"3.12.x\"]}"
-        
-        echo "$matrix_json" > matrix.json
-        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
-        cat matrix.json
 
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
@@ -221,7 +192,33 @@ jobs:
       with:
         name: release_url
         path: release_url.txt
+    - name: Check Inputs and Prepare Matrix
+      id: set-matrix
+      run: |
+        echo windows: ${{ github.event.inputs.windows }}
+        echo ubuntu: ${{ github.event.inputs.ubuntu }}
+        echo macos: ${{ github.event.inputs.macos }}
 
+        os_list=()
+        if [ "${{ github.event.inputs.windows }}" = "true" ]; then
+          os_list+=('windows-latest')
+        fi
+        if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
+          os_list+=('ubuntu-latest')
+        fi
+        if [ "${{ github.event.inputs.macos }}" = "true" ]; then
+          os_list+=('macos-latest')
+        fi
+
+        matrix_json="{\"os\": ["
+        for os in "${os_list[@]}"; do
+          matrix_json+="\"$os\","
+        done
+        matrix_json=${matrix_json%?} # remove trailing comma
+        matrix_json+="], \"python-version\": [\"3.12.x\"]}"
+        
+        echo "$matrix_json" > matrix.json
+        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
         
   build:
@@ -235,22 +232,8 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.createrelease.outputs.matrix)}}
       #matrix:
-        #os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && "[windows-latest, osx-arm64, ubuntu-latest, macos-latest]" || "[ubuntu-latest]" }}
         # os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
-        #python-version: ['3.12.x']
-        #include:
-        # - os: windows-latest
-        #   # if: ${{ github.event.inputs.windows == 'true' }}
-        #   continue-on-error: true
-        # - os: ubuntu-latest
-        #   # if: ${{ github.event.inputs.ubuntu == 'true' }}
-        #   continue-on-error: true
-        # - os: macos-latest
-        #   # if: ${{ github.event.inputs.macos == 'true' }}
-        #   continue-on-error: true
-        # - os: osx-arm64
-        #   # if: ${{ github.event.inputs.osxarm64 == 'true' }}
-        #   continue-on-error: true
+        # python-version: ['3.12.x']
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4
