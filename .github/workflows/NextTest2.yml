@@ -230,7 +230,7 @@ jobs:
       run:
         shell: bash -x {0}
     strategy:
-      matrix: ${{fromJson(needs.prepare.outputs.matrix)}}
+      matrix: ${{fromJson(needs.createrelease.outputs.matrix)}}
       #matrix:
         #os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && "[windows-latest, osx-arm64, ubuntu-latest, macos-latest]" || "[ubuntu-latest]" }}
         # os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
