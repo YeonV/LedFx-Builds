@@ -57,6 +57,7 @@ jobs:
         echo windows: ${{ github.event.inputs.windows }}
         echo ubuntu: ${{ github.event.inputs.ubuntu }}
         echo macos: ${{ github.event.inputs.macos }}
+        echo osx-arm64: ${{ github.event.inputs.osxarm64 }}
 
         os_list=()
         if [ "${{ github.event.inputs.windows }}" = "true" ]; then

@@ -1,4 +1,4 @@
-name: Plz Fix
+name: DynamicMatrix
 
 on:
   workflow_dispatch:
