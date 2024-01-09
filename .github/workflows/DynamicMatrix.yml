@@ -51,7 +51,6 @@ jobs:
         matrix_json+="], \"python-version\": [\"3.12.x\"]}"
         
         echo "$matrix_json" > matrix.json
-        # echo "::set-output name=matrix::$(cat matrix.json)"
         echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   build:
