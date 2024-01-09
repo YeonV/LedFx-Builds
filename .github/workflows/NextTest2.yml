@@ -63,10 +63,10 @@ jobs:
     - name: Get latest frontend
       run: |
         curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
-        echo ${{ github.event.inputs.windows-latest }}
-        echo ${{ github.event.inputs.ubuntu-latest }}
-        echo ${{ github.event.inputs.macos-latest }}
-        echo ${{ github.event.inputs.osx-arm64 }}
+        echo ${{ github.event.inputs.windows }}
+        echo ${{ github.event.inputs.ubuntu }}
+        echo ${{ github.event.inputs.macos }}
+        echo ${{ github.event.inputs.osxarm64 }}
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
       with:
