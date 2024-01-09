@@ -25,36 +25,24 @@ on:
          - 'No'
       macos:
         description: 'MacOS (intel)'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: true
       osxarm64:
         description: 'MacOS (m1/m2)'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: true
       ubuntu:
         description: 'Ubuntu'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: true
       windows:
         description: 'Windows'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: true
 jobs:
   createrelease:
     name: Create Release
@@ -67,21 +55,6 @@ jobs:
         echo ${{ github.event.inputs.ubuntu }}
         echo ${{ github.event.inputs.macos }}
         echo ${{ github.event.inputs.osxarm64 }}
-        echo "ymatrix={\"os\":[windows-latest, osx-arm64, ubuntu-latest, macos-latest]}" >> $GITHUB_OUTPUT
-
-
-    - name: Filter out empty strings
-      id: filter
-      run: |
-        arr=("ubuntu-latest" "" "windows-latest" "" "macos-latest") # your array
-        filtered_arr=()
-        for i in "${arr[@]}"
-        do
-          if [ -n "$i" ]; then
-            filtered_arr+=("$i")
-          fi
-        done
-        echo "FILTERED_ARR=$(echo ${filtered_arr[@]} | jq -R -s -c 'split(" ")')" >> $GITHUB_OUTPUT
 
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
@@ -207,7 +180,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}-beta
-        #tag_name: v2.0.${{ github.event.inputs.fversion }}
         release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}-beta
         body_path: ./messages.md
         draft: false
@@ -233,8 +205,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{ jobs.createrelease.steps.filter.output.FILTERED_ARR.split(',') }}
-        continue-on-error: [ true ]
+        os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && [windows-latest, osx-arm64, ubuntu-latest, macos-latest] || [ubuntu-latest]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
         #include:
