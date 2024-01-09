@@ -217,7 +217,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: [ "${{ github.event.inputs.ubuntu == 'Yes' && 'ubuntu-latest, windows-latest' || 'macos-latest, osx-arm64' }}" ]
+        os: [ "${{ github.event.inputs.ubuntu == 'Yes' && 'ubuntu-latest' || 'macos-latest' }}" ]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
         #include:
