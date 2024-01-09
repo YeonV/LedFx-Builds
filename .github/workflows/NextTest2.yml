@@ -67,7 +67,7 @@ jobs:
         echo ${{ github.event.inputs.ubuntu }}
         echo ${{ github.event.inputs.macos }}
         echo ${{ github.event.inputs.osxarm64 }}
-        echo "matrixOs=[windows-latest, osx-arm64, ubuntu-latest, macos-latest]"
+        echo "ymatrix={\"os\":[windows-latest, osx-arm64, ubuntu-latest, macos-latest]"}
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
       with:
@@ -218,7 +218,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{ fromJSON(needs.createrelease.outputs.matrixOs) }}
+        os: ${{ fromJSON(needs.createrelease.outputs.ymatrix).os }}
         continue-on-error: [ true ]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
