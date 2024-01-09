@@ -43,7 +43,13 @@ jobs:
           os_list+=('macos-latest')
         fi
 
-        matrix_json="{\"os\": [\"${os_list[*]// /\", \"}\"], \"python-version\": [\"3.12.x\"]}"
+        matrix_json="{\"os\": ["
+        for os in "${os_list[@]}"; do
+          matrix_json+="\"$os\","
+        done
+        matrix_json=${matrix_json%?} # remove trailing comma
+        matrix_json+="], \"python-version\": [\"3.12.x\"]}"
+        
         echo "::set-output name=matrix::$matrix_json"
 
   build:
