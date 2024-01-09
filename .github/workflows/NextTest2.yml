@@ -567,7 +567,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Win To Workflow
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' github.event.inputs.windows == 'true'
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v3
         with:
             name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
