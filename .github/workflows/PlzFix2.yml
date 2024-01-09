@@ -44,7 +44,7 @@ jobs:
         fi
 
         matrix_json="{\"os\": [\"${os_list[@]// /\", \"}\"], \"python-version\": [\"3.12.x\"]}"
-        echo "MATRIX_JSON=$matrix_json" >> $GITHUB_ENV
+        echo "MATRIX_JSON=$matrix_json" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
