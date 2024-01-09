@@ -23,7 +23,7 @@ on:
        options:
          - 'Yes'
          - 'No'
-      macos-latest:
+      macos:
         description: 'MacOS (intel)'
         default: 'Yes'
         required: false
@@ -31,7 +31,7 @@ on:
         options:
           - 'Yes'
           - 'No'
-      osx-arm64:
+      osxarm64:
         description: 'MacOS (m1/m2)'
         default: 'Yes'
         required: false
@@ -39,7 +39,7 @@ on:
         options:
           - 'Yes'
           - 'No'
-      ubuntu-latest:
+      ubuntu:
         description: 'Ubuntu'
         default: 'Yes'
         required: false
@@ -47,7 +47,7 @@ on:
         options:
           - 'Yes'
           - 'No'
-      windows-latest:
+      windows:
         description: 'Windows'
         default: 'Yes'
         required: false
@@ -222,16 +222,16 @@ jobs:
         python-version: ['3.12.x']
         include:
          - os: windows-latest
-           if: ${{ github.event.inputs.windows-latest == 'Yes' }}
+           # if: ${{ github.event.inputs.windows == 'Yes' }}
            continue-on-error: true
          - os: ubuntu-latest
-           if: ${{ github.event.inputs.ubuntu-latest == 'Yes' }}
+           if: ${{ github.event.inputs.ubuntu == 'Yes' }}
            continue-on-error: true
          - os: macos-latest
-           if: ${{ github.event.inputs.macos-latest == 'Yes' }}
+           if: ${{ github.event.inputs.macos == 'Yes' }}
            continue-on-error: true
          - os: osx-arm64
-           if: ${{ github.event.inputs.osx-arm64 == 'Yes' }}
+           if: ${{ github.event.inputs.osxarm64 == 'Yes' }}
            continue-on-error: true
     steps:
       - name: Check out code from GitHub
