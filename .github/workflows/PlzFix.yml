@@ -1,0 +1,58 @@
+name: Plz Fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: 'MacOS'
+        default: true
+        required: false
+        type: boolean
+      ubuntu:
+        description: 'Ubuntu'
+        default: true
+        required: false
+        type: boolean
+      windows:
+        description: 'Windows'
+        default: true
+        required: false
+        type: boolean
+jobs:
+  prepare:
+    runs-on: [ubuntu-latest]
+    steps:    
+    - name: Check Inputs
+      run: |
+        echo windows: ${{ github.event.inputs.windows }}
+        echo ubuntu: ${{ github.event.inputs.ubuntu }}
+        echo macos: ${{ github.event.inputs.macos }}
+
+        
+  build:
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -x {0}
+    strategy:
+      matrix:
+        #os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && "[windows-latest, ubuntu-latest, macos-latest]" || "[ubuntu-latest]" }}
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ['3.12.x']
+        #include:
+        # - os: windows-latest
+        #   # if: ${{ github.event.inputs.windows == 'true' }}
+        #   continue-on-error: true
+        # - os: ubuntu-latest
+        #   # if: ${{ github.event.inputs.ubuntu == 'true' }}
+        #   continue-on-error: true
+        # - os: macos-latest
+        #   # if: ${{ github.event.inputs.macos == 'true' }}
+        #   continue-on-error: true
+    steps:
+    - name: Check Inputs again
+      run: |
+        echo windows: ${{ github.event.inputs.windows }}
+        echo ubuntu: ${{ github.event.inputs.ubuntu }}
+        echo macos: ${{ github.event.inputs.macos }}
