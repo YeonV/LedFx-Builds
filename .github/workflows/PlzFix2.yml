@@ -43,9 +43,8 @@ jobs:
           os_list+=('macos-latest')
         fi
 
-        matrix_json="{\"os\": [\"${os_list[@]// /\", \"}\"], \"python-version\": [\"3.12.x\"]}"
-        echo "$matrix_json" > matrix.json
-        echo "::set-output name=matrix::$(echo "$matrix_json")"
+        matrix_json="{\"os\": [\"${os_list[*]// /\", \"}\"], \"python-version\": [\"3.12.x\"]}"
+        echo "::set-output name=matrix::$matrix_json"
 
   build:
     needs: prepare
