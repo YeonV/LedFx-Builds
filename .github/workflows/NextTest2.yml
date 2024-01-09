@@ -81,7 +81,7 @@ jobs:
             filtered_arr+=("$i")
           fi
         done
-        echo "FILTERED_ARR=$(echo ${filtered_arr[@]} | jq -R -s -c 'split(" ")')" >> $GITHUB_ENV
+        echo "FILTERED_ARR=$(echo ${filtered_arr[@]} | jq -R -s -c 'split(" ")')" >> $GITHUB_OUTPUT
 
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
