@@ -67,7 +67,7 @@ jobs:
         echo ${{ github.event.inputs.ubuntu }}
         echo ${{ github.event.inputs.macos }}
         echo ${{ github.event.inputs.osxarm64 }}
-        echo "ymatrix={\"os\":[windows-latest, osx-arm64, ubuntu-latest, macos-latest]"}
+        echo "ymatrix={\"os\":[windows-latest, osx-arm64, ubuntu-latest, macos-latest]}" >> $GITHUB_OUTPUT
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
       with:
