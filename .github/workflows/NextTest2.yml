@@ -233,7 +233,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{fromJson($FILTERED_ARR)}}
+        os: ${{fromJson(jobs.createrelease.steps.filter.output.FILTERED_ARR)}}
         continue-on-error: [ true ]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
