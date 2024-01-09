@@ -24,12 +24,12 @@ on:
          - 'Yes'
          - 'No'
       macos-latest:
-        description: 'macOS'
+        description: 'MacOS (intel)'
         default: true
         required: false
         type: boolean
       osx-arm64:
-        description: 'macOS ARM64'
+        description: 'MacOS (m1/m2)'
         default: true
         required: false
         type: boolean
@@ -51,6 +51,10 @@ jobs:
     - name: Get latest frontend
       run: |
         curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+        echo ${{ github.event.inputs.windows-latest }}
+        echo ${{ github.event.inputs.ubuntu-latest }}
+        echo ${{ github.event.inputs.macos-latest }}
+        echo ${{ github.event.inputs.osx-arm64 }}
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
       with:
@@ -215,7 +219,7 @@ jobs:
             if: ${{ github.event.inputs.macos-latest == 'true' }}
             continue-on-error: true
           - os: osx-arm64
-            if: ${{ github.event.inputs.osx-arm64 == 'true' }}
+            if: ${{ github.event.inputs.osx-arm64 == true }}
             continue-on-error: true
     steps:
       - name: Check out code from GitHub
