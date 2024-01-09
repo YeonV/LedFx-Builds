@@ -995,5 +995,5 @@ jobs:
       - name: Send Discord Post
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         run: |
-        curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}\n**[PREVIEW]**       <https://preview.ledfx.app>\n\n**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
-        curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }} **[PREVIEW]**       <https://preview.ledfx.app>**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
