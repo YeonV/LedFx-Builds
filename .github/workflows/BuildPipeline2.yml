@@ -1,4 +1,4 @@
-name: Release Test 2
+name: LedFx BuildPipeline 2.0
 
 on:
   workflow_dispatch:
@@ -234,9 +234,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJson(needs.createrelease.outputs.matrix)}}
-      #matrix:
-        # os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
-        # python-version: ['3.12.x']
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4
@@ -364,19 +361,28 @@ jobs:
           cd src
           gsed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py; gsed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./pyproject.toml
 
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        continue-on-error: true
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
+        with:
+          commit_message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
+          push_options: --force   
+          repository: ./src
+          token: ${{ secrets.LEDFX_TOKEN }}
+          tagging_message: 'v2.0.${{ github.event.inputs.fversion }}'
+      - name: Create Pull Request
+        continue-on-error: true
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
+        uses: peter-evans/create-pull-request@v4
+        with:
+          path: ./src
+          token: ${{ secrets.LEDFX_TOKEN }}
+          delete-branch: true
+          branch: new-frontend
+          commit-message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
+          title: Release v2.0.${{ github.event.inputs.fversion }}
+          body: New version incoming!
 
-      # - name: Create Pull Request
-      #   continue-on-error: true
-      #   if: startsWith(runner.os, 'Windows')   
-      #   uses: peter-evans/create-pull-request@v4
-      #   with:
-      #     path: ./src
-      #     token: ${{ secrets.LEDFX_TOKEN }}
-      #     delete-branch: true
-      #     branch: new-frontend
-      #     commit-message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
-      #     title: Release v2.0.${{ github.event.inputs.fversion }}
-      #     body: New version incoming!
       - name: Check lock file
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
@@ -926,6 +932,7 @@ jobs:
           asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
           asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
           asset_content_type: application/octet-stream
+
       - name: Upload OSX-x64-Client dmg to Workflow
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v3
@@ -956,6 +963,7 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_content_type: application/octet-stream
+
       - name: Upload OSX-x64-CC dmg to Workflow
         continue-on-error: true   
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
@@ -975,6 +983,7 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
           asset_content_type: application/zip
+
       - name: Upload OSX-x64-CC zip to Workflow
         continue-on-error: true   
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
@@ -982,3 +991,9 @@ jobs:
         with:
             name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+
+    - name: Send Discord Post
+      if: "startsWith(matrix.OS, 'ubu')"
+      run: |
+       curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}\n**[PREVIEW]**       <https://preview.ledfx.app>\n\n**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+       curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v2.0.${{ github.event.inputs.fversion }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
