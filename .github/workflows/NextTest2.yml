@@ -25,36 +25,36 @@ on:
          - 'No'
       macos-latest:
         description: 'MacOS (intel)'
-       default: 'Yes'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
       osx-arm64:
         description: 'MacOS (m1/m2)'
-       default: 'Yes'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
       ubuntu-latest:
         description: 'Ubuntu'
-       default: 'Yes'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
       windows-latest:
         description: 'Windows'
-       default: 'Yes'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
 jobs:
   createrelease:
     name: Create Release
