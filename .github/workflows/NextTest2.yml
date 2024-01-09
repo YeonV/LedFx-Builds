@@ -30,28 +30,19 @@ on:
         type: boolean
       osx-arm64:
         description: 'macOS ARM64'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: boolean
       ubuntu-latest:
         description: 'Ubuntu'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: boolean
       windows:
         description: 'Windows'
-        default: 'Yes'
+        default: true
         required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
+        type: boolean
 jobs:
   createrelease:
     name: Create Release
