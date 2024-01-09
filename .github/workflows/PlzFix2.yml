@@ -52,7 +52,7 @@ jobs:
         
         echo "$matrix_json" > matrix.json
         # echo "::set-output name=matrix::$(cat matrix.json)"
-        echo "matrix={$matrix_json}" >> $GITHUB_OUTPUT
+        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
