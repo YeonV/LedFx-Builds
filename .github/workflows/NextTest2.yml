@@ -27,22 +27,22 @@ on:
         description: 'MacOS (intel)'
         default: true
         required: false
-        type: true
+        type: boolean
       osxarm64:
         description: 'MacOS (m1/m2)'
         default: true
         required: false
-        type: true
+        type: boolean
       ubuntu:
         description: 'Ubuntu'
         default: true
         required: false
-        type: true
+        type: boolean
       windows:
         description: 'Windows'
         default: true
         required: false
-        type: true
+        type: boolean
 jobs:
   createrelease:
     name: Create Release
