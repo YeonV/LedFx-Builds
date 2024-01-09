@@ -82,6 +82,7 @@ jobs:
         
         echo "$matrix_json" > matrix.json
         echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+        cat matrix.json
 
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
