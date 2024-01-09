@@ -530,8 +530,15 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
           asset_content_type: application/zip
 
+      - name: Upload Core Win To Workflow
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+            path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+
       - name: Upload Core Osx-arm64 To Release        
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -541,8 +548,15 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-arm64.zip
           asset_content_type: application/zip
 
+      - name: Upload Core Osx-arm64 to Workflow
+        if: startsWith(matrix.OS, 'osx-arm64') &&  github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-arm64.zip
+            path: src/my_files.tar
+
       - name: Upload Core Osx To Release        
-        if: "startsWith(matrix.OS, 'macos')"
+        if: startsWith(matrix.OS, 'macos') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -552,15 +566,15 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-x64.zip
           asset_content_type: application/zip
           
-      - name: Upload ${{ env.BINARY_NAME }} core ${{ env.action_state }}        
-        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'false'
+      - name: Upload Core Osx to Workflow
+        if: startsWith(matrix.OS, 'macos') &&  github.event.inputs.release == 'No'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
-            path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-x64.zip
+            path: src/my_files.tar
 
       - name: Build ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
-        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes'
+        if: startsWith(runner.os, 'Windows')
         run: |
             cp src2/tools/win/yzwin.spec ./src/win-portable.spec
             cd src
@@ -570,7 +584,7 @@ jobs:
 
 
       - name: Upload Core Linux To Release
-        if: startsWith(matrix.os, 'ubuntu')
+        if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'Yes'
         continue-on-error: true
         uses: YeonV/upload-release-asset@v1
         env:
@@ -581,10 +595,15 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
           
-        
+      - name: Upload Core Linux To Worflow       
+        if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+            path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
           
-      - name: Upload Core Win To Release
-        if: startsWith(runner.os, 'Windows')
+      - name: Upload Core Win Portable To Release
+        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -594,8 +613,8 @@ jobs:
           asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
           asset_content_type: application/vnd.microsoft.portable-executable
           
-      - name: Upload ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
-        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'false'
+      - name: Upload Core Win Portable To Worflow
+        if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'No'
         uses: actions/upload-artifact@v3
         with:
             name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
