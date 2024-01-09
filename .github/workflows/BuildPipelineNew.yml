@@ -178,8 +178,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}-beta
-        release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}-beta
+        tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}
+        release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}
         body_path: ./messages.md
         draft: false
         prerelease: true
