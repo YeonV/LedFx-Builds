@@ -68,6 +68,21 @@ jobs:
         echo ${{ github.event.inputs.macos }}
         echo ${{ github.event.inputs.osxarm64 }}
         echo "ymatrix={\"os\":[windows-latest, osx-arm64, ubuntu-latest, macos-latest]}" >> $GITHUB_OUTPUT
+
+
+    - name: Filter out empty strings
+      id: filter
+      run: |
+        arr=("windows-latest" "ubuntu-latest" "osx-arm64" "macos-latest" "") # your array
+        filtered_arr=()
+        for i in "${arr[@]}"
+        do
+          if [ -n "$i" ]; then
+            filtered_arr+=("$i")
+          fi
+        done
+        echo "Y_MATRIX=${filtered_arr[*]}" >> $GITHUB_ENV
+
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
       with:
@@ -218,7 +233,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{ fromJSON(needs.createrelease.outputs.ymatrix).os }}
+        os: ${{ env.Y_MATRIX }}
         continue-on-error: [ true ]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
