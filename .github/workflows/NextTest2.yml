@@ -45,7 +45,7 @@ on:
         type: boolean
 jobs:
   createrelease:
-    name: Create Release
+    name: ${{ github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend' }}
     runs-on: [ubuntu-latest]
     steps:    
     - name: Get latest frontend
@@ -493,10 +493,12 @@ jobs:
 
 
       - name: Load Release URL File from release job
+        if: github.event.inputs.release == 'Yes'
         uses: actions/download-artifact@v1
         with:
           name: release_url
       - name: Get Release File Name & Upload URL
+        if: github.event.inputs.release == 'Yes'
         id: get_release_info
         shell: bash
         run: |
