@@ -1,4 +1,4 @@
-name: LedFx BuildPipeline 2
+name: LedFx BuildPipeline New
 
 on:
   workflow_dispatch:
