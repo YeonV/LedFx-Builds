@@ -50,9 +50,8 @@ jobs:
         matrix_json=${matrix_json%?} # remove trailing comma
         matrix_json+="], \"python-version\": [\"3.12.x\"]}"
         
-        echo "matrix={$matrix_json}" >> $GITHUB_ENV
-        echo "matrix={$matrix_json}" >> $GITHUB_OUTPUT
-
+        echo "$matrix_json" > matrix.json
+        echo "MATRIX_JSON=$(cat matrix.json)" >> $GITHUB_ENV
 
   build:
     needs: prepare
