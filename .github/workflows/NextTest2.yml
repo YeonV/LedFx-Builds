@@ -205,8 +205,8 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && "[windows-latest, osx-arm64, ubuntu-latest, macos-latest]" || "[ubuntu-latest]" }}
-        #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
+        #os: ${{ (github.event.inputs.ubuntu == 'true' && github.event.input.windows == 'true' && github.event.input.osxarm64 == 'true' && github.event.input.macos == 'true') && "[windows-latest, osx-arm64, ubuntu-latest, macos-latest]" || "[ubuntu-latest]" }}
+        os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
         #include:
         # - os: windows-latest
