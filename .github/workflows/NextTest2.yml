@@ -225,13 +225,13 @@ jobs:
            # if: ${{ github.event.inputs.windows == 'Yes' }}
            continue-on-error: true
          - os: ubuntu-latest
-           if: ${{ github.event.inputs.ubuntu == 'Yes' }}
+           # if: ${{ github.event.inputs.ubuntu == 'Yes' }}
            continue-on-error: true
          - os: macos-latest
-           if: ${{ github.event.inputs.macos == 'Yes' }}
+           # if: ${{ github.event.inputs.macos == 'Yes' }}
            continue-on-error: true
          - os: osx-arm64
-           if: ${{ github.event.inputs.osxarm64 == 'Yes' }}
+           # if: ${{ github.event.inputs.osxarm64 == 'Yes' }}
            continue-on-error: true
     steps:
       - name: Check out code from GitHub
