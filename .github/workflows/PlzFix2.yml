@@ -1,0 +1,63 @@
+name: Plz Fix2
+
+on:
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: 'MacOS'
+        default: true
+        required: false
+        type: boolean
+      ubuntu:
+        description: 'Ubuntu'
+        default: true
+        required: false
+        type: boolean
+      windows:
+        description: 'Windows'
+        default: true
+        required: false
+        type: boolean
+
+env:
+  matrix_os: ""
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:    
+    - name: Check Inputs and Prepare Matrix
+      run: |
+        echo windows: ${{ github.event.inputs.windows }}
+        echo ubuntu: ${{ github.event.inputs.ubuntu }}
+        echo macos: ${{ github.event.inputs.macos }}
+
+        os_list=()
+        if [ "${{ github.event.inputs.windows }}" = "true" ]; then
+          os_list+=('windows-latest')
+        fi
+        if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
+          os_list+=('ubuntu-latest')
+        fi
+        if [ "${{ github.event.inputs.macos }}" = "true" ]; then
+          os_list+=('macos-latest')
+        fi
+
+        echo "MATRIX_OS=${os_list[@]}" >> $GITHUB_ENV
+
+  build:
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -x {0}
+    strategy:
+      matrix:
+        os: ${{ fromJson(env.matrix_os) }}
+        python-version: ['3.12.x']
+    steps:
+    - name: Check Inputs again
+      run: |
+        echo windows: ${{ github.event.inputs.windows }}
+        echo ubuntu: ${{ github.event.inputs.ubuntu }}
+        echo macos: ${{ github.event.inputs.macos }}
