@@ -73,7 +73,7 @@ jobs:
     - name: Filter out empty strings
       id: filter
       run: |
-        arr=("windows-latest" "ubuntu-latest" "osx-arm64" "macos-latest" "") # your array
+        arr=("ubuntu-latest" "" "windows-latest" "" "macos-latest") # your array
         filtered_arr=()
         for i in "${arr[@]}"
         do
@@ -81,7 +81,7 @@ jobs:
             filtered_arr+=("$i")
           fi
         done
-        echo "Y_MATRIX=${filtered_arr[*]}" >> $GITHUB_ENV
+        echo "FILTERED_ARR=$(echo ${filtered_arr[@]} | jq -R -s -c 'split(" ")')" >> $GITHUB_ENV
 
     - name: Save Frontend for publish
       uses: actions/upload-artifact@v3
@@ -233,7 +233,7 @@ jobs:
         shell: bash -x {0}
     strategy:
       matrix:
-        os: ${{ env.Y_MATRIX }}
+        os: ${{fromJson(env.FILTERED_ARR)}}
         continue-on-error: [ true ]
         #os: [windows-latest, osx-arm64, ubuntu-latest, macos-latest]
         python-version: ['3.12.x']
