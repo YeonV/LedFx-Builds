@@ -743,8 +743,8 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
           asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload OSX-arm64-Client dmg      
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+      - name: Upload OSX-arm64-Client dmg to Release
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -754,8 +754,15 @@ jobs:
           asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
           asset_content_type: application/octet-stream
 
-      - name: Upload OSX-arm64-Client zip      
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+      - name: Upload OSX-arm64-Client dmg to Workflow
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+
+      - name: Upload OSX-arm64-Client zip to Release
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -765,8 +772,8 @@ jobs:
           asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
           asset_content_type: application/zip
           
-      - name: Upload OSX-arm64-CC dmg      
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+      - name: Upload OSX-arm64-CC dmg to Release
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -776,8 +783,15 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
           asset_content_type: application/octet-stream
 
-      - name: Upload OSX-arm64-CC zip      
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+      - name: Upload OSX-arm64-CC dmg to Workflow
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+
+      - name: Upload OSX-arm64-CC zip to Release
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -787,9 +801,9 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           asset_content_type: application/zip
 
-      - name: Upload Linux Client snap
+      - name: Upload Linux Client snap to Release
         continue-on-error: true      
-        if: "startsWith(matrix.OS, 'ubuntu')"
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -798,10 +812,17 @@ jobs:
           asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
           asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
+      - name: Upload Linux Client snap to Workflow
+        continue-on-error: true      
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
 
-      - name: Upload Linux Client AppImage  
+      - name: Upload Linux Client AppImage to Release
         continue-on-error: true    
-        if: "startsWith(matrix.OS, 'ubuntu')"
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -810,10 +831,17 @@ jobs:
           asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
           asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
+      - name: Upload Linux Client AppImage to Workflow
+        continue-on-error: true    
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
 
-      - name: Upload Linux CC snap    
+      - name: Upload Linux CC snap to Release
         continue-on-error: true  
-        if: "startsWith(matrix.OS, 'ubuntu')"
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -822,10 +850,17 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
+      - name: Upload Linux CC snap to Workflow
+        continue-on-error: true  
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
+            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
 
-      - name: Upload Linux CC AppImage   
+      - name: Upload Linux CC AppImage to Release
         continue-on-error: true   
-        if: "startsWith(matrix.OS, 'ubuntu')"
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -834,9 +869,16 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
+      - name: Upload Linux CC AppImage to Workflow
+        continue-on-error: true   
+        if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
-      - name: Upload OSX-x64-Client dmg      
-        if: "startsWith(matrix.OS, 'mac')"
+      - name: Upload OSX-x64-Client dmg to Release
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -845,9 +887,15 @@ jobs:
           asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
           asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
           asset_content_type: application/octet-stream
+      - name: Upload OSX-x64-Client dmg to Workflow
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
 
-      - name: Upload OSX-x64-Client zip      
-        if: "startsWith(matrix.OS, 'mac')"
+      - name: Upload OSX-x64-Client zip to Release
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -857,9 +905,9 @@ jobs:
           asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
           asset_content_type: application/zip
           
-      - name: Upload OSX-x64-CC dmg      
+      - name: Upload OSX-x64-CC dmg to Release
         continue-on-error: true   
-        if: "startsWith(matrix.OS, 'mac')"
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -869,10 +917,17 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_content_type: application/octet-stream
-
-      - name: Upload OSX-x64-CC zip      
+      - name: Upload OSX-x64-CC dmg to Workflow
         continue-on-error: true   
-        if: "startsWith(matrix.OS, 'mac')"
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+
+      - name: Upload OSX-x64-CC zip to Release
+        continue-on-error: true   
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -881,3 +936,10 @@ jobs:
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
           asset_content_type: application/zip
+      - name: Upload OSX-x64-CC zip to Workflow
+        continue-on-error: true   
+        if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
