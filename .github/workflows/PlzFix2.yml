@@ -1,4 +1,4 @@
-name: Plz Fix2
+name: Plz Fix
 
 on:
   workflow_dispatch:
@@ -43,7 +43,8 @@ jobs:
           os_list+=('macos-latest')
         fi
 
-        echo "::set-output name=matrix::{\"os\": ${os_list[@]}, \"python-version\": [\"3.12.x\"]}"
+        matrix_json="{\"os\": [\"${os_list[@]// /\", \"}\"], \"python-version\": [\"3.12.x\"]}"
+        echo "MATRIX_JSON=$matrix_json" >> $GITHUB_ENV
 
   build:
     needs: prepare
