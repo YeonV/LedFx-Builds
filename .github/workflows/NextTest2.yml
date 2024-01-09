@@ -509,8 +509,8 @@ jobs:
         uses: actions/download-artifact@v1
         with:
           name: ledfx_frontend_v2
-      - name: Upload Frontend Build as Asset
-        if: startsWith(runner.os, 'Windows')       
+      - name: Upload Frontend Build to Release
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'  
         id: upload-release-asset-2
         uses: actions/upload-release-asset@v1
         env:
@@ -518,8 +518,15 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ./ledfx_frontend_v2/ledfx_frontend_v2.zip
-          asset_name: ledfx_frontend-v2.0.${{ github.event.inputs.fversion }}.zip
+          asset_name: ledfx_frontend-v${{ env.action_state }}.zip
           asset_content_type: application/zip
+
+      - name: Upload Frontend Build to Workflow
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No'
+        uses: actions/upload-artifact@v3
+        with:
+            name: ledfx_frontend-v${{ env.action_state }}.zip
+            path: ledfx_frontend_v2/ledfx_frontend_v2.zip
           
       - name: Upload Core Win To Release
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes'
@@ -683,6 +690,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Load Release URL File from release job
+        if: github.event.inputs.release == 'Yes'
         uses: actions/download-artifact@v1
         with:
           name: release_url
