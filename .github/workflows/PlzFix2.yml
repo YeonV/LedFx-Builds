@@ -19,14 +19,14 @@ on:
         required: false
         type: boolean
 
-env:
-  matrix_os: ""
-
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:    
     - name: Check Inputs and Prepare Matrix
+      id: set-matrix
       run: |
         echo windows: ${{ github.event.inputs.windows }}
         echo ubuntu: ${{ github.event.inputs.ubuntu }}
@@ -43,7 +43,7 @@ jobs:
           os_list+=('macos-latest')
         fi
 
-        echo "MATRIX_OS=${os_list[@]}" >> $GITHUB_ENV
+        echo "::set-output name=matrix::{\"os\": ${os_list[@]}, \"python-version\": [\"3.12.x\"]}"
 
   build:
     needs: prepare
@@ -52,9 +52,8 @@ jobs:
       run:
         shell: bash -x {0}
     strategy:
-      matrix:
-        os: ${{ fromJson(env.matrix_os) }}
-        python-version: ['3.12.x']
+      fail-fast: false
+      matrix: ${{fromJson(needs.prepare.outputs.matrix)}}
     steps:
     - name: Check Inputs again
       run: |
