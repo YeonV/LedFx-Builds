@@ -558,14 +558,14 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
           asset_content_type: application/zip
 
       - name: Upload Core Win To Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
             path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
 
       - name: Upload Core Osx-arm64 To Release        
@@ -576,14 +576,14 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/my_files.tar
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-arm64.zip
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
           asset_content_type: application/zip
 
       - name: Upload Core Osx-arm64 to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') &&  github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-arm64.zip
+            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
             path: src/my_files.tar
 
       - name: Upload Core Osx To Release        
@@ -594,14 +594,14 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/my_files.tar
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-x64.zip
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
           asset_content_type: application/zip
           
       - name: Upload Core Osx to Workflow
         if: startsWith(matrix.OS, 'macos') &&  github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--osx-x64.zip
+            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
             path: src/my_files.tar
 
       - name: Build ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
@@ -623,14 +623,14 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
           
       - name: Upload Core Linux To Worflow       
         if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--linux-x64.tar.gz
+            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
             path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
           
       - name: Upload Core Win Portable To Release
@@ -641,14 +641,14 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
-          asset_name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
           asset_content_type: application/vnd.microsoft.portable-executable
           
       - name: Upload Core Win Portable To Worflow
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v3
         with:
-            name: ${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
+            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
             path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
 
 
