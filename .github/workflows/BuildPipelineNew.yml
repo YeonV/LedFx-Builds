@@ -673,7 +673,7 @@ jobs:
            ls ./frontend/extraResources/LedFx
            
       - name: Move Core-osx
-        if: (startsWith(matrix.OS, 'osx') or startsWith(matrix.OS, 'mac')) && github.event.inputs.macos == 'true'
+        if: (startsWith(matrix.OS, 'osx') || startsWith(matrix.OS, 'mac')) && github.event.inputs.macos == 'true'
         continue-on-error: true
         run: |
            cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
