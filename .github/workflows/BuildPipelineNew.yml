@@ -669,7 +669,7 @@ jobs:
            echo ------------
            ls ./src/dist
            echo ------------           
-           cp -r ./src/LedFx_core--v2.0.${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
+           cp -r ./src/LedFx_core--v${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
            ls ./frontend/extraResources/LedFx
            
       - name: Move Core-osx
