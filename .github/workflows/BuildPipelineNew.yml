@@ -471,11 +471,12 @@ jobs:
           mv dist/LedFx $BINARY_NAME-v$action_state
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
           
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
+      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-x64
         if: "startsWith(matrix.OS, 'mac')"
         run: |          
           mv src2/tools/mac/mac.spec src/mac.spec
           cd src
+          sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
           poetry run pip install pyinstaller
           poetry run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
@@ -484,11 +485,12 @@ jobs:
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
           
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-x64
+      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |          
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
+          sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
           arch -arm64 poetry run pip install pyinstaller
           arch -arm64 poetry run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
