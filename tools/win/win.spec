@@ -8,7 +8,11 @@ spec_root = os.path.abspath(SPECPATH)
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
 print(venv_root)
-yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.')]
+# Create prod.env for the packaged binaries to read from
+with open('prod.env', 'w') as file:
+    file.write('IS_RELEASE = true')
+
+yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/prod.env','.')]
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')
@@ -47,3 +51,5 @@ coll = COLLECT(exe,
                upx=True,
                upx_exclude=[],
                name='LedFx')
+# Cleanup prod.env
+os.remove("prod.env")
