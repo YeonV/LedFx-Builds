@@ -418,12 +418,14 @@ jobs:
           echo "poetry_venv_location=$(poetry env info --path)" >> $GITHUB_ENV
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
+          poetry run pip install samplerate==0.2.1
           
       - name: Install LedFx osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd src
           arch -arm64 poetry install
+          arch -arm64 poetry run pip install samplerate==0.2.1
           
       - name: Get Backend Version and poetry-venv-path
         id: getbackendver
@@ -467,8 +469,9 @@ jobs:
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
         run: |
-          mv src2/tools/win/hook-samplerate.py $poetry_venv_location/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
+          # mv src2/tools/win/hook-samplerate.py $poetry_venv_location/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
           cd src
+          poetry run pip install samplerate==0.2.1
           poetry run pyinstaller win.spec
           mv dist/LedFx $BINARY_NAME-v$action_state
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
@@ -480,6 +483,7 @@ jobs:
           cd src
           sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
           poetry run pip install pyinstaller
+          poetry run pip install samplerate==0.2.1
           poetry run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
@@ -511,6 +515,7 @@ jobs:
           mv src2/tools/linux/yzlinux.spec src/linux.spec
           cd src
           poetry run pip install pyinstaller
+          poetry run pip install samplerate==0.2.1
           poetry run pip install mido
           poetry run pyinstaller linux.spec
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
