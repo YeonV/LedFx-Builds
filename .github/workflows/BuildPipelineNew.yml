@@ -293,6 +293,7 @@ jobs:
           arch -arm64 brew install poetry
     
       - name: Setup mbedtls path for osx-arm64
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
           
@@ -413,7 +414,7 @@ jobs:
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd src
-          poetry install          
+          poetry install --extras hue
           poetry env info
           echo "poetry_venv_location=$(poetry env info --path)" >> $GITHUB_ENV
           poetry run ledfx-loopback-install
@@ -424,7 +425,7 @@ jobs:
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd src
-          arch -arm64 poetry install
+          arch -arm64 poetry install --extras hue
           arch -arm64 poetry run pip install samplerate==0.2.1
           
       - name: Get Backend Version and poetry-venv-path
