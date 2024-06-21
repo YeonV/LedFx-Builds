@@ -277,7 +277,12 @@ jobs:
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
-
+          
+      - name: Disable Sentry
+        run: |
+          sed -i '/if args.offline_mode is False:/d' ./src/ledfx/__main__.py
+          sed -i '/setup_sentry()/d' ./src/ledfx/__main__.py
+          
       - name: Set up Python
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         uses: actions/setup-python@v5
