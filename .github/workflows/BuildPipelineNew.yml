@@ -427,6 +427,7 @@ jobs:
         run: |
           cd src
           poetry install --extras hue
+          poetry install --with dev
           poetry env info
           echo "poetry_venv_location=$(poetry env info --path)" >> $GITHUB_ENV
           poetry run ledfx-loopback-install
