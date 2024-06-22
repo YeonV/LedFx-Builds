@@ -438,6 +438,7 @@ jobs:
         run: |
           cd src
           arch -arm64 poetry install --extras hue
+          arch -arm64 poetry install --with dev
           arch -arm64 poetry run pip install samplerate==0.2.1
           
       - name: Get Backend Version and poetry-venv-path
