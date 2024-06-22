@@ -207,7 +207,7 @@ jobs:
           os_list+=('ubuntu-latest')
         fi
         if [ "${{ github.event.inputs.macos }}" = "true" ]; then
-          os_list+=('macos-latest')
+          os_list+=('macos-13')
         fi
         if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
           os_list+=('osx-arm64')
