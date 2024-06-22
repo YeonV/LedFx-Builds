@@ -279,9 +279,16 @@ jobs:
           ls ./src/ledfx_frontend
           
       - name: Disable Sentry
+        if: "!startsWith(matrix.OS, 'osx-arm64') || !startsWith(matrix.OS, 'macos')"
         run: |
           sed -i '/if args.offline_mode is False:/d' ./src/ledfx/__main__.py
           sed -i '/setup_sentry()/d' ./src/ledfx/__main__.py
+          
+      - name: Disable Sentry Osx
+        if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos')"
+        run: |
+          sed -i '' '/if args.offline_mode is False:/d' ./src/ledfx/__main__.py
+          sed -i '' '/setup_sentry()/d' ./src/ledfx/__main__.py
           
       - name: Set up Python
         if: "!startsWith(matrix.OS, 'osx-arm64')"
