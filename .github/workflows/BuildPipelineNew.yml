@@ -495,7 +495,7 @@ jobs:
         run: |          
           mv src2/tools/mac/mac.spec src/mac.spec
           cd src
-          sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
+          # sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
           poetry run pip install pyinstaller
           poetry run pip install samplerate==0.2.1
           poetry run pyinstaller mac.spec
@@ -510,7 +510,7 @@ jobs:
         run: |          
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
-          sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
+          # sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
           arch -arm64 poetry run pip install pyinstaller
           arch -arm64 poetry run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
