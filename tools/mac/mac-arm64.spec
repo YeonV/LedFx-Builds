@@ -1,17 +1,31 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 from hiddenimports import hiddenimports
+from ledfx.consts import PROJECT_VERSION
 # from PyInstaller.utils.hooks import copy_metadata
 # from PyInstaller.utils.hooks import collect_data_files
 
-
 spec_root = os.path.abspath(SPECPATH)
-
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
+
+# Remove the ledfx.env file if it exists
+os.remove("ledfx.env") if os.path.exists("ledfx.env") else None
+
+# Get environment variables
+github_sha_value = os.getenv('GITHUB_SHA')
+
+# Initialize variables
+variables = [f"GITHUB_SHA = {github_sha_value}"]
+variables.append('IS_RELEASE = false')
+
+# Write to ledfx.env file
+with open('ledfx.env', 'a') as file:
+    file.write('\n'.join(variables))
+
 print(venv_root)
 print(f'{spec_root}')
-yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.')]
+yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/ledfx.env','.')]
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')
@@ -52,15 +66,15 @@ app = BUNDLE(exe,
           name='LedFx_v2',
           icon=f'{spec_root}/ledfx_assets/logo.icns',
           bundle_identifier='com.blade.ledfx',
-          version='2.0.65',
+          version=f'{PROJECT_VERSION}',
           info_plist={
-              'CFBundleShortVersionString': '2.0.51',
-              'CFBundleVersion': '2.0.51',
-              'LSApplicationCategoryType': 'public.app-category.developer-tools',
-              'NSHumanReadableCopyright': 'Copyright © 2023 YeonV aka Blade',
+              'CFBundleShortVersionString': f'{PROJECT_VERSION}',
+              'CFBundleVersion': f'{PROJECT_VERSION}',
+              'LSApplicationCategoryType': 'public.app-category.music',
+              'NSHumanReadableCopyright': 'Copyright © 2024 YeonV aka Blade',
               'NSPrincipalClass': 'NSApplication',
               'NSAppleScriptEnabled': False,
-              'NSMicrophoneUsageDescription': 'Ledfx needs audio',
+              'NSMicrophoneUsageDescription': 'LedFx uses audio for sound visualization',
               'com.apple.security.device.audio-input': True,
               'com.apple.security.device.microphone': True,
               },
@@ -68,3 +82,5 @@ app = BUNDLE(exe,
               'com.apple.security.device.audio-input': True,
               'com.apple.security.device.microphone': True,
               })
+# Cleanup ledfx.env
+os.remove("ledfx.env")
