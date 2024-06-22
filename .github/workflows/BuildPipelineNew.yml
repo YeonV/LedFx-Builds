@@ -476,6 +476,7 @@ jobs:
         if: startsWith(runner.os, 'Windows')
         run: |
           # mv src2/tools/win/hook-samplerate.py $poetry_venv_location/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
+          mv src2/tools/win/win.spec src/win.spec
           cd src
           poetry run pip install samplerate==0.2.1
           poetry run pyinstaller win.spec
