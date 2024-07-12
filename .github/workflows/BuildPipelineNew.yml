@@ -254,9 +254,11 @@ jobs:
         with:
           path: ./src/ledfx_frontend
       - name: get git version
-        run: |        
+        run: |
+          cp ./src2/tools/cors.patch ./src/cors.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
+          git apply cors.patch
           cd ..
       - name: Get latest frontend
         run: |
