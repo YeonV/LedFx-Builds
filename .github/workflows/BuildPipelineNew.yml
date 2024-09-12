@@ -543,7 +543,7 @@ jobs:
 
       - name: Load Release URL File from release job
         if: github.event.inputs.release == 'Yes'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: release_url
       - name: Get Release File Name & Upload URL
@@ -555,7 +555,7 @@ jobs:
           echo "upload_url=$value" >> $GITHUB_OUTPUT
       - name: Load Frontend Build File from release job
         if: startsWith(runner.os, 'Windows')
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: ledfx_frontend_v2
       - name: Upload Frontend Build to Release
@@ -742,7 +742,7 @@ jobs:
           
       - name: Load Release URL File from release job
         if: github.event.inputs.release == 'Yes'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: release_url
 
