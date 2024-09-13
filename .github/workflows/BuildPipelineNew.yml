@@ -551,7 +551,9 @@ jobs:
         id: get_release_info
         shell: bash
         run: |
-          value=`cat release_url/release_url.txt`
+          ls
+          ls release_url
+          value=`cat release_url.txt`
           echo "upload_url=$value" >> $GITHUB_OUTPUT
       - name: Load Frontend Build File from release job
         if: startsWith(runner.os, 'Windows')
