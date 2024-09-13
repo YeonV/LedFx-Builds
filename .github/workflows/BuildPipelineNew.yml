@@ -56,7 +56,7 @@ jobs:
         curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
 
     - name: Save Frontend for publish
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ledfx_frontend_v2
         path: ledfx_frontend_v2.zip     
@@ -188,7 +188,7 @@ jobs:
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
     - name: Save Release URL File for publish
       if: github.event.inputs.release == 'Yes'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release_url
         path: release_url.txt
@@ -572,7 +572,7 @@ jobs:
 
       - name: Upload Frontend Build to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ledfx_frontend-v${{ env.action_state }}.zip
             path: ledfx_frontend_v2/ledfx_frontend_v2.zip
@@ -590,7 +590,7 @@ jobs:
 
       - name: Upload Core Win To Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
             path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
@@ -608,7 +608,7 @@ jobs:
 
       - name: Upload Core Osx-arm64 to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') &&  github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
             path: src/my_files.tar
@@ -626,7 +626,7 @@ jobs:
           
       - name: Upload Core Osx to Workflow
         if: startsWith(matrix.OS, 'macos') &&  github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
             path: src/my_files.tar
@@ -655,7 +655,7 @@ jobs:
           
       - name: Upload Core Linux To Worflow       
         if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
             path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
@@ -673,7 +673,7 @@ jobs:
           
       - name: Upload Core Win Portable To Worflow
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
             path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
@@ -759,7 +759,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
       - name: Upload Win-Portable to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--win-portable.exe
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
@@ -777,7 +777,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
       - name: Upload Win-Setup to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--win-setup.exe
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
@@ -794,7 +794,7 @@ jobs:
           asset_content_type: application/zip
       - name: Upload Win-Zip to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--win.zip
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
@@ -812,7 +812,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
       - name: Upload Win-CC to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
@@ -830,7 +830,7 @@ jobs:
 
       - name: Upload OSX-arm64-Client dmg to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
@@ -848,7 +848,7 @@ jobs:
 
       - name: Upload OSX-arm64-Client zip to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
@@ -866,7 +866,7 @@ jobs:
 
       - name: Upload OSX-arm64-CC dmg to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
@@ -884,7 +884,7 @@ jobs:
 
       - name: Upload OSX-arm64-CC zip to Workflow
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
@@ -903,7 +903,7 @@ jobs:
       - name: Upload Linux Client snap to Workflow
         continue-on-error: true      
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
@@ -922,7 +922,7 @@ jobs:
       - name: Upload Linux Client AppImage to Workflow
         continue-on-error: true    
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
@@ -941,7 +941,7 @@ jobs:
       - name: Upload Linux CC snap to Workflow
         continue-on-error: true  
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
@@ -960,7 +960,7 @@ jobs:
       - name: Upload Linux CC AppImage to Workflow
         continue-on-error: true   
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
@@ -978,7 +978,7 @@ jobs:
 
       - name: Upload OSX-x64-Client dmg to Workflow
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
@@ -995,7 +995,7 @@ jobs:
           asset_content_type: application/zip
       - name: Upload OSX-x64-Client zip to Workflow
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
             path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
@@ -1016,7 +1016,7 @@ jobs:
       - name: Upload OSX-x64-CC dmg to Workflow
         continue-on-error: true   
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
@@ -1036,7 +1036,7 @@ jobs:
       - name: Upload OSX-x64-CC zip to Workflow
         continue-on-error: true   
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
             name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
             path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
