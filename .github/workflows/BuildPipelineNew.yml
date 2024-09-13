@@ -566,7 +566,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./ledfx_frontend_v2/ledfx_frontend_v2.zip
+          asset_path: ./ledfx_frontend_v2.zip
           asset_name: ledfx_frontend-v${{ env.action_state }}.zip
           asset_content_type: application/zip
 
