@@ -551,8 +551,6 @@ jobs:
         id: get_release_info
         shell: bash
         run: |
-          ls
-          ls release_url
           value=`cat release_url.txt`
           echo "upload_url=$value" >> $GITHUB_OUTPUT
       - name: Load Frontend Build File from release job
