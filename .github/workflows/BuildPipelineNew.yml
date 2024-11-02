@@ -33,6 +33,11 @@ on:
         default: true
         required: false
         type: boolean
+      osxarm64gh:
+        description: 'MacOS (m1/m2)'
+        default: true
+        required: false
+        type: boolean
       ubuntu:
         description: 'Ubuntu'
         default: true
@@ -210,6 +215,9 @@ jobs:
           fi
           if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
             os_list+=('osx-arm64')
+          fi
+          if [ "${{ github.event.inputs.osxarm64gh }}" = "true" ]; then
+            os_list+=('macos-latest')
           fi
 
           matrix_json="{\"os\": ["
