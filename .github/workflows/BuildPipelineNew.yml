@@ -364,16 +364,16 @@ jobs:
       - name: Bump version
         if: "startsWith(matrix.OS, 'win') || startsWith(matrix.OS, 'ubu')"
         run: |
-          sed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
-          sed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
+          sed -i '0,/PROJECT_VERSION = "[0-9]*\.[0-9]*\.[0-9]*"/s//PROJECT_VERSION = "\1${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
+          sed -i '0,/version = "[0-9]*\.[0-9]*\.[0-9]*"/s//version = "\1${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
 
       - name: Bump version osx
         if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"
         run: |
           brew install gnu-sed
           cd src
-          gsed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py
-          gsed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./pyproject.toml
+          gsed -i '0,/PROJECT_VERSION = "[0-9]*\.[0-9]*\.[0-9]*"/s//PROJECT_VERSION = "\1${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py
+          gsed -i '0,/version = "[0-9]*\.[0-9]*\.[0-9]*"/s//version = "\1${{ github.event.inputs.fversion }}"/' ./pyproject.toml
 
       # - uses: stefanzweifel/git-auto-commit-action@v4
       #   continue-on-error: true
