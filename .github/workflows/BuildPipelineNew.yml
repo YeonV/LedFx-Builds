@@ -129,7 +129,7 @@ jobs:
           </details>
           " >> ./messages.md
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.release == 'Yes'
         with:
           repository: YeonV/LedFx-Frontend-v2
@@ -152,7 +152,7 @@ jobs:
 
           " >> ../messages.md
           cat ../messages.md
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         if: github.event.inputs.release == 'Yes'
         with:
           repository: LedFx/LedFx
@@ -248,7 +248,7 @@ jobs:
           ref: main
           path: src
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Check out tools from GitHub
         with:
           repository: YeonV/LedFx-Builds
@@ -437,23 +437,23 @@ jobs:
           cd src
           arch -arm64 poetry check --lock
 
-      - name: Build a binary wheel
-        if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
-        run: |
-          cd src
-          poetry install --extras hue
-          poetry build
+      # - name: Build a binary wheel
+      #   if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
+      #   run: |
+      #     cd src
+      #     poetry install --extras hue
+      #     poetry build
 
-      - name: Build a binary wheel osx-arm64
-        if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
-        run: |
-          cd src
-          export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"
-          export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
-          export CFLAGS="-Wno-incompatible-function-pointer-types"
-          arch -arm64 poetry install --extras hue
-          arch -arm64 poetry build
+      # - name: Build a binary wheel osx-arm64
+      #   if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
+      #   run: |
+      #     cd src
+      #     export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"
+      #     export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
+      #     export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
+      #     export CFLAGS="-Wno-incompatible-function-pointer-types"
+      #     arch -arm64 poetry install --extras hue
+      #     arch -arm64 poetry build
 
       - name: Install LedFx
         if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
@@ -534,6 +534,7 @@ jobs:
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
+          xattr -cr ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-arm64
@@ -722,7 +723,7 @@ jobs:
           path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
 
       # CLIENTS
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: YeonV/LedFx-Frontend-v2
           ref: main
