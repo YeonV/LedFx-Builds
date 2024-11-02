@@ -86,7 +86,7 @@ jobs:
           ref: main
           path: src2
       - name: Delete old frontend
-        uses: JesseTG/rm@v1.0.3
+        uses: JesseTG/rm@2fb8f3b8a0e41fc222e7943b63306c602feb187e
         with:
           path: ./src/ledfx_frontend
       - name: get git version
@@ -204,7 +204,7 @@ jobs:
           echo "dir=$(pip cache dir)"
       - name: pip cache
         if: "!startsWith(matrix.OS, 'osx-arm64')"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
@@ -591,7 +591,7 @@ jobs:
 
       - name: Set up Node.js
         if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           # architecture: ${{ matrix.arch }}
@@ -599,7 +599,7 @@ jobs:
           # cache-dependency-path: '**/yarn.lock'
       - name: Set up Node.js osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           architecture: arm64
