@@ -447,7 +447,7 @@ jobs:
         run: |
           cd src
           poetry run ledfx --version | cut -d' '
-          echo "action_state=$(poetry run ledfx --version | cut -d' ' -f2| cut -d. -f1,2).${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
+          echo "action_state=$(poetry run ledfx --version | cut -d. -f1,2).${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
           echo $action_state
@@ -481,7 +481,7 @@ jobs:
           rm -rf portaudio
           mv $CYGPATH/mingw64/bin/libportaudio.dll $poetry_venv_location/lib/site-packages/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
 
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }}
+      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
         run: |
           # mv src2/tools/win/hook-samplerate.py $poetry_venv_location/lib/site-packages/_pyinstaller_hooks_contrib/hooks/stdhooks/hook-samplerate.py
@@ -492,7 +492,7 @@ jobs:
           mv dist/LedFx $BINARY_NAME-v$action_state
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
 
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-x64
+      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: "startsWith(matrix.OS, 'mac')"
         run: |
           mv src2/tools/mac/mac.spec src/mac.spec
@@ -507,7 +507,7 @@ jobs:
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
 
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
+      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
@@ -521,7 +521,7 @@ jobs:
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
 
-      - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} linux
+      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} linux
         if: "startsWith(matrix.OS, 'ubuntu')"
         run: |
           sudo apt install libatlas3-base \
