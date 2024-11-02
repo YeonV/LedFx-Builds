@@ -54,6 +54,8 @@ jobs:
     name: ${{ github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend' }}
     runs-on: ubuntu-latest
     steps:
+      - name: Check out code from GitHub
+        uses: actions/checkout@v4
       - name: Generate Build Matrix
         id: prepare
         uses: ./.github/workflows/prepare.yml

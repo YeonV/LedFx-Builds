@@ -1,4 +1,4 @@
-name: Generate Build Matrix
+name: Prepare BuildPipeline
 
 on:
   workflow_call:
