@@ -1,0 +1,65 @@
+name: Generate Build Matrix
+
+on:
+  workflow_call:
+    inputs:
+      release:
+        required: true
+        type: boolean
+
+jobs:
+  prepare-frontend:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Get latest frontend and prepare matrix
+        run: |
+          curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+
+      - name: Save Frontend for publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledfx_frontend_v2
+          path: ledfx_frontend_v2.zip
+
+      - name: Save Release URL File for publish
+        if: ${{ inputs.release }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_url
+          path: release_url.txt
+
+      - name: Check Inputs and Prepare Matrix
+        id: set-matrix
+        run: |
+          echo windows: ${{ github.event.inputs.windows }}
+          echo ubuntu: ${{ github.event.inputs.ubuntu }}
+          echo macos: ${{ github.event.inputs.macos }}
+
+          os_list=()
+          if [ "${{ github.event.inputs.windows }}" = "true" ]; then
+            os_list+=('windows-latest')
+          fi
+          if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
+            os_list+=('ubuntu-latest')
+          fi
+          if [ "${{ github.event.inputs.macos }}" = "true" ]; then
+            os_list+=('macos-13')
+          fi
+          if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
+            os_list+=('osx-arm64')
+          fi
+          if [ "${{ github.event.inputs.osxarm64gh }}" = "true" ]; then
+            os_list+=('macos-latest')
+          fi
+
+          matrix_json="{\"os\": ["
+          for os in "${os_list[@]}"; do
+            matrix_json+="\"$os\","
+          done
+          matrix_json=${matrix_json%?} # remove trailing comma
+          matrix_json+="], \"python-version\": [\"3.12.x\"]}"
+
+          echo "$matrix_json" > matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
