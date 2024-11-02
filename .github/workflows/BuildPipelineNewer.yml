@@ -5,7 +5,7 @@ on:
     inputs:
       fversion:
         description: 'Frontend Version'
-        default: '87'
+        default: '105'
         required: false
       portaudio:
         description: 'Build Portaudio'
@@ -302,7 +302,7 @@ jobs:
           brew install libsamplerate
 
       - name: Install build dependencies for osx silicon
-        if: "startsWith(matrix.OS, 'macos-13')"
+        if: "startsWith(matrix.OS, 'macos-latest')"
         run: |
           arch -arm64 brew install portaudio
           arch -arm64 brew install mbedtls@2
