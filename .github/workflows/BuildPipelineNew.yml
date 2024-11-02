@@ -28,13 +28,13 @@ on:
         default: true
         required: false
         type: boolean
-      osxarm64:
-        description: 'MacOS (m1/m2)'
+      osxarm64gh:
+        description: 'MacOS (silicon)'
         default: true
         required: false
         type: boolean
-      osxarm64gh:
-        description: 'MacOS (silicon)'
+      osxarm64:
+        description: 'MacOS (self-hosted)'
         default: true
         required: false
         type: boolean
