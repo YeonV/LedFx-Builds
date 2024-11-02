@@ -351,6 +351,12 @@ jobs:
       - name: Configure poetry osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
+          ls -la
+          cd ..
+          echo "upper"
+          ls -la
+          cd src
+          ls -la
           arch -arm64 poetry config virtualenvs.in-project true
           arch -arm64 poetry env info
 
