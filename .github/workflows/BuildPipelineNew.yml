@@ -352,9 +352,6 @@ jobs:
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
           ls -la
-          cd ..
-          echo "upper"
-          ls -la
           cd src
           ls -la
           arch -arm64 poetry config virtualenvs.in-project true
