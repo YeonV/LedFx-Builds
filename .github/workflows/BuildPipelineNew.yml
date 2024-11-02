@@ -318,6 +318,7 @@ jobs:
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
           export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
           export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
+          export PKG_CONFIG_PATH="/opt/homebrew/opt/mbedtls@2/lib/pkgconfig"
 
       - name: Get full Python version
         if: "!startsWith(matrix.OS, 'osx-arm64')"
