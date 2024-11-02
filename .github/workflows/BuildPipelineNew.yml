@@ -304,7 +304,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install build dependencies for osx-arm
+      - name: Install build dependencies for osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           arch -arm64 brew install portaudio
@@ -312,7 +312,7 @@ jobs:
           arch -arm64 brew install libsamplerate
           arch -arm64 brew install poetry
 
-      - name: Install build dependencies for osx-arm
+      - name: Install build dependencies for osx
         if: "startsWith(matrix.OS, 'macos-latest')"
         run: |
           brew install portaudio
@@ -339,7 +339,7 @@ jobs:
           arch -arm64 poetry --version
 
       - name: Install poetry
-        if: "!startsWith(matrix.OS, 'osx-arm64')"
+        if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
         run: |
           curl -sSL https://install.python-poetry.org | python - -y
 
