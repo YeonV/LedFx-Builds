@@ -305,12 +305,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install build dependencies for osx-arm
-        if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           arch -arm64 brew install portaudio
           arch -arm64 brew install mbedtls@2
           arch -arm64 brew install libsamplerate
           arch -arm64 brew install poetry
+
+      - name: Install build dependencies for osx-arm
+        if: "startsWith(matrix.OS, 'macos-latest')"
+        run: |
+          brew install portaudio
+          brew install mbedtls@2
+          brew install libsamplerate
+          brew install poetry
 
       - name: Setup mbedtls path for osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
@@ -326,7 +334,7 @@ jobs:
         run: echo version=$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))") >> $GITHUB_OUTPUT
 
       - name: Check Python version osx-arm64
-        if: "startsWith(matrix.OS, 'osx-arm64')"
+        if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
           arch -arm64 poetry --version
 
