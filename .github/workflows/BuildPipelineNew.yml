@@ -444,10 +444,24 @@ jobs:
           arch -arm64 poetry run pip install samplerate==0.2.1
 
       - name: Get Backend Version and poetry-venv-path
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
         id: getbackendver
         run: |
           cd src
           version=$(poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
+          echo "action_state=${version}.105-b6" >> $GITHUB_ENV
+          BINARY_NAME=LedFx_core-
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo $action_state
+          echo $BINARY_NAME
+          echo $poetry_venv_location
+
+      - name: Get Backend Version and poetry-venv-path
+        if: "startsWith(matrix.OS, 'osx-arm64')"
+        id: getbackendverarm
+        run: |
+          cd src
+          version=$(arch -arm64 poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
           echo "action_state=${version}.105-b6" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
           echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
