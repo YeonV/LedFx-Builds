@@ -623,7 +623,7 @@ jobs:
           path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
 
       - name: Upload Core Osx-arm64 To Release
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64gh == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -634,7 +634,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Osx-arm64 to Workflow
-        if: startsWith(matrix.OS, 'macos-latest') &&  github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') &&  github.event.inputs.release == 'No' && github.event.inputs.osxarm64gh == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
@@ -861,7 +861,7 @@ jobs:
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
 
       - name: Upload OSX-arm64-Client dmg to Release
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64gh == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -883,7 +883,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-Client dmg to Workflow
-        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64gh == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
@@ -897,7 +897,7 @@ jobs:
           path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
 
       - name: Upload OSX-arm64-Client zip to Release
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64gh == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -919,7 +919,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-arm64-Client zip to Workflow
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64gh == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
@@ -933,7 +933,7 @@ jobs:
           path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
 
       - name: Upload OSX-arm64-CC dmg to Release
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64gh == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -955,7 +955,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-CC dmg to Workflow
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64gh == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
@@ -969,7 +969,7 @@ jobs:
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
 
       - name: Upload OSX-arm64-CC zip to Release
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64gh == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -991,7 +991,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-arm64-CC zip to Workflow
-        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
+        if: startsWith(matrix.OS, 'macos-latest') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64gh == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
