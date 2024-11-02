@@ -455,6 +455,10 @@ jobs:
         if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
         run: |
           cd src
+          export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"
+          export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
+          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
+          export CFLAGS="-Wno-incompatible-function-pointer-types"
           poetry install --extras hue
           poetry install --with dev
           poetry env info
@@ -467,6 +471,10 @@ jobs:
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
           cd src
+          export PATH="/opt/homebrew/opt/mbedtls@2/bin:$PATH"
+          export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
+          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
+          export CFLAGS="-Wno-incompatible-function-pointer-types"
           arch -arm64 poetry install --extras hue
           arch -arm64 poetry install --with dev
           arch -arm64 poetry run pip install samplerate==0.2.1
