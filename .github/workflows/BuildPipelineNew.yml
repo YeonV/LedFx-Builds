@@ -400,16 +400,12 @@ jobs:
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd src
-          poetry install
-          poetry lock
           poetry check --lock
 
       - name: Check lock file osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           cd src
-          poetry install
-          arch -arm64 poetry lock
           arch -arm64 poetry check --lock
 
       - name: Build a binary wheel
