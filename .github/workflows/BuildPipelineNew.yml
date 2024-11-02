@@ -318,15 +318,14 @@ jobs:
           brew install portaudio
           brew install mbedtls@2
           brew install libsamplerate
-          brew install poetry
 
       - name: Setup mbedtls path for osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
-          export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/mbedtls@2/lib/pkgconfig"
+          echo "LDFLAGS=-L/opt/homebrew/opt/mbedtls@2/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/opt/homebrew/opt/mbedtls@2/include" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/opt/homebrew/opt/mbedtls@2/lib/pkgconfig" >> $GITHUB_ENV
 
       - name: Get full Python version
         if: "!startsWith(matrix.OS, 'osx-arm64')"
@@ -334,17 +333,17 @@ jobs:
         run: echo version=$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))") >> $GITHUB_OUTPUT
 
       - name: Check Python version osx-arm64
-        if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           arch -arm64 poetry --version
 
       - name: Install poetry
-        if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos-latest')"
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
           curl -sSL https://install.python-poetry.org | python - -y
 
       - name: Update Path for Windows
-        if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos')"
+        if: "startsWith(matrix.OS, 'win')"
         run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
 
       - name: Update Path for MacOS
