@@ -4,25 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       fversion:
-       description: 'Frontend Version'
-       default: '87'
-       required: false
+        description: 'Frontend Version'
+        default: '87'
+        required: false
       portaudio:
-       description: 'Build Portaudio'
-       default: 'No'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        description: 'Build Portaudio'
+        default: 'No'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
       release:
-       description: 'Create Release'
-       default: 'Yes'
-       required: false
-       type: choice
-       options:
-         - 'Yes'
-         - 'No'
+        description: 'Create Release'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
       macos:
         description: 'MacOS (intel)'
         default: true
@@ -44,186 +44,184 @@ on:
         required: false
         type: boolean
 jobs:
-
   createrelease:
     name: ${{ github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend' }}
     runs-on: [ubuntu-latest]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:    
-    - name: Get latest frontend and prepare matrix
-      run: |
-        curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
+    steps:
+      - name: Get latest frontend and prepare matrix
+        run: |
+          curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
 
-    - name: Save Frontend for publish
-      uses: actions/upload-artifact@v4
-      with:
-        name: ledfx_frontend_v2
-        path: ledfx_frontend_v2.zip     
-    - name: Get Messages    
-      if: github.event.inputs.release == 'Yes'
-      run: |
-        unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
-        echo "## New LedFx binaries available:
+      - name: Save Frontend for publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledfx_frontend_v2
+          path: ledfx_frontend_v2.zip
+      - name: Get Messages
+        if: github.event.inputs.release == 'Yes'
+        run: |
+          unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
+          echo "## New LedFx binaries available:
 
-        ### Core:  -- Browser-Based
-        ### Client:   -- Desktop-App (needs a running Core)
-        ### CC:  -- Desktop-App (Core-integrated)
+          ### Core:  -- Browser-Based
+          ### Client:   -- Desktop-App (needs a running Core)
+          ### CC:  -- Desktop-App (Core-integrated)
 
-        ---
+          ---
 
-        ##  More informations regarding Core, Client and CC:
+          ##  More informations regarding Core, Client and CC:
 
-        <details><summary>expand</summary>
+          <details><summary>expand</summary>
 
-        #### Core
-        If you don't know where to start, get this, open an internet browser, go to https://localhost:8888/ and off you go.
-        This is the server/backend that takes in audio, does the calculations and outputs blinking lights. Runs in the background on a Windows/Mac/Linux computer. You can then open the frontend in an internet browser, by going to https://localhost:8888/ on the same computer that is running the Core.
-        You can also pull up the frontend on your smartphone (or any other computer on the same network) by finding out what local IP your computer running the Core uses (most likely something like this 192.168.1.XXX, or 192.168.0.XXX) and opening a Browser on your smartphone and going to eg. https://192.168.1.123:8888/
-
-
-        #### Client
-        This is a Desktop App that opens the frontend of LedFx in a window on your desktop.
-        This app does NOT include the LedFx backend/server and cannot run LedFx by itself without the Core.
-        This Client app is useful for connecting to a running Core on your network (or the same machine).
-
-        ### CC (Client + Core = CC)
-        This is the Client and Core integrated into one Desktop App.
-        This Desktop App opens the Client frontend of LedFx in a window on your desktop AND runs the Core backend/server in the background.
-        This is useful for people who want the whole LedFx experience in one nice and tidy package.
-        With this, you can still connect to the backend server via a Client or browser.
-
-        </details>
-
-        ---
-
-        ## ⚠️ These builds are not signed  (read this please):
-
-        <details><summary>Mac-Users:</summary>
-
-        #### Infos:
-        Reports as damaged, because of unsiged.
-        To fix it open Terminal and type in the following (with a SPACE at the end):
-        
-        <code>sudo xattr -cr </code>
-        
-        Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
-
-        Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
-        Maybe at some point we might buy an apple dev-license for 99€/year, then the voodoo would not be needed anymore.
-
-        </details>
+          #### Core
+          If you don't know where to start, get this, open an internet browser, go to https://localhost:8888/ and off you go.
+          This is the server/backend that takes in audio, does the calculations and outputs blinking lights. Runs in the background on a Windows/Mac/Linux computer. You can then open the frontend in an internet browser, by going to https://localhost:8888/ on the same computer that is running the Core.
+          You can also pull up the frontend on your smartphone (or any other computer on the same network) by finding out what local IP your computer running the Core uses (most likely something like this 192.168.1.XXX, or 192.168.0.XXX) and opening a Browser on your smartphone and going to eg. https://192.168.1.123:8888/
 
 
-        <details><summary>Win-Users:</summary>
+          #### Client
+          This is a Desktop App that opens the frontend of LedFx in a window on your desktop.
+          This app does NOT include the LedFx backend/server and cannot run LedFx by itself without the Core.
+          This Client app is useful for connecting to a running Core on your network (or the same machine).
 
-        #### Infos:
-        Reports as unsave, because of unsiged.
+          ### CC (Client + Core = CC)
+          This is the Client and Core integrated into one Desktop App.
+          This Desktop App opens the Client frontend of LedFx in a window on your desktop AND runs the Core backend/server in the background.
+          This is useful for people who want the whole LedFx experience in one nice and tidy package.
+          With this, you can still connect to the backend server via a Client or browser.
 
-        Maybe at some point we might buy a microsoft dev-license
+          </details>
 
-        </details>
-        " >> ./messages.md
-        
-    - uses: actions/checkout@v3      
-      if: github.event.inputs.release == 'Yes'
-      with:
-        repository: YeonV/LedFx-Frontend-v2
-        ref: main
-        path: frontend        
-        fetch-depth: 0
-        
-    - name: Get frontend Changelog    
-      if: github.event.inputs.release == 'Yes'
-      run: |
-        cd frontend
-        echo "
-        ### Frontend-Changes:
-        <details><summary>Expand</summary>
-        
-        " >> ../messages.md
-        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo %an)-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); gsub("-", "_", url); gsub("by_", "by-", url); gsub("_blue", "-blue", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
-        echo "
-        </details>
-        
-        " >> ../messages.md
-        cat ../messages.md
-    - uses: actions/checkout@v3
-      if: github.event.inputs.release == 'Yes'
-      with:
-        repository: LedFx/LedFx
-        ref: main
-        path: backend
-        fetch-depth: 0
-        
-    - name: Get Backend Changelog
-      if: github.event.inputs.release == 'Yes'
-      run: |
-        cd backend
-        echo "
-        ### Backend Changes
-        <details><summary>Expand</summary>
-        
-        " >> ../messages.md
-        git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo %an)-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); gsub("-", "_", url); gsub("by_", "by-", url); gsub("_blue", "-blue", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
-        echo "
-        </details>
-        
-        " >> ../messages.md
-        cat ../messages.md
-    - name: Create Release
-      if: github.event.inputs.release == 'Yes'
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}
-        release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}
-        body_path: ./messages.md
-        draft: false
-        prerelease: true
-    - name: Output Release URL File
-      if: github.event.inputs.release == 'Yes'
-      run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
-    - name: Save Release URL File for publish
-      if: github.event.inputs.release == 'Yes'
-      uses: actions/upload-artifact@v4
-      with:
-        name: release_url
-        path: release_url.txt
-    - name: Check Inputs and Prepare Matrix
-      id: set-matrix
-      run: |
-        echo windows: ${{ github.event.inputs.windows }}
-        echo ubuntu: ${{ github.event.inputs.ubuntu }}
-        echo macos: ${{ github.event.inputs.macos }}
+          ---
 
-        os_list=()
-        if [ "${{ github.event.inputs.windows }}" = "true" ]; then
-          os_list+=('windows-latest')
-        fi
-        if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
-          os_list+=('ubuntu-latest')
-        fi
-        if [ "${{ github.event.inputs.macos }}" = "true" ]; then
-          os_list+=('macos-13')
-        fi
-        if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
-          os_list+=('osx-arm64')
-        fi
+          ## ⚠️ These builds are not signed  (read this please):
 
-        matrix_json="{\"os\": ["
-        for os in "${os_list[@]}"; do
-          matrix_json+="\"$os\","
-        done
-        matrix_json=${matrix_json%?} # remove trailing comma
-        matrix_json+="], \"python-version\": [\"3.12.x\"]}"
-        
-        echo "$matrix_json" > matrix.json
-        echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+          <details><summary>Mac-Users:</summary>
 
-        
+          #### Infos:
+          Reports as damaged, because of unsiged.
+          To fix it open Terminal and type in the following (with a SPACE at the end):
+
+          <code>sudo xattr -cr </code>
+
+          Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
+
+          Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
+          Maybe at some point we might buy an apple dev-license for 99€/year, then the voodoo would not be needed anymore.
+
+          </details>
+
+
+          <details><summary>Win-Users:</summary>
+
+          #### Infos:
+          Reports as unsave, because of unsiged.
+
+          Maybe at some point we might buy a microsoft dev-license
+
+          </details>
+          " >> ./messages.md
+
+      - uses: actions/checkout@v3
+        if: github.event.inputs.release == 'Yes'
+        with:
+          repository: YeonV/LedFx-Frontend-v2
+          ref: main
+          path: frontend
+          fetch-depth: 0
+
+      - name: Get frontend Changelog
+        if: github.event.inputs.release == 'Yes'
+        run: |
+          cd frontend
+          echo "
+          ### Frontend-Changes:
+          <details><summary>Expand</summary>
+
+          " >> ../messages.md
+          git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo %an)-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); gsub("-", "_", url); gsub("by_", "by-", url); gsub("_blue", "-blue", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
+          echo "
+          </details>
+
+          " >> ../messages.md
+          cat ../messages.md
+      - uses: actions/checkout@v3
+        if: github.event.inputs.release == 'Yes'
+        with:
+          repository: LedFx/LedFx
+          ref: main
+          path: backend
+          fetch-depth: 0
+
+      - name: Get Backend Changelog
+        if: github.event.inputs.release == 'Yes'
+        run: |
+          cd backend
+          echo "
+          ### Backend Changes
+          <details><summary>Expand</summary>
+
+          " >> ../messages.md
+          git log --pretty=format:"+ %s [![by](https://img.shields.io/badge/by-$(echo %an)-blue.svg?logo=github&logoColor=white)](https://github.com/LedFx/LedFx/commit/%h)" $(git describe --tags --abbrev=0 @^)..@ | grep -v -E '(cleanup)' | awk '{ sub(/\[\[!\]\]/, ""); msg = substr($0, 1, index($0, "[!") - 1); if (length(msg) >= 5 && !seen[msg]++) { print $0 } }' | awk '{ while (match($0, /https:\/\/img\.shields\.io\/badge\/by-[^"]*-blue\.svg\?logo=github&logoColor=white/)) { url = substr($0, RSTART, RLENGTH); gsub(" ", "_", url); gsub("-", "_", url); gsub("by_", "by-", url); gsub("_blue", "-blue", url); printf "%s%s", substr($0, 1, RSTART - 1), url; $0 = substr($0, RSTART + RLENGTH) } gsub(" ", "_", $0); print }' >> ../messages.md
+          echo "
+          </details>
+
+          " >> ../messages.md
+          cat ../messages.md
+      - name: Create Release
+        if: github.event.inputs.release == 'Yes'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}
+          release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}
+          body_path: ./messages.md
+          draft: false
+          prerelease: true
+      - name: Output Release URL File
+        if: github.event.inputs.release == 'Yes'
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt
+      - name: Save Release URL File for publish
+        if: github.event.inputs.release == 'Yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_url
+          path: release_url.txt
+      - name: Check Inputs and Prepare Matrix
+        id: set-matrix
+        run: |
+          echo windows: ${{ github.event.inputs.windows }}
+          echo ubuntu: ${{ github.event.inputs.ubuntu }}
+          echo macos: ${{ github.event.inputs.macos }}
+
+          os_list=()
+          if [ "${{ github.event.inputs.windows }}" = "true" ]; then
+            os_list+=('windows-latest')
+          fi
+          if [ "${{ github.event.inputs.ubuntu }}" = "true" ]; then
+            os_list+=('ubuntu-latest')
+          fi
+          if [ "${{ github.event.inputs.macos }}" = "true" ]; then
+            os_list+=('macos-13')
+          fi
+          if [ "${{ github.event.inputs.osxarm64 }}" = "true" ]; then
+            os_list+=('osx-arm64')
+          fi
+
+          matrix_json="{\"os\": ["
+          for os in "${os_list[@]}"; do
+            matrix_json+="\"$os\","
+          done
+          matrix_json=${matrix_json%?} # remove trailing comma
+          matrix_json+="], \"python-version\": [\"3.12.x\"]}"
+
+          echo "$matrix_json" > matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+
   build:
     needs: createrelease
     continue-on-error: true
@@ -273,31 +271,31 @@ jobs:
           cp -rf ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
 
-      - name: Include new frontend win    
+      - name: Include new frontend win
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
-          
+
       - name: Disable Sentry
         if: "!startsWith(matrix.OS, 'osx-arm64') && !startsWith(matrix.OS, 'macos')"
         run: |
           sed -i '/if args.offline_mode is False:/d' ./src/ledfx/__main__.py
           sed -i '/setup_sentry()/d' ./src/ledfx/__main__.py
-          
+
       - name: Disable Sentry Osx
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos')"
         run: |
           sed -i '' '/if args.offline_mode is False:/d' ./src/ledfx/__main__.py
           sed -i '' '/setup_sentry()/d' ./src/ledfx/__main__.py
-          
+
       - name: Set up Python
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          
+
       - name: Install build dependencies for osx-arm
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
@@ -305,22 +303,22 @@ jobs:
           arch -arm64 brew install mbedtls@2
           arch -arm64 brew install libsamplerate
           arch -arm64 brew install poetry
-    
+
       - name: Setup mbedtls path for osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
-          
+
       - name: Get full Python version
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         id: full-python-version
         run: echo version=$(python -c "import sys; print('-'.join(str(v) for v in sys.version_info))") >> $GITHUB_OUTPUT
-        
+
       - name: Check Python version osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
           arch -arm64 poetry --version
-          
+
       - name: Install poetry
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: |
@@ -341,7 +339,7 @@ jobs:
       - name: Configure poetry
         if: "!startsWith(matrix.OS, 'osx-arm64')"
         run: poetry config virtualenvs.in-project true
-        
+
       - name: Configure poetry osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
@@ -363,58 +361,60 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Bump version    
-        if: "startsWith(matrix.OS, 'win') || startsWith(matrix.OS, 'ubu')"  
+      - name: Bump version
+        if: "startsWith(matrix.OS, 'win') || startsWith(matrix.OS, 'ubu')"
         run: |
           sed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
           sed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
-          
+
       - name: Bump version osx
-        if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"  
+        if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"
         run: |
           brew install gnu-sed
           cd src
           gsed -i 's/\(PROJECT_VERSION = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py; gsed -i 's/\(version = "[0-9]*\.[0-9]*\.\)[0-9]*"/\1${{ github.event.inputs.fversion }}"/' ./pyproject.toml
 
-      - uses: stefanzweifel/git-auto-commit-action@v4
-        continue-on-error: true
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
-        with:
-          commit_message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
-          push_options: --force   
-          repository: ./src
-          token: ${{ secrets.LEDFX_TOKEN }}
-          tagging_message: 'v2.0.${{ github.event.inputs.fversion }}'
-      - name: Create Pull Request
-        continue-on-error: true
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
-        uses: peter-evans/create-pull-request@v4
-        with:
-          path: ./src
-          token: ${{ secrets.LEDFX_TOKEN }}
-          delete-branch: true
-          branch: new-frontend
-          commit-message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
-          title: Release v2.0.${{ github.event.inputs.fversion }}
-          body: New version incoming!
+      # - uses: stefanzweifel/git-auto-commit-action@v4
+      #   continue-on-error: true
+      #   if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
+      #   with:
+      #     commit_message: "[new-frontend] v2.0.${{ github.event.inputs.fversion }}"
+      #     push_options: --force
+      #     repository: ./src
+      #     token: ${{ secrets.LEDFX_TOKEN }}
+      #     tagging_message: 'v2.0.${{ github.event.inputs.fversion }}'
+      # - name: Create Pull Request
+      #   continue-on-error: true
+      #   if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
+      #   uses: peter-evans/create-pull-request@v4
+      #   with:
+      #     path: ./src
+      #     token: ${{ secrets.LEDFX_TOKEN }}
+      #     delete-branch: true
+      #     branch: new-frontend
+      #     commit-message: '[new-frontend] v2.0.${{ github.event.inputs.fversion }}'
+      #     title: Release v2.0.${{ github.event.inputs.fversion }}
+      #     body: New version incoming!
 
-      #- name: Check lock file
-      #  if: "!startsWith(matrix.OS, 'osx-arm64')"
-      #  run: |
-      #    cd src
-      #    poetry lock --no-update
-      #    poetry check --lock
-      #    
-      #- name: Check lock file osx-arm64
-      #  if: "startsWith(matrix.OS, 'osx-arm64')"
-      #  run: |
-      #    cd src
-      #    arch -arm64 poetry lock --no-update
-      #    arch -arm64 poetry check --lock
-        
+      - name: Check lock file
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
+        run: |
+          cd src
+          poetry install
+          poetry lock
+          poetry check --lock
+
+      - name: Check lock file osx-arm64
+        if: "startsWith(matrix.OS, 'osx-arm64')"
+        run: |
+          cd src
+          poetry install
+          arch -arm64 poetry lock
+          arch -arm64 poetry check --lock
+
       - name: Build a binary wheel
         if: "!startsWith(matrix.OS, 'osx-arm64')"
-        run: |        
+        run: |
           cd src
           poetry install --extras hue
           poetry build
@@ -437,7 +437,7 @@ jobs:
           poetry run ledfx-loopback-install
           poetry run pip install pyinstaller
           poetry run pip install samplerate==0.2.1
-          
+
       - name: Install LedFx osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
         run: |
@@ -445,7 +445,7 @@ jobs:
           arch -arm64 poetry install --extras hue
           arch -arm64 poetry install --with dev
           arch -arm64 poetry run pip install samplerate==0.2.1
-          
+
       - name: Get Backend Version and poetry-venv-path
         id: getbackendver
         run: |
@@ -465,13 +465,13 @@ jobs:
           msystem: MINGW64
           update: true
           install: |
-              git
-              zip
-              unzip
-              base-devel
-              mingw-w64-x86_64-gcc
-              mingw-w64-x86_64-cmake
-              mingw-w64-x86_64-ninja
+            git
+            zip
+            unzip
+            base-devel
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
 
       - name: Build portaudio
         if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
@@ -495,10 +495,10 @@ jobs:
           poetry run pyinstaller win.spec
           mv dist/LedFx $BINARY_NAME-v$action_state
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
-          
+
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-x64
         if: "startsWith(matrix.OS, 'mac')"
-        run: |          
+        run: |
           mv src2/tools/mac/mac.spec src/mac.spec
           cd src
           # sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
@@ -510,10 +510,10 @@ jobs:
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           tar -czf my_files.tar ./LedFx.app
-          
+
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64')"
-        run: |          
+        run: |
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
           # sed -i '' -e "s/2.0.51/\${{ env.action_state }}/g" mac.spec
@@ -527,7 +527,7 @@ jobs:
 
       - name: Build ${{ env.BINARY_NAME }} ${{ env.action_state }} linux
         if: "startsWith(matrix.OS, 'ubuntu')"
-        run: |          
+        run: |
           sudo apt install libatlas3-base \
             libavformat58 \
             portaudio19-dev \
@@ -541,7 +541,6 @@ jobs:
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
           cd ..
           cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ./LedFx-linux
-
 
       - name: Load Release URL File from release job
         if: github.event.inputs.release == 'Yes'
@@ -561,7 +560,7 @@ jobs:
         with:
           name: ledfx_frontend_v2
       - name: Upload Frontend Build to Release
-        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'  
+        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
         id: upload-release-asset-2
         uses: actions/upload-release-asset@v1
         env:
@@ -576,9 +575,9 @@ jobs:
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No'
         uses: actions/upload-artifact@v4
         with:
-            name: ledfx_frontend-v${{ env.action_state }}.zip
-            path: ledfx_frontend_v2/ledfx_frontend_v2.zip
-          
+          name: ledfx_frontend-v${{ env.action_state }}.zip
+          path: ledfx_frontend_v2/ledfx_frontend_v2.zip
+
       - name: Upload Core Win To Release
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         uses: YeonV/upload-release-asset@v1
@@ -594,10 +593,10 @@ jobs:
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
-            path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
+          path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
 
-      - name: Upload Core Osx-arm64 To Release        
+      - name: Upload Core Osx-arm64 To Release
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -612,10 +611,10 @@ jobs:
         if: startsWith(matrix.OS, 'osx-arm64') &&  github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
-            path: src/my_files.tar
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
+          path: src/my_files.tar
 
-      - name: Upload Core Osx To Release        
+      - name: Upload Core Osx To Release
         if: startsWith(matrix.OS, 'macos') && github.event.inputs.release == 'Yes' && github.event.inputs.macos == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -625,23 +624,22 @@ jobs:
           asset_path: src/my_files.tar
           asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
           asset_content_type: application/zip
-          
+
       - name: Upload Core Osx to Workflow
         if: startsWith(matrix.OS, 'macos') &&  github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
-            path: src/my_files.tar
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
+          path: src/my_files.tar
 
       - name: Build ${{ env.BINARY_NAME }} portable ${{ env.action_state }}
         if: startsWith(runner.os, 'Windows')
         run: |
-            cp src2/tools/win/yzwin.spec ./src/win-portable.spec
-            cd src
-            poetry run pyinstaller win-portable.spec
-            ls dist/
-            mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
-
+          cp src2/tools/win/yzwin.spec ./src/win-portable.spec
+          cd src
+          poetry run pyinstaller win-portable.spec
+          ls dist/
+          mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
       - name: Upload Core Linux To Release
         if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'Yes' && github.event.inputs.ubuntu == 'true'
@@ -654,14 +652,14 @@ jobs:
           asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
           asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
           asset_content_type: application/gzip
-          
-      - name: Upload Core Linux To Worflow       
+
+      - name: Upload Core Linux To Worflow
         if: startsWith(matrix.os, 'ubuntu') &&  github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
-            path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
-          
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
+          path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
+
       - name: Upload Core Win Portable To Release
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         uses: YeonV/upload-release-asset@v1
@@ -672,14 +670,13 @@ jobs:
           asset_path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
           asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
           asset_content_type: application/vnd.microsoft.portable-executable
-          
+
       - name: Upload Core Win Portable To Worflow
         if: startsWith(runner.os, 'Windows') &&  github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
-            path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
-
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
+          path: src\dist\${{ env.BINARY_NAME }}-v${{ env.action_state }}--win-portable.exe
 
       # CLIENTS
       - uses: actions/checkout@v3
@@ -687,39 +684,39 @@ jobs:
           repository: YeonV/LedFx-Frontend-v2
           ref: main
           path: frontend
-          
+
       - name: Move Core-win
         continue-on-error: true
         if: startsWith(runner.os, 'Windows') && github.event.inputs.windows == 'true'
         run: |
-           ls ./src
-           echo ------------
-           ls ./src/LedFx_core--v${{ env.action_state }}
-           echo ------------
-           ls ./src/dist
-           echo ------------           
-           cp -r ./src/LedFx_core--v${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
-           ls ./frontend/extraResources/LedFx
-           
+          ls ./src
+          echo ------------
+          ls ./src/LedFx_core--v${{ env.action_state }}
+          echo ------------
+          ls ./src/dist
+          echo ------------           
+          cp -r ./src/LedFx_core--v${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
+          ls ./frontend/extraResources/LedFx
+
       - name: Move Core-osx
         if: (startsWith(matrix.OS, 'osx') || startsWith(matrix.OS, 'mac')) && github.event.inputs.macos == 'true'
         continue-on-error: true
         run: |
-           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
-           echo ------------           
-           ls ./frontend/extraResources
+          cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          echo ------------           
+          ls ./frontend/extraResources
 
       - name: Move Core Linux
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.ubuntu == 'true'
         continue-on-error: true
         run: |
-           ls
-           cp -r ./src/dist/LedFx-linux/LedFx ./frontend/extraResources/LedFx
-           echo ------------           
-           ls ./frontend/extraResources
-           
+          ls
+          cp -r ./src/dist/LedFx-linux/LedFx ./frontend/extraResources/LedFx
+          echo ------------           
+          ls ./frontend/extraResources
+
       - name: Set up Node.js
-        if: "!startsWith(matrix.OS, 'osx-arm64')" 
+        if: "!startsWith(matrix.OS, 'osx-arm64')"
         uses: actions/setup-node@v3
         with:
           node-version: 20
@@ -727,7 +724,7 @@ jobs:
           # cache: 'yarn'
           # cache-dependency-path: '**/yarn.lock'
       - name: Set up Node.js osx-arm64
-        if: "startsWith(matrix.OS, 'osx-arm64')" 
+        if: "startsWith(matrix.OS, 'osx-arm64')"
         uses: actions/setup-node@v3
         with:
           node-version: 20
@@ -738,17 +735,17 @@ jobs:
         run: echo "CI=false" >> $GITHUB_ENV
       - name: Building Clients
         run: |
-           cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+          cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Load Release URL File from release job
         if: github.event.inputs.release == 'Yes'
         uses: actions/download-artifact@v4
         with:
           name: release_url
 
-      - name: Upload Win-Portable to Release      
+      - name: Upload Win-Portable to Release
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         id: upload-release-asset-portable
         uses: YeonV/upload-release-asset@v1
@@ -763,10 +760,10 @@ jobs:
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--win-portable.exe
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
-  
-      - name: Upload Win-Setup to Release      
+          name: LedFx_client-v${{ env.action_state }}--win-portable.exe
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+
+      - name: Upload Win-Setup to Release
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         id: upload-release-asset-setup
         uses: YeonV/upload-release-asset@v1
@@ -774,16 +771,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe 
-          asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe 
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+          asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe
           asset_content_type: application/vnd.microsoft.portable-executable
       - name: Upload Win-Setup to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--win-setup.exe
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
-      - name: Upload Win-Zip to Release      
+          name: LedFx_client-v${{ env.action_state }}--win-setup.exe
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+      - name: Upload Win-Zip to Release
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         id: upload-release-asset-zip
         uses: YeonV/upload-release-asset@v1
@@ -791,17 +788,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip 
-          asset_name: LedFx_client-v${{ env.action_state }}--win.zip 
+          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+          asset_name: LedFx_client-v${{ env.action_state }}--win.zip
           asset_content_type: application/zip
       - name: Upload Win-Zip to Workflow
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--win.zip
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
-  
-      - name: Upload Win-CC to Release      
+          name: LedFx_client-v${{ env.action_state }}--win.zip
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+
+      - name: Upload Win-CC to Release
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes' && github.event.inputs.windows == 'true'
         id: upload-release-asset-cc
         uses: YeonV/upload-release-asset@v1
@@ -816,8 +813,8 @@ jobs:
         if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No' && github.event.inputs.windows == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
+          name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
 
       - name: Upload OSX-arm64-Client dmg to Release
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
@@ -834,8 +831,8 @@ jobs:
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+          name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
 
       - name: Upload OSX-arm64-Client zip to Release
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
@@ -852,9 +849,9 @@ jobs:
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          
+          name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+
       - name: Upload OSX-arm64-CC dmg to Release
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
         uses: YeonV/upload-release-asset@v1
@@ -870,8 +867,8 @@ jobs:
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+          name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
 
       - name: Upload OSX-arm64-CC zip to Release
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'Yes' && github.event.inputs.osxarm64 == 'true'
@@ -888,11 +885,11 @@ jobs:
         if: startsWith(matrix.OS, 'osx-arm64') && github.event.inputs.release == 'No' && github.event.inputs.osxarm64 == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
+          name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
 
       - name: Upload Linux Client snap to Release
-        continue-on-error: true      
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes' && github.event.inputs.ubuntu == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -903,15 +900,15 @@ jobs:
           asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
       - name: Upload Linux Client snap to Workflow
-        continue-on-error: true      
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+          name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
 
       - name: Upload Linux Client AppImage to Release
-        continue-on-error: true    
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes' && github.event.inputs.ubuntu == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -922,15 +919,15 @@ jobs:
           asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
       - name: Upload Linux Client AppImage to Workflow
-        continue-on-error: true    
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
+          name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
 
       - name: Upload Linux CC snap to Release
-        continue-on-error: true  
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes' && github.event.inputs.ubuntu == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -941,15 +938,15 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
           asset_content_type: application/octet-stream
       - name: Upload Linux CC snap to Workflow
-        continue-on-error: true  
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
+          name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
 
       - name: Upload Linux CC AppImage to Release
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'Yes' && github.event.inputs.ubuntu == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -960,12 +957,12 @@ jobs:
           asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           asset_content_type: application/octet-stream
       - name: Upload Linux CC AppImage to Workflow
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'ubuntu') && github.event.inputs.release == 'No' && github.event.inputs.ubuntu == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
+          name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
       - name: Upload OSX-x64-Client dmg to Release
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes' && github.event.inputs.macos == 'true'
@@ -982,8 +979,8 @@ jobs:
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+          name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
 
       - name: Upload OSX-x64-Client zip to Release
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes' && github.event.inputs.macos == 'true'
@@ -999,32 +996,32 @@ jobs:
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
-            path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          
+          name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+
       - name: Upload OSX-x64-CC dmg to Release
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes' && github.event.inputs.macos == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          
+
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-x64-CC dmg to Workflow
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+          name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
 
       - name: Upload OSX-x64-CC zip to Release
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'Yes' && github.event.inputs.macos == 'true'
         uses: YeonV/upload-release-asset@v1
         env:
@@ -1036,23 +1033,22 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-x64-CC zip to Workflow
-        continue-on-error: true   
+        continue-on-error: true
         if: startsWith(matrix.OS, 'mac') && github.event.inputs.release == 'No' && github.event.inputs.macos == 'true'
         uses: actions/upload-artifact@v4
         with:
-            name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
-            path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
-
+          name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+          path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
 #      - name: Send Discord Release Post
 #        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
 #        run: |
 #          curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}\n\n**[PREVIEW]**       <https://preview.ledfx.app>**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
 #          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
-#          
+#
 #      - name: Send Discord Beta Post
 #        if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'No'
 #        run: |
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"New Beta-Binaries available\n**DOWNLOAD:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n:regional_indicator_a: LedFx_core-v${{ env.action_state }}--win.zip\n:regional_indicator_b: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_c: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_d: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_e: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_f: LedFx_CC-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_g: LedFx_CC-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_h: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage\n:regional_indicator_i: LedFx_client-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_j: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_k: LedFx_client-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_l: LedFx_client-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_m: LedFx_client-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_o: LedFx_client-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_p: LedFx_client-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_q: LedFx_client-v${{ env.action_state }}--win.zip\n:regional_indicator_r: LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz\n:regional_indicator_s: LedFx_core-v${{ env.action_state }}--osx-arm64.zip\n:regional_indicator_t: LedFx_core-v${{ env.action_state }}--osx-x64.zip\n:regional_indicator_u: LedFx_core-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_v: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"======================================\n**NOT WORKING**\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"======================================\n**WORKING**\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
-          
+
