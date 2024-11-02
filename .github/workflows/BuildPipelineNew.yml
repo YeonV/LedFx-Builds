@@ -316,6 +316,8 @@ jobs:
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
           echo "/opt/homebrew/opt/mbedtls@2/bin" >> $GITHUB_PATH
+          export LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
+          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
 
       - name: Get full Python version
         if: "!startsWith(matrix.OS, 'osx-arm64')"
@@ -351,11 +353,10 @@ jobs:
       - name: Configure poetry osx-arm64
         if: "startsWith(matrix.OS, 'osx-arm64') || startsWith(matrix.OS, 'macos-latest')"
         run: |
-          ls -la
           cd src
-          ls -la
           arch -arm64 poetry config virtualenvs.in-project true
           arch -arm64 poetry env info
+          cd ..
 
       - name: Get pip cache dir
         if: "!startsWith(matrix.OS, 'osx-arm64')"
