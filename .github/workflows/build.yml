@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4
-      - name: Generate Build Matrix
+      - name: Call reusable workflow
         id: prepare
         uses: ./.github/workflows/prepare.yml
         with:

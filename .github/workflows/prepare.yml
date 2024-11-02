@@ -1,4 +1,5 @@
-name: Prepare BuildPipeline
+# .github/workflows/prepare.yml
+name: Generate Build Matrix
 
 on:
   workflow_call:
