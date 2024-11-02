@@ -34,7 +34,7 @@ on:
         required: false
         type: boolean
       osxarm64gh:
-        description: 'MacOS (m1/m2)'
+        description: 'MacOS (silicon)'
         default: true
         required: false
         type: boolean
