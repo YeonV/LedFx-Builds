@@ -366,6 +366,11 @@ jobs:
         run: |
           sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
           sed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
+          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' ./src/ledfx/consts.py)
+          echo "action_state=$new_version" >> $GITHUB_ENV
+          BINARY_NAME=LedFx_core-
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo $action_state
 
       - name: Bump version osx
         if: "!startsWith(matrix.OS, 'win') && !startsWith(matrix.OS, 'ubu')"
@@ -374,7 +379,11 @@ jobs:
           cd src
           gsed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py
           gsed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./pyproject.toml
-
+          new_version=$(gsed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' ./ledfx/consts.py)
+          echo "action_state=$new_version" >> $GITHUB_ENV
+          BINARY_NAME=LedFx_core-
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo $action_state
       # - uses: stefanzweifel/git-auto-commit-action@v4
       #   continue-on-error: true
       #   if: startsWith(runner.os, 'Windows') && github.event.inputs.release == 'Yes'
@@ -443,31 +452,31 @@ jobs:
           arch -arm64 poetry install --with dev
           arch -arm64 poetry run pip install samplerate==0.2.1
 
-      - name: Get Backend Version and poetry-venv-path
-        if: "!startsWith(matrix.OS, 'osx-arm64')"
-        id: getbackendver
-        run: |
-          cd src
-          version=$(poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
-          echo "action_state=${version}.${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
-          BINARY_NAME=LedFx_core-
-          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
-          echo $action_state
-          echo $BINARY_NAME
-          echo $poetry_venv_location
+      # - name: Get Backend Version and poetry-venv-path
+      #   if: "!startsWith(matrix.OS, 'osx-arm64')"
+      #   id: getbackendver
+      #   run: |
+      #     # cd src
+      #     # version=$(poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
+      #     # echo "action_state=${version}.${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
+      #     BINARY_NAME=LedFx_core-
+      #     echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+      #     echo $action_state
+      #     echo $BINARY_NAME
+      #     echo $poetry_venv_location
 
-      - name: Get Backend Version and poetry-venv-path
-        if: "startsWith(matrix.OS, 'osx-arm64')"
-        id: getbackendverarm
-        run: |
-          cd src
-          version=$(arch -arm64 poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
-          echo "action_state=${version}.${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
-          BINARY_NAME=LedFx_core-
-          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
-          echo $action_state
-          echo $BINARY_NAME
-          echo $poetry_venv_location
+      # - name: Get Backend Version and poetry-venv-path
+      #   if: "startsWith(matrix.OS, 'osx-arm64')"
+      #   id: getbackendverarm
+      #   run: |
+      #     # cd src
+      #     # version=$(arch -arm64 poetry run ledfx --version | cut -d' ' -f2 | cut -d. -f1,2)
+      #     # echo "action_state=${version}.${{ github.event.inputs.fversion }}" >> $GITHUB_ENV
+      #     BINARY_NAME=LedFx_core-
+      #     echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+      #     echo $action_state
+      #     echo $BINARY_NAME
+      #     echo $poetry_venv_location
 
       - name: Portaudio dependency for windows
         if: startsWith(runner.os, 'Windows') && github.event.inputs.portaudio == 'true'
