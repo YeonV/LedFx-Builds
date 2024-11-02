@@ -762,7 +762,7 @@ jobs:
         run: echo "CI=false" >> $GITHUB_ENV
       - name: Building Clients
         run: |
-          cd frontend && npm config set legacy-peer-deps true && npm install --force && npm install postcss && npm run distall
+          cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
