@@ -16,23 +16,27 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install Poetry
         run: |
-          pip install wheel
-          pip install setuptools
+          curl -sSL https://install.python-poetry.org | python - 
 
-      - name: Build aubio wheel
+      - name: Install Dependencies
+        run: |
+          python -m poetry install
+
+      - name: Clone Aubio Repo
         run: |
           git clone https://git.aubio.org/aubio/aubio.git
           cd aubio
-          ./scripts/get_waf.sh
-          ./waf configure
-          ./waf build
-          ./waf install
-          python setup.py bdist_wheel
+          poetry install
 
-      - name: Upload wheel as artifact
-        uses: actions/upload-artifact@v4
+      - name: Build Aubio Wheel
+        run: |
+          cd aubio
+          poetry build
+
+      - name: Upload Wheel as Artifact
+        uses: actions/upload-artifact@v2
         with:
           name: aubio_wheel
           path: aubio/dist/*.whl
