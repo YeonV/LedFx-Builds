@@ -1,12 +1,7 @@
 name: Build Aubio Wheel
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -37,7 +32,7 @@ jobs:
           python setup.py bdist_wheel
 
       - name: Upload wheel as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: aubio_wheel
           path: aubio/dist/*.whl
