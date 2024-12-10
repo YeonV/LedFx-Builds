@@ -25,7 +25,7 @@ jobs:
           curl -sSL https://install.python-poetry.org | python - -y
 
       - name: Update Path for Windows
-        run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
+        run: echo "$APPDATA\Roaming\Python\Scripts" >> $GITHUB_PATH
 
       - name: Enable long paths for git on Windows
 
