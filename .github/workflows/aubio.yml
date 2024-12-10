@@ -1,0 +1,44 @@
+name: Build Aubio Wheel
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install wheel
+          pip install setuptools
+
+      - name: Build aubio wheel
+        run: |
+          git clone https://git.aubio.org/aubio/aubio.git
+          cd aubio
+          ./scripts/get_waf.sh
+          ./waf configure
+          ./waf build
+          ./waf install
+          python setup.py bdist_wheel
+
+      - name: Upload wheel as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: aubio_wheel
+          path: aubio/dist/*.whl
+          retention-days: 1
