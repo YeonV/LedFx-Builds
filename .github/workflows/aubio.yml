@@ -20,9 +20,9 @@ jobs:
         run: |
           curl -sSL https://install.python-poetry.org | python - 
 
-      - name: Install Dependencies
-        run: |
-          python -m poetry install
+      # - name: Install Dependencies
+      #   run: |
+      #     python -m poetry install
 
       - name: Clone Aubio Repo
         run: |
