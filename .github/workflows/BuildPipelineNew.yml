@@ -35,7 +35,7 @@ on:
         type: boolean
       osxarm64:
         description: 'MacOS (self-hosted)'
-        default: true
+        default: false
         required: false
         type: boolean
       ubuntu:
