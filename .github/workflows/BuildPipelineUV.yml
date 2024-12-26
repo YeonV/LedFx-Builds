@@ -293,7 +293,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
           path: src3
-      
+      - name: Set up Node.js
+        if: ${{ env.IS_RELEASE == 'false' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # architecture: ${{ matrix.arch }}
+          # cache: 'yarn'
+          # cache-dependency-path: '**/yarn.lock'
       - name: Build frontend
         if: ${{ env.IS_RELEASE == 'false' }}
         run: |
