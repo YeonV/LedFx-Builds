@@ -286,9 +286,7 @@ jobs:
       - name: Include new frontend non win
         if: ${{ !(env.IS_WIN == 'true') }}
         run: |
-          cd ./ledfx_frontend_v2
           unzip -o -u ledfx_frontend_v2.zip
-          cd ..
           cp -rf ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
 
