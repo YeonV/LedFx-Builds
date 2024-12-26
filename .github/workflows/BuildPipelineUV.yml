@@ -48,6 +48,7 @@ jobs:
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
+      action_state: "2.0"  # Default value
 
     steps:
       - name: Get latest frontend and prepare matrix
@@ -178,8 +179,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.action_state || '2.0' }}.${{ github.event.inputs.fversion }}
-          release_name: Release v${{ env.action_state || '2.0'}}.${{ github.event.inputs.fversion }}
+          tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
+          release_name: "Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
           body_path: ./messages.md
           draft: false
           prerelease: true
@@ -240,8 +241,8 @@ jobs:
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
-      BINARY_NAME: "default_binary_name"  # Default value for linter
-      action_state: "default_action_state"  # Default value for linter
+      BINARY_NAME: "LedFx"  # Default value
+      action_state: "2.0"  # Default value
     defaults:
       run:
         shell: bash -x {0}
