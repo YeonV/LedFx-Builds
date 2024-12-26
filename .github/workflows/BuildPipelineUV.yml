@@ -233,7 +233,7 @@ jobs:
             matrix_json+="\"$os\","
           done
           matrix_json=${matrix_json%?} # remove trailing comma
-          matrix_json+="], \"python-version\": [\"3.12.x\"]}"
+          matrix_json+="], \"python-version\": [\"3.12\"]}"
 
           echo "$matrix_json" > matrix.json
           echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
