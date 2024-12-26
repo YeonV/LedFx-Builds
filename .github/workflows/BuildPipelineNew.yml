@@ -1,4 +1,4 @@
-name: LedFx BuildPipeline New
+name: BuildPipeline Old (<=2.0.105)
 
 on:
   workflow_dispatch:

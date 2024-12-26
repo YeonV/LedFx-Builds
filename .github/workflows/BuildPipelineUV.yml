@@ -298,9 +298,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # architecture: ${{ matrix.arch }}
-          # cache: 'yarn'
-          # cache-dependency-path: '**/yarn.lock'
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
       - name: Build frontend
         if: ${{ env.IS_RELEASE == 'false' }}
         run: |
@@ -645,9 +644,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
           # architecture: ${{ matrix.arch }}
-          # cache: 'yarn'
-          # cache-dependency-path: '**/yarn.lock'
 
       - name: Set up Node.js osx-arm64
         if: ${{ env.IS_OSX_ARM64 == 'true' }}
@@ -655,8 +654,8 @@ jobs:
         with:
           node-version: 20
           architecture: arm64
-          # cache: 'yarn'
-          # cache-dependency-path: '**/yarn.lock'
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
 
       - name: Disable CI checks
         run: echo "CI=false" >> $GITHUB_ENV
