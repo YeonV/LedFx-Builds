@@ -250,15 +250,15 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.createrelease.outputs.matrix)}}
     steps:
-      - name: Check out code from GitHub
+      - name: Check out core from GitHub
         uses: actions/checkout@v4
         with:
           repository: LedFx/LedFx
           ref: main
           path: src
 
-      - uses: actions/checkout@v4
-        name: Check out tools from GitHub
+      - name: Check out tools from GitHub
+        uses: actions/checkout@v4        
         with:
           repository: YeonV/LedFx-Builds
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -281,23 +281,47 @@ jobs:
           cd ..
 
       - name: Get latest frontend
+        if : ${{ env.IS_RELEASE == 'true' }}
         run: |
           curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
 
+      - name: Checkout frontend
+        if: ${{ env.IS_RELEASE == 'false' }}
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/LedFx-Frontend-v2
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          path: src3
+      
+      - name: Build frontend
+        if: ${{ env.IS_RELEASE == 'false' }}
+        run: |
+          cd src3
+          yarn
+          npm version ${{ env.action_state }}.${{ github.event.inputs.fversion }}
+          yarn build
+          cd ..
+
       - name: Include new frontend non win
-        if: ${{ !(env.IS_WIN == 'true') }}
+        if: ${{ env.IS_WIN == 'false' && env.IS_RELEASE == 'true' }}
         run: |
           unzip -o -u ledfx_frontend_v2.zip
           cp -rf ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
 
       - name: Include new frontend win
-        if: ${{ env.IS_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true'  && env.IS_RELEASE == 'true' }}
         run: |
           unzip ledfx_frontend_v2.zip
           cp -r ./ledfx_frontend_v2 ./src/ledfx_frontend
           ls ./src/ledfx_frontend
 
+      - name: Include new build frontend 
+        if: ${{ env.IS_RELEASE == 'false' }}
+        run: |
+          cp -r ./src3/ledfx_frontend_v2 ./src/ledfx_frontend
+          ls ./src/ledfx_frontend
       
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -334,7 +358,7 @@ jobs:
         run: echo "$APPDATA\Python\Scripts" >> $GITHUB_PATH
       
       - name: Update Path for non-Windows
-        if: ${{ !(env.IS_WIN == 'true') }}
+        if: ${{ env.IS_WIN == 'false' }}
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Bump version
@@ -466,7 +490,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Frontend Build to Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: ledfx_frontend-v${{ env.action_state }}.zip
@@ -484,7 +508,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Win To Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
@@ -502,7 +526,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Osx-arm64 to Workflow
-        if: ${{env.IS_OSX_ARM64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_ARM64 == 'true' }}
+        if: ${{env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-arm64.zip
@@ -520,7 +544,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Core Osx to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_X64 == 'true' }}
+        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--osx-x64.zip
@@ -548,7 +572,7 @@ jobs:
           asset_content_type: application/gzip
 
       - name: Upload Core Linux To Worflow      
-        if: ${{ env.IS_LINUX == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
@@ -566,7 +590,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
 
       - name: Upload Core Win Portable To Worflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-portable.exe
@@ -610,7 +634,7 @@ jobs:
           ls ./frontend/extraResources
 
       - name: Set up Node.js
-        if: ${{ !(env.IS_OSX_ARM64 == 'true') }}
+        if: ${{ env.IS_OSX_ARM64 == 'false' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -654,7 +678,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
 
       - name: Upload Win-Portable to Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--win-portable.exe
@@ -673,7 +697,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
 
       - name: Upload Win-Setup to Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--win-setup.exe
@@ -692,7 +716,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Win-Zip to Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--win.zip
@@ -711,7 +735,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
 
       - name: Upload Win-CC to Workflow
-        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_WIN == 'true' }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
@@ -729,7 +753,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_ARM64 == 'true' }}
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
@@ -747,7 +771,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-arm64-Client zip to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_ARM64 == 'true' }}
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
@@ -765,7 +789,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-arm64-CC dmg to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_ARM64 == 'true' }}
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg
@@ -783,7 +807,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-arm64-CC zip to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_ARM64 == 'true' }}
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
@@ -803,7 +827,7 @@ jobs:
 
       - name: Upload Linux Client snap to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
@@ -823,7 +847,7 @@ jobs:
 
       - name: Upload Linux Client AppImage to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
@@ -843,7 +867,7 @@ jobs:
 
       - name: Upload Linux CC snap to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
@@ -863,7 +887,7 @@ jobs:
 
       - name: Upload Linux CC AppImage to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
@@ -881,7 +905,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload OSX-x64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_X64 == 'true' }}
+        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
@@ -899,7 +923,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload OSX-x64-Client zip to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_X64 == 'true' }}
+        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
@@ -920,7 +944,7 @@ jobs:
 
       - name: Upload OSX-x64-CC dmg to Workflow
         continue-on-error: true
-        if: ${{ env.IS_OSX_X64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_X64 == 'true' }}
+        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg
@@ -940,7 +964,7 @@ jobs:
 
       - name: Upload OSX-x64-CC zip to Workflow
         continue-on-error: true
-        if: ${{ env.IS_OSX_X64 == 'true' && !(env.IS_RELEASE == 'true') && env.BUILD_OSX_X64 == 'true' }}
+        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
@@ -953,7 +977,7 @@ jobs:
 #          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
 #
 #      - name: Send Discord Beta Post
-#        if: ${{ env.IS_WIN == 'true' && !(env.IS_RELEASE == 'true') }}
+#        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' }}
 #        run: |
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"New Beta-Binaries available\n**DOWNLOAD:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n:regional_indicator_a: LedFx_core-v${{ env.action_state }}--win.zip\n:regional_indicator_b: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_c: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_d: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_e: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_f: LedFx_CC-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_g: LedFx_CC-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_h: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage\n:regional_indicator_i: LedFx_client-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_j: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_k: LedFx_client-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_l: LedFx_client-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_m: LedFx_client-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_o: LedFx_client-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_p: LedFx_client-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_q: LedFx_client-v${{ env.action_state }}--win.zip\n:regional_indicator_r: LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz\n:regional_indicator_s: LedFx_core-v${{ env.action_state }}--osx-arm64.zip\n:regional_indicator_t: LedFx_core-v${{ env.action_state }}--osx-x64.zip\n:regional_indicator_u: LedFx_core-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_v: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"======================================\n**NOT WORKING**\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
