@@ -122,7 +122,6 @@ index fb546c12..ccdf73e7 100644
      "pytest<9.0.0,>=8.0.0",
      "pytest-order<2.0.0,>=1.2.0",
      "pyinstaller<7.0.0,>=6.3.0",
-+    "aubio @ file:///Y:/projects/backend2/aubio-0.5.0a0-cp312-cp312-win_amd64.whl"
  ]
  docs = [
      "sphinx<8.1.4; python_version >= \"3.10\"",
