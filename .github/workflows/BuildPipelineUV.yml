@@ -233,7 +233,7 @@ jobs:
     runs-on: ${{ matrix.os }}    
     env:
       IS_RELEASE: ${{ github.event.inputs.release == 'Yes' && 'true' || 'false' }}
-      IS_OSX_ARM64: ${{ startsWith(matrix.OS, 'osx-arm64') }}
+      IS_OSX_ARM64: ${{ startsWith(matrix.OS, 'macos-latest') }}
       IS_OSX_X64: ${{ startsWith(matrix.OS, 'macos-13') }}
       IS_WIN: ${{ startsWith(matrix.OS, 'windows') }}
       IS_LINUX: ${{ startsWith(matrix.OS, 'ubuntu') }}
@@ -334,7 +334,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: "src/uv.lock"
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
