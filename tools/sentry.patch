@@ -1,0 +1,128 @@
+diff --git a/hiddenimports.py b/hiddenimports.py
+index c92e3418..40d0596e 100644
+--- a/hiddenimports.py
++++ b/hiddenimports.py
+@@ -29,13 +29,5 @@ hiddenimports = [
+     "PIL.Image",
+     "PIL.ImageDraw",
+     "PIL.ImageEnhance",
+-    "sentry_sdk.integrations.stdlib",
+-    "sentry_sdk.integrations.excepthook",
+-    "sentry_sdk.integrations.dedupe",
+-    "sentry_sdk.integrations.atexit",
+-    "sentry_sdk.integrations.modules",
+-    "sentry_sdk.integrations.argv",
+-    "sentry_sdk.integrations.logging",
+-    "sentry_sdk.integrations.threading",
+     "vnoise",
+ ]
+diff --git a/ledfx/__main__.py b/ledfx/__main__.py
+index 26d658ce..f2d62cda 100644
+--- a/ledfx/__main__.py
++++ b/ledfx/__main__.py
+@@ -16,8 +16,6 @@ import os
+ import sys
+ from logging.handlers import RotatingFileHandler
+ 
+-from ledfx.sentry_config import setup_sentry
+-
+ try:
+     import psutil
+ 
+@@ -262,8 +260,6 @@ def main():
+         else:
+             p.nice(15)
+ 
+-    if args.offline_mode is False:
+-        setup_sentry()
+ 
+     if args.sentry_test:
+         _LOGGER.warning("Steering LedFx into a brick wall.")
+diff --git a/ledfx/sentry_config.py b/ledfx/sentry_config.py
+deleted file mode 100644
+index 849bb723..00000000
+--- a/ledfx/sentry_config.py
++++ /dev/null
+@@ -1,62 +0,0 @@
+-import logging
+-import os
+-
+-import sentry_sdk
+-from sentry_sdk.integrations.aiohttp import AioHttpIntegration
+-
+-from ledfx.consts import PROJECT_VERSION
+-from ledfx.utils import currently_frozen
+-
+-_LOGGER = logging.getLogger(__name__)
+-
+-
+-def setup_sentry():
+-    """
+-    Set up the Sentry configuration based on the environment variables.
+-    If running in development mode, a development Sentry DSN is used along with a sample rate of 0.
+-    If running in production mode, a production Sentry DSN is used along with a sample rate of 0.
+-    The release version is determined based on the project version and the git commit hash.
+-    """
+-    is_release = os.getenv("IS_RELEASE", "false").lower()
+-
+-    if is_release == "false":
+-        _LOGGER.debug("Running in development mode.")
+-        sentry_dsn = "https://b192934eebd517c86bf7e9c512b3888a@o482797.ingest.sentry.io/4506350241841152"
+-        # Change sample_rate to 1 to look at http calls, so all rest traffic stats
+-        sample_rate = 0
+-
+-        try:
+-            if currently_frozen():
+-                commit_hash = os.getenv("GITHUB_SHA", "unknown")
+-            else:
+-                from subprocess import PIPE, Popen
+-
+-                process = Popen(["git", "rev-parse", "HEAD"], stdout=PIPE)
+-                (commit_hash, err) = process.communicate()
+-                commit_hash = commit_hash[:7].decode("utf-8")
+-                exit_code = process.wait()
+-            # TODO: trap explicit exceptions if it becomes clear what they are
+-        except Exception as e:
+-            commit_hash = "unknown"
+-            _LOGGER.warning(f"Failed to get git commit hash: {e}")
+-        finally:
+-            commit_hash = commit_hash[:7]
+-            release = f"ledfx@{PROJECT_VERSION}-{commit_hash}"
+-    else:
+-        _LOGGER.debug("Running in production mode.")
+-        # production / release behaviour due to injection of "prod" or anything really into ENVIRONMENT env variable
+-        sentry_dsn = "https://dc6070345a8dfa1f2f24433d16f7a133@o482797.ingest.sentry.io/4506350233321472"
+-        sample_rate = 0
+-        release = f"ledfx@{PROJECT_VERSION}"
+-
+-    _LOGGER.info("Sentry Configuration:")
+-    _LOGGER.info(f"DSN (first ten): {sentry_dsn[8:18]}")
+-    _LOGGER.info(f"Sample rate: {sample_rate}")
+-    _LOGGER.info(f"LedFx release: {release}")
+-
+-    sentry_sdk.init(
+-        sentry_dsn,
+-        traces_sample_rate=sample_rate,
+-        integrations=[AioHttpIntegration()],
+-        release=release,
+-    )
+diff --git a/pyproject.toml b/pyproject.toml
+index fb546c12..ccdf73e7 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -22,7 +22,6 @@ dependencies = [
+     "python-rtmidi>=1.5.8",
+     "requests>=2.31.0",
+     "sacn>=1.9.0",
+-    "sentry-sdk>=1.40.4",
+     "sounddevice>=0.4.6",
+     "samplerate>=0.2.1",
+     "icmplib>=3.0.4",
+@@ -55,6 +54,7 @@ dev = [
+     "pytest<9.0.0,>=8.0.0",
+     "pytest-order<2.0.0,>=1.2.0",
+     "pyinstaller<7.0.0,>=6.3.0",
++    "aubio @ file:///Y:/projects/backend2/aubio-0.5.0a0-cp312-cp312-win_amd64.whl"
+ ]
+ docs = [
+     "sphinx<8.1.4; python_version >= \"3.10\"",
