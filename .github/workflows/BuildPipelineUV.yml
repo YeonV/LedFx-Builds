@@ -5,16 +5,8 @@ on:
     inputs:
       fversion:
         description: 'Frontend Version'
-        default: '87'
+        default: '106'
         required: false
-      portaudio:
-        description: 'Build Portaudio'
-        default: 'No'
-        required: false
-        type: choice
-        options:
-          - 'Yes'
-          - 'No'
       release:
         description: 'Create Release'
         default: 'Yes'
