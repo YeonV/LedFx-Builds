@@ -378,7 +378,7 @@ jobs:
             uv sync --python ${{ matrix.python-version }} --extra hue --dev
             cd ..
 
-      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }}
+      - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} win
         if: ${{ env.IS_WIN == 'true' }}
         run: |
           mv src2/tools/win/win.spec src/win.spec
@@ -394,6 +394,7 @@ jobs:
         run: |
           mv src2/tools/mac/mac.spec src/mac.spec
           cd src
+          ls
           uv run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
@@ -407,6 +408,7 @@ jobs:
         run: |
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
+          ls
           uv run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
@@ -453,7 +455,7 @@ jobs:
           name: ledfx_frontend_v2
           
       - name: Upload Frontend Build to Release
-        if: ${{ env.IS_WIN && env.IS_RELEASE }}
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' }}
         id: upload-release-asset-2
         uses: actions/upload-release-asset@v1
         env:
@@ -946,7 +948,7 @@ jobs:
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
 
 #      - name: Send Discord Release Post
-#        if: ${{ env.IS_WIN && env.IS_RELEASE }}
+#        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' }}
 #        run: |
 #          curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}\n\n**[PREVIEW]**       <https://preview.ledfx.app>**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
 #          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
