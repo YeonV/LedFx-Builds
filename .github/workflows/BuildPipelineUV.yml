@@ -39,11 +39,11 @@ on:
 jobs:
   createrelease:
     name: ${{ github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend' }}
-    runs-on: [ubuntu-latest]
+    runs-on: [ubuntu-24.04]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     env:
-      IS_RELEASE: ${{ github.event.inputs.release == 'Yes' }}
+      IS_RELEASE: ${{ github.event.inputs.release == 'Yes' && 'true' || 'false'  }}
       # IS_OSX_ARM64: ${{ startsWith(matrix.OS, 'osx-arm64') }}
       # IS_OSX_X64: ${{ startsWith(matrix.OS, 'macos-13') }}
       # IS_WIN: ${{ startsWith(matrix.OS, 'windows') }}
