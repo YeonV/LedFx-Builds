@@ -38,7 +38,7 @@ on:
 
 jobs:
   createrelease:
-    name: ${{ github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend' }}
+    name: github.event.inputs.release == 'Yes' && 'Create Release' || 'Prepare Frontend'
     runs-on: [ubuntu-24.04]
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -65,7 +65,7 @@ jobs:
           path: ledfx_frontend_v2.zip
 
       - name: Get Messages
-        if: ${{ env.IS_RELEASE }}
+        if: ${{ env.IS_RELEASE == 'true' }}
         run: |
           unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
           echo "## New LedFx binaries available:
