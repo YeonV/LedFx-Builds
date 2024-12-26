@@ -327,7 +327,7 @@ jobs:
       - name: Include new build frontend 
         if: ${{ env.IS_RELEASE == 'false' }}
         run: |
-          cp -r ./src3/ledfx_frontend_v2 ./src/ledfx_frontend
+          cp -r ./src3/build ./src/ledfx_frontend
           ls ./src/ledfx_frontend
       
       - name: Install uv
