@@ -43,7 +43,7 @@ jobs:
       - name: Include new build frontend
         run: |
           cp -r ./src3/build ./deps/ledfx/ledfx_frontend
-          ls ./src/ledfx_frontend
+          ls ./deps/ledfx/ledfx_frontend
 
       - name: Setup python
         uses: actions/setup-python@v5
