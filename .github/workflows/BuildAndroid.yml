@@ -2,7 +2,22 @@ name: LedFx BuildPipeline Android
 
 on:
   workflow_dispatch:
-  
+     inputs:
+      fversion:
+        description: 'Frontend Version'
+        default: '106'
+        required: false
+      upload_url:
+        description: 'Upload URL for release'
+        required: false
+      release:
+        description: 'Create Release'
+        default: 'Yes'
+        required: false
+        type: choice
+        options:
+          - 'Yes'
+          - 'No'
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -93,22 +108,29 @@ jobs:
         with:
           name: package
           path: ./bin/*.apk
-  # release:
-  #   if: startsWith(github.ref, 'refs/tags/v')
-  #   runs-on: ubuntu-22.04
-  #   needs: build
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: package
-  #         path: ./bin
-  #     - name: GitHub release
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       run: |
-  #         gh release create "${{ github.ref_name }}" ./bin/*.apk --title "${{ github.ref_name }}" --notes "Release ${GITHUB_REF_NAME}"
+  release:
+    if: ${{ github.event.inputs.release == 'Yes' || github.event.inputs.release == 'yes' }}
+    runs-on: ubuntu-22.04
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: ./bin
+      - name: GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" ./bin/*.apk --title "${{ github.ref_name }}" --notes "Release ${GITHUB_REF_NAME}"
+      - name: Upload To Release
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.inputs.upload_url }}
+          asset_path: ./bin/*.apk
+          asset_name: LedFx_Android-${{ github.event.inputs.fversion }}.apk
+          asset_content_type: application/vnd.android.package-archive
