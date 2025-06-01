@@ -1,0 +1,114 @@
+name: LedFx BuildPipeline Android
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Android Builder
+        uses: actions/checkout@v4
+        with:
+          repository: broccoliboy/ledfx-android
+      - name: Checkout LedFx
+        uses: actions/checkout@v4
+        with:
+          repository: ledfx/LedFx
+          path: deps/ledfx
+          # submodules: recursive
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/LedFx-Frontend-v2
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          path: src3
+      - name: Delete old frontend
+        uses: JesseTG/rm@2fb8f3b8a0e41fc222e7943b63306c602feb187e
+        with:
+          path: ./deps/ledfx/ledfx_frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
+      - name: Build frontend
+        run: |
+          cd src3
+          yarn
+          yarn buildandroid
+          cd ..
+      - name: Include new build frontend
+        run: |
+          cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+          ls ./src/ledfx_frontend
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          architecture: x64
+          python-version: 3.12
+      - name: Setup Java 17 required by Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'  # or 'zulu','liberica', etc.
+          java-version: '17'
+      - name: Set JAVA_HOME
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Prepare virtual environment
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          echo "Using Python==$(python --version)"
+      - name: Install and upgrade dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev
+          export PATH=$PATH:~/.local/bin/
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
+      - name: Build with Buildozer
+        run: buildozer android debug
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ./bin/*.apk
+  # release:
+  #   if: startsWith(github.ref, 'refs/tags/v')
+  #   runs-on: ubuntu-22.04
+  #   needs: build
+  #   permissions:
+  #     contents: write
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: package
+  #         path: ./bin
+  #     - name: GitHub release
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       run: |
+  #         gh release create "${{ github.ref_name }}" ./bin/*.apk --title "${{ github.ref_name }}" --notes "Release ${GITHUB_REF_NAME}"
