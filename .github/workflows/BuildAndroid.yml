@@ -63,12 +63,12 @@ jobs:
 
       - name: Get latest frontend
         run: |
-          curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_hass.zip"
+          curl -L --max-redirs 10 -o ledfx_frontend_android.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_android.zip"
 
       - name: Include new frontend
         run: |
-          unzip -o -u ledfx_frontend_v2.zip
-          cp -rf ./ledfx_frontend_v2 /deps/ledfx/ledfx_frontend
+          unzip -o -u ledfx_frontend_android.zip
+          cp -rf ./ledfx_frontend_android /deps/ledfx/ledfx_frontend
           ls /deps/ledfx/ledfx_frontend
 
       - name: Setup python
