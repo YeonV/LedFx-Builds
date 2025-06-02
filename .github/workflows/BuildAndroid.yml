@@ -56,9 +56,9 @@ jobs:
 
       - name: Bump version
         run: |
-          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./deps/ledfx/ledfx/consts.py
           sed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
-          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./src/ledfx/consts.py)
+          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
 
       - name: Get latest frontend
