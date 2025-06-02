@@ -68,8 +68,8 @@ jobs:
       - name: Include new frontend
         run: |
           unzip -o -u ledfx_frontend_android.zip
-          cp -rf ./ledfx_frontend_android /deps/ledfx/ledfx_frontend
-          ls /deps/ledfx/ledfx_frontend
+          cp -rf ./ledfx_frontend_android ./deps/ledfx/ledfx_frontend
+          ls ./deps/ledfx/ledfx_frontend
 
       - name: Setup python
         uses: actions/setup-python@v5
