@@ -32,33 +32,67 @@ jobs:
           repository: ledfx/LedFx
           path: deps/ledfx
           # submodules: recursive
-      - name: Checkout frontend
-        uses: actions/checkout@v4
+      - name: Check out tools from GitHub
+        uses: actions/checkout@v4        
         with:
-          repository: YeonV/LedFx-Frontend-v2
+          repository: YeonV/LedFx-Builds
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
-          path: src3
+          path: src2
+      # - name: Checkout frontend
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: YeonV/LedFx-Frontend-v2
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     ref: main
+      #     path: src3
+
       - name: Delete old frontend
         uses: JesseTG/rm@2fb8f3b8a0e41fc222e7943b63306c602feb187e
         with:
           path: ./deps/ledfx/ledfx_frontend
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'yarn'
-          cache-dependency-path: '**/yarn.lock'
-      - name: Build frontend
+
+      - name: apply patches
         run: |
-          cd src3
-          yarn
-          yarn buildandroid
+          cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
+          cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+          cd ./deps/ledfx
+          git apply cors.patch
+          git apply sentry.patch
           cd ..
-      - name: Include new build frontend
+          cd ..
+      - name: Bump version
         run: |
-          cp -r ./src3/build ./deps/ledfx/ledfx_frontend
-          ls ./deps/ledfx/ledfx_frontend
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
+          sed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
+          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./src/ledfx/consts.py)
+          echo "action_state=$new_version" >> $GITHUB_ENV
+      - name: Get latest frontend
+        run: |
+          curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_hass.zip"
+
+      - name: Include new frontend
+        run: |
+          unzip -o -u ledfx_frontend_v2.zip
+          cp -rf ./ledfx_frontend_v2 /deps/ledfx/ledfx_frontend
+          ls /deps/ledfx/ledfx_frontend
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      #     cache: 'yarn'
+      #     cache-dependency-path: '**/yarn.lock'
+      # - name: Build frontend
+      #   run: |
+      #     cd src3
+      #     yarn
+      #     yarn buildandroid
+      #     cd ..
+      # - name: Include new build frontend
+      #   run: |
+      #     cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+      #     ls ./deps/ledfx/ledfx_frontend
+
 
       - name: Setup python
         uses: actions/setup-python@v5
@@ -68,7 +102,7 @@ jobs:
       - name: Setup Java 17 required by Gradle
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'  # or 'zulu','liberica', etc.
+          distribution: 'temurin'
           java-version: '17'
       - name: Set JAVA_HOME
         run: |
@@ -109,7 +143,7 @@ jobs:
           name: package
           path: ./bin/*.apk
   release:
-    if: ${{ github.event.inputs.release == 'Yes' || github.event.inputs.release == 'yes' }}
+    # if: ${{ github.event.inputs.release == 'Yes' || github.event.inputs.release == 'yes' }}
     runs-on: ubuntu-22.04
     needs: build
     permissions:
@@ -120,11 +154,6 @@ jobs:
         with:
           name: package
           path: ./bin
-      - name: GitHub release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" ./bin/*.apk --title "${{ github.ref_name }}" --notes "Release ${GITHUB_REF_NAME}"
       - name: Upload To Release
         uses: YeonV/upload-release-asset@v1
         env:
