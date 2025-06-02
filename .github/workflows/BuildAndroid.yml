@@ -25,7 +25,8 @@ jobs:
       - name: Checkout Android Builder
         uses: actions/checkout@v4
         with:
-          repository: broccoliboy/ledfx-android@ca4ce20074f369cedd697d2a7ac23c33454304f7
+          repository: broccoliboy/ledfx-android
+          ref: ca4ce20074f369cedd697d2a7ac23c33454304f7
       - name: Checkout LedFx
         uses: actions/checkout@v4
         with:
