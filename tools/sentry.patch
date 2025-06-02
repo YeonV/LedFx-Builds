@@ -17,7 +17,7 @@ index c92e3418..40d0596e 100644
      "vnoise",
  ]
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index 26d658ce..f2d62cda 100644
+index cc720dfe..d99566dd 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
 @@ -16,8 +16,6 @@ import os
@@ -29,7 +29,7 @@ index 26d658ce..f2d62cda 100644
  try:
      import psutil
  
-@@ -262,8 +260,6 @@ def main():
+@@ -269,8 +267,6 @@ def main():
          else:
              p.nice(15)
  
@@ -107,7 +107,7 @@ index 849bb723..00000000
 -        release=release,
 -    )
 diff --git a/pyproject.toml b/pyproject.toml
-index fb546c12..ccdf73e7 100644
+index e8e317fd..73579deb 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -22,7 +22,6 @@ dependencies = [
@@ -118,10 +118,3 @@ index fb546c12..ccdf73e7 100644
      "sounddevice>=0.4.6",
      "samplerate>=0.2.1",
      "icmplib>=3.0.4",
-@@ -55,6 +54,7 @@ dev = [
-     "pytest<9.0.0,>=8.0.0",
-     "pytest-order<2.0.0,>=1.2.0",
-     "pyinstaller<7.0.0,>=6.3.0",
- ]
- docs = [
-     "sphinx<8.1.4; python_version >= \"3.10\"",
