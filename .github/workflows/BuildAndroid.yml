@@ -155,7 +155,7 @@ jobs:
           path: ./bin/*.apk
 
   release:
-    # if: ${{ github.event.inputs.release == 'Yes' || github.event.inputs.release == 'yes' }}
+    if: ${{ github.event.inputs.release == 'Yes' || github.event.inputs.release == 'yes' }}
     runs-on: ubuntu-22.04
     needs: build
     permissions:
