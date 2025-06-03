@@ -51,17 +51,18 @@ jobs:
         with:
           path: ./deps/ledfx/ledfx_frontend
 
-      # - name: apply patches
-      #   run: |
-      #     cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
-      #     cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
-      #     cp ./src2/tools/sentry_android.patch ./sentry_android.patch
-      #     git apply sentry_android.patch
-      #     cd ./deps/ledfx
-      #     git apply cors.patch
-      #     git apply sentry.patch
-      #     cd ..
-      #     cd ..
+      - name: apply patches
+        run: |
+          cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
+          cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+          cp ./src2/tools/sentry_android.patch ./sentry_android.patch
+          git apply sentry_android.patch
+          cd ./deps/ledfx
+          git apply cors.patch
+          git apply sentry.patch
+          cd ..
+          cd ..
+
       - name: Prepare version Bump for Android
         id: prepare_version
         run: |
