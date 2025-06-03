@@ -1,0 +1,24 @@
+diff --git a/buildozer.spec b/buildozer.spec
+index 41ad7de..4cf2841 100644
+--- a/buildozer.spec
++++ b/buildozer.spec
+@@ -28,6 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas
+ 
+ # (list) List of directory to exclude (leave empty to not exclude anything)
+ #source.exclude_dirs = tests, bin, venv
++source.exclude_dirs = Lib/test
+ 
+ # (list) List of exclusions using pattern matching
+ # Do not prefix with './'
+diff --git a/recipes/ledfx/__init__.py b/recipes/ledfx/__init__.py
+index 824ea11..f78d1b8 100644
+--- a/recipes/ledfx/__init__.py
++++ b/recipes/ledfx/__init__.py
+@@ -41,7 +41,6 @@ class LedFxRecipe(PyProjectRecipe):
+         'python-dotenv>=1.0.0,<2.0.0',
+         'vnoise>=0.1.0,<1.0.0',
+         'webcolors>=24',
+-        'sentry-sdk>=1.40.4'
+     ]
+ 
+ 
