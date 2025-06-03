@@ -9,6 +9,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          repository: broccoliboy/ledfx-android
           submodules: recursive
       - name: Setup python
         uses: actions/setup-python@v5
