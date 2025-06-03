@@ -78,8 +78,7 @@ jobs:
       - name: Bump version to ${{ github.event.inputs.fversion }}
         continue-on-error: true
         run: |
-          numeric_patch_part="${{ steps.prepare_version.outputs.android_fversion_for_consts }}"
-          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ numeric_patch_part }}"/' ./deps/ledfx/ledfx/consts.py
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ steps.prepare_version.outputs.android_fversion_for_consts }}"/' ./deps/ledfx/ledfx/consts.py
           new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
 
