@@ -51,24 +51,24 @@ jobs:
         with:
           path: ./deps/ledfx/ledfx_frontend
 
-      - name: apply patches
-        run: |
-          cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
-          cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
-          cp ./src2/tools/sentry_android.patch ./sentry_android.patch
-          git apply sentry_android.patch
-          cd ./deps/ledfx
-          git apply cors.patch
-          git apply sentry.patch
-          cd ..
-          cd ..
+      # - name: apply patches
+      #   run: |
+      #     cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
+      #     cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+      #     cp ./src2/tools/sentry_android.patch ./sentry_android.patch
+      #     git apply sentry_android.patch
+      #     cd ./deps/ledfx
+      #     git apply cors.patch
+      #     git apply sentry.patch
+      #     cd ..
+      #     cd ..
 
-      - name: Bump version to ${{ github.event.inputs.fversion }}
-        continue-on-error: true
-        run: |
-          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./deps/ledfx/ledfx/consts.py
-          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
-          echo "action_state=$new_version" >> $GITHUB_ENV
+      # - name: Bump version to ${{ github.event.inputs.fversion }}
+      #   continue-on-error: true
+      #   run: |
+      #     sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./deps/ledfx/ledfx/consts.py
+      #     new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
+      #     echo "action_state=$new_version" >> $GITHUB_ENV
 
       # - name: Get latest frontend
       #   run: |
@@ -173,5 +173,5 @@ jobs:
         with:
           upload_url: ${{ github.event.inputs.upload_url }}
           asset_path: ./bin/*.apk
-          asset_name: LedFx_Android-${{ github.event.inputs.fversion }}.apk
+          asset_name: LedFx_Android-2.0.${{ github.event.inputs.fversion }}.apk
           asset_content_type: application/vnd.android.package-archive
