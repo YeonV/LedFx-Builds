@@ -62,11 +62,24 @@ jobs:
       #     git apply sentry.patch
       #     cd ..
       #     cd ..
+      - name: Prepare version Bump for Android
+        id: prepare_version
+        run: |
+          raw_fversion="${{ github.event.inputs.fversion }}" # e.g., "109-b20"
+          patch_base=$(echo "$raw_fversion" | cut -d'-' -f1)       # Extracts "109"
+          beta_number_full=$(echo "$raw_fversion" | cut -d'-' -f2)  # Extracts "b20"
+          beta_number=$(echo "$beta_number_full" | sed 's/b//')     # Extracts "20"
+          padded_beta_number=$(printf "%03d" "$beta_number")
+          
+          android_numeric_patch_part="${patch_base}${padded_beta_number}" # "109" + "020" = "109020"
+
+          echo "android_fversion_for_consts=$android_numeric_patch_part" >> $GITHUB_OUTPUT
 
       - name: Bump version to ${{ github.event.inputs.fversion }}
         continue-on-error: true
         run: |
-          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./deps/ledfx/ledfx/consts.py
+          numeric_patch_part="${{ steps.prepare_version.outputs.android_fversion_for_consts }}"
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ numeric_patch_part }}"/' ./deps/ledfx/ledfx/consts.py
           new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
 
