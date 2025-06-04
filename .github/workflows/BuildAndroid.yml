@@ -18,6 +18,10 @@ on:
         options:
           - 'Yes'
           - 'No'
+      ledfx_core_ref:
+        description: 'LedFx Core branch, tag, or commit SHA'
+        default: 'main'
+        required: true 
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -26,11 +30,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: broccoliboy/ledfx-android
-      - name: Checkout LedFx
+      - name: Checkout LedFx Core (${{ github.event.inputs.ledfx_core_ref }}) 
         uses: actions/checkout@v4
         with:
           repository: ledfx/LedFx
           path: deps/ledfx
+          ref: ${{ github.event.inputs.ledfx_core_ref }}
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
