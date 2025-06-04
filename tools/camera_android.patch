@@ -1,16 +1,8 @@
 diff --git a/buildozer.spec b/buildozer.spec
-index 41ad7de..ceac29b 100644
+index 41ad7de..607ccee 100644
 --- a/buildozer.spec
 +++ b/buildozer.spec
-@@ -28,6 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas
- 
- # (list) List of directory to exclude (leave empty to not exclude anything)
- #source.exclude_dirs = tests, bin, venv
-+source.exclude_dirs = Lib/test
- 
- # (list) List of exclusions using pattern matching
- # Do not prefix with './'
-@@ -104,7 +105,7 @@ fullscreen = 0
+@@ -104,7 +104,7 @@ fullscreen = 0
  # (list) Permissions
  # (See https://python-for-android.readthedocs.io/en/latest/buildoptions.html for all the supported syntaxes and properties)
  #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
