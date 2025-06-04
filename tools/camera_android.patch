@@ -1,0 +1,12 @@
+diff --git a/src/main.py b/src/main.py
+index af675e6..acaa422 100644
+--- a/src/main.py
++++ b/src/main.py
+@@ -18,6 +18,7 @@ permissions_list = [
+     Permission.MODIFY_AUDIO_SETTINGS,
+     Permission.READ_EXTERNAL_STORAGE,
+     Permission.WRITE_EXTERNAL_STORAGE,
++    Permission.CAMERA,
+ ]
+ 
+ 

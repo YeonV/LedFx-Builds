@@ -66,6 +66,7 @@ jobs:
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/sentry_android.patch ./sentry_android.patch
           git apply sentry_android.patch
+          git apply camera_android.patch
           cd ./deps/ledfx
           git apply cors.patch
           git apply sentry.patch
