@@ -1,3 +1,24 @@
+diff --git a/buildozer.spec b/buildozer.spec
+index 41ad7de..ceac29b 100644
+--- a/buildozer.spec
++++ b/buildozer.spec
+@@ -28,6 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas
+ 
+ # (list) List of directory to exclude (leave empty to not exclude anything)
+ #source.exclude_dirs = tests, bin, venv
++source.exclude_dirs = Lib/test
+ 
+ # (list) List of exclusions using pattern matching
+ # Do not prefix with './'
+@@ -104,7 +105,7 @@ fullscreen = 0
+ # (list) Permissions
+ # (See https://python-for-android.readthedocs.io/en/latest/buildoptions.html for all the supported syntaxes and properties)
+ #android.permissions = android.permission.INTERNET, (name=android.permission.WRITE_EXTERNAL_STORAGE;maxSdkVersion=18)
+-android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK
++android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, MODIFY_AUDIO_SETTINGS, RECORD_AUDIO, FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK, CAMERA
+ 
+ # (list) features (adds uses-feature -tags to manifest)
+ #android.features = android.hardware.usb.host
 diff --git a/src/main.py b/src/main.py
 index af675e6..acaa422 100644
 --- a/src/main.py
