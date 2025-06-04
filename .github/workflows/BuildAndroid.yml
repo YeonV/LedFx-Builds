@@ -5,7 +5,7 @@ on:
      inputs:
       fversion:
         description: 'Frontend Version'
-        default: '106'
+        default: '109-b22'
         required: false
       upload_url:
         description: 'Upload URL for release'
@@ -76,13 +76,13 @@ jobs:
       - name: Prepare version Bump for Android
         id: prepare_version
         run: |
-          raw_fversion="${{ github.event.inputs.fversion }}" # e.g., "109-b20"
-          patch_base=$(echo "$raw_fversion" | cut -d'-' -f1)       # Extracts "109"
-          beta_number_full=$(echo "$raw_fversion" | cut -d'-' -f2)  # Extracts "b20"
-          beta_number=$(echo "$beta_number_full" | sed 's/b//')     # Extracts "20"
+          raw_fversion="${{ github.event.inputs.fversion }}"
+          patch_base=$(echo "$raw_fversion" | cut -d'-' -f1)
+          beta_number_full=$(echo "$raw_fversion" | cut -d'-' -f2)
+          beta_number=$(echo "$beta_number_full" | sed 's/b//')
           padded_beta_number=$(printf "%03d" "$beta_number")
           
-          android_numeric_patch_part="${patch_base}${padded_beta_number}" # "109" + "020" = "109020"
+          android_numeric_patch_part="${patch_base}${padded_beta_number}"
 
           echo "android_fversion_for_consts=$android_numeric_patch_part" >> $GITHUB_OUTPUT
 
@@ -92,16 +92,6 @@ jobs:
           sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ steps.prepare_version.outputs.android_fversion_for_consts }}"/' ./deps/ledfx/ledfx/consts.py
           new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
-
-      # - name: Get latest frontend
-      #   run: |
-      #     curl -L --max-redirs 10 -o ledfx_frontend_android.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_android.zip"
-
-      # - name: Include new frontend
-      #   run: |
-      #     unzip -o -u ledfx_frontend_android.zip
-      #     cp -rf ./ledfx_frontend_android ./deps/ledfx/ledfx_frontend
-      #     ls ./deps/ledfx/ledfx_frontend
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
