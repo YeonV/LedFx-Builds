@@ -155,6 +155,25 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
 
+      - name: Clean previous Buildozer and P4A artifacts
+        run: |
+          echo "Cleaning Buildozer environment..."
+          if [ -d ".buildozer" ]; then
+            echo "Removing .buildozer directory..."
+            rm -rf .buildozer
+          else
+            echo ".buildozer directory not found, skipping removal."
+          fi
+          # The following commands assume buildozer is installed and in PATH
+          # and that you are in the directory containing buildozer.spec
+          echo "Attempting buildozer distclean..."
+          buildozer distclean || echo "buildozer distclean failed or no dist to clean, continuing..."
+          echo "Attempting buildozer android p4a --clean_bootstrap_build webview..."
+          buildozer android p4a --clean_bootstrap_build webview || echo "buildozer p4a clean_bootstrap_build failed or no bootstrap build to clean, continuing..."
+          echo "Attempting buildozer android clean..."
+          buildozer android clean || echo "buildozer android clean failed or nothing to clean, continuing..."
+        continue-on-error: true
+
       - name: Build with Buildozer
         run: buildozer android debug
 
