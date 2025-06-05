@@ -33,7 +33,7 @@ jobs:
       - name: Checkout Android Builder
         uses: actions/checkout@v4
         with:
-          repository: broccoliboy/ledfx-android
+          repository: YeonV/ledfx-android
       - name: Checkout LedFx Core (Repo ${{ github.event.inputs.ledfx_core_repo }}, Ref ${{ github.event.inputs.ledfx_core_ref }})
         uses: actions/checkout@v4
         with:
@@ -64,10 +64,6 @@ jobs:
         run: |
           cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
-          cp ./src2/tools/sentry_android.patch ./sentry_android.patch
-          cp ./src2/tools/camera_android.patch ./camera_android.patch
-          git apply sentry_android.patch
-          git apply camera_android.patch
           cd ./deps/ledfx
           git apply cors.patch
           git apply sentry.patch
