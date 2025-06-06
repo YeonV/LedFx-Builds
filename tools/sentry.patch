@@ -17,7 +17,7 @@ index c92e3418..40d0596e 100644
      "vnoise",
  ]
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index cc720dfe..d99566dd 100644
+index cc720dfe..7af73c1c 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
 @@ -16,8 +16,6 @@ import os
@@ -29,26 +29,24 @@ index cc720dfe..d99566dd 100644
  try:
      import psutil
  
-@@ -269,8 +267,6 @@ def main():
+@@ -269,9 +267,6 @@ def main():
          else:
              p.nice(15)
  
 -    if args.offline_mode is False:
 -        setup_sentry()
- 
+-
      if args.sentry_test:
          _LOGGER.warning("Steering LedFx into a brick wall.")
+         div_by_zero = 1 / 0
 diff --git a/ledfx/sentry_config.py b/ledfx/sentry_config.py
 deleted file mode 100644
-index 849bb723..00000000
+index 34286d8b..00000000
 --- a/ledfx/sentry_config.py
 +++ /dev/null
-@@ -1,62 +0,0 @@
+@@ -1,64 +0,0 @@
 -import logging
 -import os
--
--import sentry_sdk
--from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 -
 -from ledfx.consts import PROJECT_VERSION
 -from ledfx.utils import currently_frozen
@@ -63,6 +61,11 @@ index 849bb723..00000000
 -    If running in production mode, a production Sentry DSN is used along with a sample rate of 0.
 -    The release version is determined based on the project version and the git commit hash.
 -    """
+-
+-    # import is done here to avoid attempting to import sentry_sdk when in offline mode
+-    import sentry_sdk
+-    from sentry_sdk.integrations.aiohttp import AioHttpIntegration
+-
 -    is_release = os.getenv("IS_RELEASE", "false").lower()
 -
 -    if is_release == "false":
