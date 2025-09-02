@@ -377,6 +377,7 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install NSIS (installer)
+        if: ${{ env.IS_WIN == 'true' && env.BUILD_WIN == 'true' }}
         uses: repolevedavaj/install-nsis@v1.0.1
         with:
           nsis-version: "3.11"
@@ -432,7 +433,7 @@ jobs:
           cp -r dist/LedFx $BINARY_NAME-v$action_state          
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
           mkdir installer
-          mv src2/tools/win/ledfx.nsi src/installer/ledfx.nsi
+          mv ../src2/tools/win/ledfx.nsi installer/ledfx.nsi
 
 
       - name: Create Windows Installer
