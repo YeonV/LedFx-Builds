@@ -440,7 +440,8 @@ jobs:
       - name: Create Windows Installer
         if: ${{ env.IS_WIN == 'true' }}
         run: |
-          cd src/installer && makensis /DPRODUCT_VERSION=${{ env.action_state }} ledfx.nsi
+          cd src
+          cd installer && makensis /DPRODUCT_VERSION=${{ env.action_state }} ledfx.nsi
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
