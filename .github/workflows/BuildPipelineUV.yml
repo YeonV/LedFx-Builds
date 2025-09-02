@@ -376,6 +376,11 @@ jobs:
         if: ${{ env.IS_WIN == 'false' }}
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Install NSIS (installer)
+        uses: repolevedavaj/install-nsis@v1.0.1
+        with:
+          nsis-version: "3.11"
+
       - name: Bump version
         if: ${{ env.IS_WIN == 'true' || env.IS_LINUX == 'true' }}
         run: |
@@ -424,8 +429,16 @@ jobs:
           uv run pyinstaller windows-binary.spec
           rm dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           mv loopback/libportaudio64bit.dll dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
-          mv dist/LedFx $BINARY_NAME-v$action_state
+          cp -r dist/LedFx $BINARY_NAME-v$action_state          
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
+          mkdir installer
+          mv src2/tools/win/ledfx.nsi src/installer/ledfx.nsi
+
+
+      - name: Create Windows Installer
+        if: ${{ env.IS_WIN == 'true' }}
+        run: |
+          cd installer && makensis /DPRODUCT_VERSION=${{ env.action_state }} ledfx.nsi
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
@@ -528,6 +541,24 @@ jobs:
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win.zip
           path: src/${{ env.BINARY_NAME }}-v${{ env.action_state }}--win.zip
+
+      - name: Upload Core Win Setup To Release
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+        uses: YeonV/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: src/installer/ledfx-setup.exe
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-setup.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Core Win Setup To Workflow
+        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-setup.exe
+          path: src/installer/ledfx-setup.exe
 
       - name: Upload Core Osx-arm64 To Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
