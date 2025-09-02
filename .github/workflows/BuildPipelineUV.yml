@@ -433,13 +433,14 @@ jobs:
           cp -r dist/LedFx $BINARY_NAME-v$action_state          
           7z.exe a -tzip $BINARY_NAME-v$action_state--win.zip $BINARY_NAME-v$action_state "-mx5" "-xr!.git" "-xr!.github"
           mkdir installer
-          mv ../src2/tools/win/ledfx.nsi installer/ledfx.nsi
+          mv ../src2/tools/win/ledfx.nsi ../src/installer/ledfx.nsi
+          cd ..
 
 
       - name: Create Windows Installer
         if: ${{ env.IS_WIN == 'true' }}
         run: |
-          cd installer && makensis /DPRODUCT_VERSION=${{ env.action_state }} ledfx.nsi
+          cd src/installer && makensis /DPRODUCT_VERSION=${{ env.action_state }} ledfx.nsi
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
