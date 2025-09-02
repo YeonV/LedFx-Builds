@@ -441,7 +441,7 @@ jobs:
         if: ${{ env.IS_WIN == 'true' }}
         run: |
           cd src
-          cd installer && makensis ledfx.nsi
+          cd installer && makensis ledfx.nsi && ls -la && cd ..
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
@@ -552,7 +552,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: src/installer/ledfx-setup.exe
+          asset_path: src/installer/ledfx-x.x.x--win-setup.exe
           asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-setup.exe
           asset_content_type: application/octet-stream
 
@@ -561,7 +561,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--win-setup.exe
-          path: src/installer/ledfx-setup.exe
+          path: src/installer/ledfx-x.x.x--win-setup.exe
 
       - name: Upload Core Osx-arm64 To Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
