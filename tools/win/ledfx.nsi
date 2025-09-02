@@ -50,7 +50,7 @@ Function .onInit
 FunctionEnd
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "ledfx-setup-win-${PRODUCT_VERSION}.exe"
+OutFile "ledfx-${PRODUCT_VERSION}--win-setup.exe"
 InstallDir "$PROGRAMFILES\LedFX"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
