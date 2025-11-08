@@ -62,10 +62,8 @@ jobs:
 
       - name: apply patches
         run: |
-          cp ./src2/tools/cors.patch ./deps/ledfx/cors.patch
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cd ./deps/ledfx
-          git apply cors.patch
           git apply sentry.patch
           cd ..
           cd ..
