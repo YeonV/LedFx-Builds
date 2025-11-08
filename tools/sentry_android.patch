@@ -1,147 +1,24 @@
-diff --git a/hiddenimports.py b/hiddenimports.py
-index c92e3418..40d0596e 100644
---- a/hiddenimports.py
-+++ b/hiddenimports.py
-@@ -29,13 +29,5 @@ hiddenimports = [
-     "PIL.Image",
-     "PIL.ImageDraw",
-     "PIL.ImageEnhance",
--    "sentry_sdk.integrations.stdlib",
--    "sentry_sdk.integrations.excepthook",
--    "sentry_sdk.integrations.dedupe",
--    "sentry_sdk.integrations.atexit",
--    "sentry_sdk.integrations.modules",
--    "sentry_sdk.integrations.argv",
--    "sentry_sdk.integrations.logging",
--    "sentry_sdk.integrations.threading",
-     "vnoise",
- ]
-diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index 8a606640..0926833c 100644
---- a/ledfx/__main__.py
-+++ b/ledfx/__main__.py
-@@ -16,8 +16,6 @@ import os
- import sys
- from logging.handlers import RotatingFileHandler
+diff --git a/buildozer.spec b/buildozer.spec
+index 41ad7de..4cf2841 100644
+--- a/buildozer.spec
++++ b/buildozer.spec
+@@ -28,6 +28,7 @@ source.include_exts = py,png,jpg,kv,atlas
  
--from ledfx.sentry_config import setup_sentry
--
- try:
-     import psutil
+ # (list) List of directory to exclude (leave empty to not exclude anything)
+ #source.exclude_dirs = tests, bin, venv
++source.exclude_dirs = Lib/test
  
-@@ -269,9 +267,6 @@ def main():
-         else:
-             p.nice(15)
+ # (list) List of exclusions using pattern matching
+ # Do not prefix with './'
+diff --git a/recipes/ledfx/__init__.py b/recipes/ledfx/__init__.py
+index 824ea11..f78d1b8 100644
+--- a/recipes/ledfx/__init__.py
++++ b/recipes/ledfx/__init__.py
+@@ -41,7 +41,6 @@ class LedFxRecipe(PyProjectRecipe):
+         'python-dotenv>=1.0.0,<2.0.0',
+         'vnoise>=0.1.0,<1.0.0',
+         'webcolors>=24',
+-        'sentry-sdk>=1.40.4'
+     ]
  
--    if args.offline_mode is False:
--        setup_sentry()
--
-     if args.sentry_test:
-         _LOGGER.warning("Steering LedFx into a brick wall.")
-         _ = 1 / 0
-diff --git a/ledfx/api/__init__.py b/ledfx/api/__init__.py
-index 22d7dbd6..f035e456 100644
---- a/ledfx/api/__init__.py
-+++ b/ledfx/api/__init__.py
-@@ -12,6 +12,11 @@ _LOGGER = logging.getLogger(__name__)
  
- SNACKBAR_OPTIONS = ["success", "info", "warning", "error"]
- 
-+@web.middleware
-+async def cors_middleware(request, handler):
-+    response = await handler(request)
-+    response.headers['Access-Control-Allow-Private-Network'] = 'true'
-+    return response
- 
- @BaseRegistry.no_registration
- class RestEndpoint(BaseRegistry):
-@@ -192,6 +197,7 @@ class RestApi(RegistryLoader):
-         self._ledfx = ledfx
- 
-     def register_routes(self, app):
-+        app.middlewares.append(cors_middleware)
-         methods = ["GET", "PUT", "POST", "DELETE"]
-         cors = aiohttp_cors.setup(
-             app,
-diff --git a/ledfx/sentry_config.py b/ledfx/sentry_config.py
-deleted file mode 100644
-index 63768137..00000000
---- a/ledfx/sentry_config.py
-+++ /dev/null
-@@ -1,64 +0,0 @@
--import logging
--import os
--
--from ledfx.consts import PROJECT_VERSION
--from ledfx.utils import currently_frozen
--
--_LOGGER = logging.getLogger(__name__)
--
--
--def setup_sentry():
--    """
--    Set up the Sentry configuration based on the environment variables.
--    If running in development mode, a development Sentry DSN is used along with a sample rate of 0.
--    If running in production mode, a production Sentry DSN is used along with a sample rate of 0.
--    The release version is determined based on the project version and the git commit hash.
--    """
--
--    # import is done here to avoid attempting to import sentry_sdk when in offline mode
--    import sentry_sdk
--    from sentry_sdk.integrations.aiohttp import AioHttpIntegration
--
--    is_release = os.getenv("IS_RELEASE", "false").lower()
--
--    if is_release == "false":
--        _LOGGER.debug("Running in development mode.")
--        sentry_dsn = "https://b192934eebd517c86bf7e9c512b3888a@o482797.ingest.sentry.io/4506350241841152"
--        # Change sample_rate to 1 to look at http calls, so all rest traffic stats
--        sample_rate = 0
--
--        try:
--            if currently_frozen():
--                commit_hash = os.getenv("GITHUB_SHA", "unknown")
--            else:
--                from subprocess import PIPE, Popen
--
--                process = Popen(["git", "rev-parse", "HEAD"], stdout=PIPE)
--                (commit_hash, err) = process.communicate()
--                commit_hash = commit_hash[:7].decode("utf-8")
--                process.wait()
--            # TODO: trap explicit exceptions if it becomes clear what they are
--        except Exception as e:
--            commit_hash = "unknown"
--            _LOGGER.warning(f"Failed to get git commit hash: {e}")
--        finally:
--            commit_hash = commit_hash[:7]
--            release = f"ledfx@{PROJECT_VERSION}-{commit_hash}"
--    else:
--        _LOGGER.debug("Running in production mode.")
--        # production / release behaviour due to injection of "prod" or anything really into ENVIRONMENT env variable
--        sentry_dsn = "https://dc6070345a8dfa1f2f24433d16f7a133@o482797.ingest.sentry.io/4506350233321472"
--        sample_rate = 0
--        release = f"ledfx@{PROJECT_VERSION}"
--
--    _LOGGER.info("Sentry Configuration:")
--    _LOGGER.info(f"DSN (first ten): {sentry_dsn[8:18]}")
--    _LOGGER.info(f"Sample rate: {sample_rate}")
--    _LOGGER.info(f"LedFx release: {release}")
--
--    sentry_sdk.init(
--        sentry_dsn,
--        traces_sample_rate=sample_rate,
--        integrations=[AioHttpIntegration()],
--        release=release,
--    )
-diff --git a/pyproject.toml b/pyproject.toml
-index 389b81a9..6c8cba29 100644
---- a/pyproject.toml
-+++ b/pyproject.toml
-@@ -22,7 +22,6 @@ dependencies = [
-     "python-rtmidi>=1.5.8",
-     "requests>=2.31.0",
-     "sacn>=1.9.0",
--    "sentry-sdk>=1.40.4",
-     "sounddevice>=0.4.6",
-     "samplerate>=0.2.1",
-     "icmplib>=3.0.4",
