@@ -281,11 +281,9 @@ jobs:
 
       - name: get git version
         run: |
-          cp ./src2/tools/cors.patch ./src/cors.patch
           cp ./src2/tools/sentry.patch ./src/sentry.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
-          git apply cors.patch
           git apply sentry.patch
           cd ..
 
