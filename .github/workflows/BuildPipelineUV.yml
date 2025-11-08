@@ -427,6 +427,7 @@ jobs:
         run: |
           mv src2/tools/win/win.spec src/win.spec
           cd src
+          uv pip install pyinstaller
           uv run pyinstaller windows-binary.spec
           rm dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           mv loopback/libportaudio64bit.dll dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
@@ -454,6 +455,7 @@ jobs:
           mv src2/tools/mac/mac.spec src/mac.spec
           cd src
           ls
+          uv pip install pyinstaller
           uv run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
@@ -468,6 +470,7 @@ jobs:
           mv src2/tools/mac/mac-arm64.spec src/mac.spec
           cd src
           ls
+          uv pip install pyinstaller
           uv run pyinstaller mac.spec
           cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
@@ -609,6 +612,7 @@ jobs:
         run: |
           cp src2/tools/win/yzwin.spec ./src/win-portable.spec
           cd src
+          uv pip install pyinstaller
           uv run pyinstaller win-portable.spec
           ls dist/
           mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
