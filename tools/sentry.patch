@@ -17,7 +17,7 @@ index c92e3418..40d0596e 100644
      "vnoise",
  ]
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index cc720dfe..7af73c1c 100644
+index 8a606640..0926833c 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
 @@ -16,8 +16,6 @@ import os
@@ -38,10 +38,34 @@ index cc720dfe..7af73c1c 100644
 -
      if args.sentry_test:
          _LOGGER.warning("Steering LedFx into a brick wall.")
-         div_by_zero = 1 / 0
+         _ = 1 / 0
+diff --git a/ledfx/api/__init__.py b/ledfx/api/__init__.py
+index 22d7dbd6..f035e456 100644
+--- a/ledfx/api/__init__.py
++++ b/ledfx/api/__init__.py
+@@ -12,6 +12,11 @@ _LOGGER = logging.getLogger(__name__)
+ 
+ SNACKBAR_OPTIONS = ["success", "info", "warning", "error"]
+ 
++@web.middleware
++async def cors_middleware(request, handler):
++    response = await handler(request)
++    response.headers['Access-Control-Allow-Private-Network'] = 'true'
++    return response
+ 
+ @BaseRegistry.no_registration
+ class RestEndpoint(BaseRegistry):
+@@ -192,6 +197,7 @@ class RestApi(RegistryLoader):
+         self._ledfx = ledfx
+ 
+     def register_routes(self, app):
++        app.middlewares.append(cors_middleware)
+         methods = ["GET", "PUT", "POST", "DELETE"]
+         cors = aiohttp_cors.setup(
+             app,
 diff --git a/ledfx/sentry_config.py b/ledfx/sentry_config.py
 deleted file mode 100644
-index 34286d8b..00000000
+index 63768137..00000000
 --- a/ledfx/sentry_config.py
 +++ /dev/null
 @@ -1,64 +0,0 @@
@@ -83,7 +107,7 @@ index 34286d8b..00000000
 -                process = Popen(["git", "rev-parse", "HEAD"], stdout=PIPE)
 -                (commit_hash, err) = process.communicate()
 -                commit_hash = commit_hash[:7].decode("utf-8")
--                exit_code = process.wait()
+-                process.wait()
 -            # TODO: trap explicit exceptions if it becomes clear what they are
 -        except Exception as e:
 -            commit_hash = "unknown"
@@ -110,7 +134,7 @@ index 34286d8b..00000000
 -        release=release,
 -    )
 diff --git a/pyproject.toml b/pyproject.toml
-index e8e317fd..73579deb 100644
+index 389b81a9..6c8cba29 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -22,7 +22,6 @@ dependencies = [
