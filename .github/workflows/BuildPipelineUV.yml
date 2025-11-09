@@ -48,7 +48,7 @@ jobs:
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
-      action_state: "2.0"  # Default value
+      action_state: "2.1"  # Default value
 
     steps:
       - name: Get latest frontend and prepare matrix
@@ -251,7 +251,7 @@ jobs:
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
       BINARY_NAME: "LedFx"  # Default value
-      action_state: "2.0"  # Default value
+      action_state: "2.1"  # Default value
     defaults:
       run:
         shell: bash -x {0}
@@ -445,7 +445,7 @@ jobs:
         if: ${{ env.IS_WIN == 'true' }}
         run: |
           cd src
-          cd installer && makensis ledfx.nsi && ls -la && cd ..
+          cd installer && "/c/Program Files (x86)/NSIS/makensis.exe" ledfx.nsi && ls -la && cd ..
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
@@ -1030,8 +1030,8 @@ jobs:
 #      - name: Send Discord Release Post
 #        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' }}
 #        run: |
-#          curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}\n\n**[PREVIEW]**       <https://preview.ledfx.app>**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
-#          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.0.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+#          curl -H "Content-Type: application/json" -d '{"content": "**[DOWNLOAD]** https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}\n\n**[PREVIEW]**       <https://preview.ledfx.app>**Please** do not send messages here. Use the [testing]-Post instead!", "thread_name": "[beta] Release 2.1.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+#          curl -H "Content-Type: application/json" -d '{"content": "https://github.com/YeonV/LedFx-Builds/releases/tag/v${{ env.action_state }}", "thread_name": "[testing] Release 2.1.${{ github.event.inputs.fversion }}"}' ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
 #
 #      - name: Send Discord Beta Post
 #        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' }}
