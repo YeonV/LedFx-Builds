@@ -485,6 +485,7 @@ jobs:
           mv src2/tools/linux/yzlinux.spec src/linux.spec
           cd src
           ls
+          uv pip install pyinstaller
           uv run pyinstaller linux.spec
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
           cd ..
