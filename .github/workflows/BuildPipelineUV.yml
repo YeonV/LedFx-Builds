@@ -376,9 +376,13 @@ jobs:
 
       - name: Install NSIS (installer)
         if: ${{ env.IS_WIN == 'true' && env.BUILD_WIN == 'true' }}
-        uses: repolevedavaj/install-nsis@v1.0.1
+        uses: repolevedavaj/install-nsis@v1.1.0
         with:
           nsis-version: "3.11"
+
+      - name: Add NSIS to PATH
+        if: ${{ env.IS_WIN == 'true' && env.BUILD_WIN == 'true' }}
+        run: echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
 
       - name: Bump version
         if: ${{ env.IS_WIN == 'true' || env.IS_LINUX == 'true' }}
@@ -445,7 +449,7 @@ jobs:
         if: ${{ env.IS_WIN == 'true' }}
         run: |
           cd src
-          cd installer && "/c/Program Files (x86)/NSIS/makensis.exe" ledfx.nsi && ls -la && cd ..
+          cd installer && makensis ledfx.nsi && ls -la && cd ..
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
