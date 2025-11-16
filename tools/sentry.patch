@@ -1,8 +1,8 @@
 diff --git a/hiddenimports.py b/hiddenimports.py
-index c92e3418..40d0596e 100644
+index e824cc9f..c8cee220 100644
 --- a/hiddenimports.py
 +++ b/hiddenimports.py
-@@ -29,13 +29,5 @@ hiddenimports = [
+@@ -29,14 +29,6 @@ hiddenimports = [
      "PIL.Image",
      "PIL.ImageDraw",
      "PIL.ImageEnhance",
@@ -15,7 +15,8 @@ index c92e3418..40d0596e 100644
 -    "sentry_sdk.integrations.logging",
 -    "sentry_sdk.integrations.threading",
      "vnoise",
- ]
+     "xled",
+     "xled.control",
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
 index 8a606640..0926833c 100644
 --- a/ledfx/__main__.py
@@ -40,22 +41,23 @@ index 8a606640..0926833c 100644
          _LOGGER.warning("Steering LedFx into a brick wall.")
          _ = 1 / 0
 diff --git a/ledfx/api/__init__.py b/ledfx/api/__init__.py
-index 22d7dbd6..f035e456 100644
+index 22d7dbd6..80620d7a 100644
 --- a/ledfx/api/__init__.py
 +++ b/ledfx/api/__init__.py
-@@ -12,6 +12,11 @@ _LOGGER = logging.getLogger(__name__)
- 
+@@ -13,6 +13,12 @@ _LOGGER = logging.getLogger(__name__)
  SNACKBAR_OPTIONS = ["success", "info", "warning", "error"]
+ 
  
 +@web.middleware
 +async def cors_middleware(request, handler):
 +    response = await handler(request)
 +    response.headers['Access-Control-Allow-Private-Network'] = 'true'
 +    return response
- 
++
  @BaseRegistry.no_registration
  class RestEndpoint(BaseRegistry):
-@@ -192,6 +197,7 @@ class RestApi(RegistryLoader):
+     def __init__(self, ledfx):
+@@ -192,6 +198,7 @@ class RestApi(RegistryLoader):
          self._ledfx = ledfx
  
      def register_routes(self, app):
@@ -134,7 +136,7 @@ index 63768137..00000000
 -        release=release,
 -    )
 diff --git a/pyproject.toml b/pyproject.toml
-index 389b81a9..6c8cba29 100644
+index baa8a125..486bf062 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -22,7 +22,6 @@ dependencies = [
