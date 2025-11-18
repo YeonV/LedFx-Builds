@@ -157,7 +157,7 @@ jobs:
           name: package-${{ matrix.arch }}
           path: ./bin/*.apk
 
-release:
+  release:
     if: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
     needs: build_apks
