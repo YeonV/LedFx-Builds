@@ -30,9 +30,8 @@ jobs:
   build_apks:
     runs-on: ubuntu-22.04
     strategy:
-      fail-fast: false # Allows other builds to continue even if one arch fails
+      fail-fast: false
       matrix:
-        # Define the architectures you want to build for
         arch: [armeabi-v7a, arm64-v8a, x86, x86_64, universal]
 
     steps:
@@ -40,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: YeonV/ledfx-android
-      - name: Checkout LedFx Core (Repo ${{ github.event.inputs.ledfx_core_repo }}, Ref ${{ github.event.inputs.ledfx_core_ref }})
+      - name: Checkout LedFx Core
         uses: actions/checkout@v4
         with:
           repository:  ${{ github.event.inputs.ledfx_core_repo }}
@@ -106,9 +105,7 @@ jobs:
           cd ..
 
       - name: Include new build frontend
-        run: |
-          cp -r ./src3/build ./deps/ledfx/ledfx_frontend
-          ls ./deps/ledfx/ledfx_frontend
+        run: cp -r ./src3/build ./deps/ledfx/ledfx_frontend
 
       - name: Setup python
         uses: actions/setup-python@v5
@@ -126,80 +123,78 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip autoconf automake libtool pkg-config zlib1g-dev \
+            git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev \
             libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
 
-      - name: Clean previous Buildozer and P4A artifacts
-        run: buildozer distclean || echo "distclean failed, continuing..."
+      - name: Clean previous Buildozer artifacts
+        run: buildozer distclean || echo "distclean failed or nothing to clean, continuing..."
         continue-on-error: true
 
-      # --- KEY CHANGE: Configure Buildozer for the specific architecture ---
+      # --- FIX: Directly modify buildozer.spec with sed ---
       - name: Configure Build Architecture for ${{ matrix.arch }}
         run: |
           if [[ "${{ matrix.arch }}" == "universal" ]]; then
-            echo "Setting build for universal APK (all archs)"
-            echo "BUILDOZER_OVERRIDE_APP_ANDROID_ARCHS=armeabi-v7a,arm64-v8a,x86,x86_64" >> $GITHUB_ENV
+            ARCH_CONFIG="arm64-v8a, armeabi-v7a, x86, x86_64"
+            echo "Setting buildozer.spec to build for universal: $ARCH_CONFIG"
           else
-            echo "Setting build for single arch: ${{ matrix.arch }}"
-            echo "BUILDOZER_OVERRIDE_APP_ANDROID_ARCHS=${{ matrix.arch }}" >> $GITHUB_ENV
+            ARCH_CONFIG="${{ matrix.arch }}"
+            echo "Setting buildozer.spec to build for single arch: $ARCH_CONFIG"
           fi
+          sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
+          echo "--- buildozer.spec content after modification ---"
+          cat buildozer.spec
+          echo "-----------------------------------------------"
 
-      - name: Build with Buildozer
+
+      - name: Build ${{ matrix.arch }}
         run: buildozer android debug
 
-      # --- KEY CHANGE: Upload a uniquely named artifact for each architecture ---
       - name: Upload artifact for ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
           name: package-${{ matrix.arch }}
           path: ./bin/*.apk
 
-  release:
+release:
     if: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: build_apks # Wait for all matrix builds to complete
+    needs: build_apks
     permissions:
       contents: write
     steps:
-      # --- KEY CHANGE: Download all artifacts from the build jobs ---
       - name: Download all APK artifacts
         uses: actions/download-artifact@v4
         with:
           path: apks/
-          # The pattern will match all artifacts starting with 'package-'
           pattern: package-*
           merge-multiple: true
 
       - name: List downloaded files
-        run: |
-          echo "Listing all downloaded APKs:"
-          ls -R apks/
+        run: ls -R apks/
 
-      # --- KEY CHANGE: Loop through artifacts and upload each one ---
       - name: Upload all APKs to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for apk_file in apks/*.apk; do
             if [ -f "$apk_file" ]; then
-              # Extract the architecture from the original artifact name (which became the filename)
-              # e.g., 'ledfx-2.1.109-b22-armeabi-v7a-debug.apk' -> 'armeabi-v7a'
-              # Note: buildozer names the file with arch, so we can parse it
+              # Buildozer names the file with arch, e.g., 'ledfx-version-arm64-v8a-debug.apk'
+              # We parse the arch from the filename for the asset name.
               arch=$(echo "$(basename "$apk_file")" | sed -n 's/.*-\(armeabi-v7a\|arm64-v8a\|x86_64\|x86\)-.*/\1/p')
 
-              # If arch isn't in the filename (e.g., the universal build), default to 'universal'
+              # If arch isn't in the filename (the universal build), default to 'universal'.
               if [ -z "$arch" ]; then
                 arch="universal"
               fi
-
+              
               asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
               echo "Uploading $apk_file as $asset_name"
 
+              # Using the official GitHub CLI for robust uploads
               gh release upload \
                 --clobber \
-                --repo ${{ github.repository }} \
                 "${{ github.event.inputs.upload_url }}" \
                 "$apk_file#$asset_name"
             fi
