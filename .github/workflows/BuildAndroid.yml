@@ -207,5 +207,5 @@ jobs:
         with:
           upload_url: ${{ github.event.inputs.upload_url }}
           asset_path: ${{ env.APK_FILE }}
-          asset_name: LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android.apk
+          asset_name: LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-old.apk
           asset_content_type: application/vnd.android.package-archive

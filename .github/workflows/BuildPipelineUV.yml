@@ -194,6 +194,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
 
+      - name: Trigger Build Android Matrix
+        continue-on-error: true
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: LedFx BuildPipeline Android Matrix
+          repo: YeonV/LedFx-Builds
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
+
       - name: Output Release URL File
         if: ${{ env.IS_RELEASE == 'true' }}
         run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url.txt

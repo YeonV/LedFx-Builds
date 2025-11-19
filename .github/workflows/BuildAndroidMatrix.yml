@@ -156,96 +156,96 @@ jobs:
           name: package-${{ matrix.arch }}
           path: ./bin/*.apk
 
-      - name: Upload compiled distribution for ${{ matrix.arch }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-${{ matrix.arch }}
-          path: .buildozer/android/platform/build-${{ matrix.arch }}/dists/ledfx/
+      # - name: Upload compiled distribution for ${{ matrix.arch }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: dist-${{ matrix.arch }}
+      #     path: .buildozer/android/platform/build-${{ matrix.arch }}/dists/ledfx/
 
-  build_universal:
-    name: Package Universal APK
-    runs-on: ubuntu-22.04
-    needs: build_archs # This job starts only after all arch builds are done
-    steps:
-      # We need to check out the code again for the buildozer.spec file
-      - name: Checkout Android Builder
-        uses: actions/checkout@v4
-        with:
-          repository: YeonV/ledfx-android
+  # build_universal:
+  #   name: Package Universal APK
+  #   runs-on: ubuntu-22.04
+  #   needs: build_archs # This job starts only after all arch builds are done
+  #   steps:
+  #     # We need to check out the code again for the buildozer.spec file
+  #     - name: Checkout Android Builder
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: YeonV/ledfx-android
 
-      # Setup is minimal, no need to build the frontend again
-      - name: Setup Java 17 and other dependencies
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - name: Install Buildozer
-        run: |
-          sudo apt-get update && sudo apt-get install -y python3-pip
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
+  #     # Setup is minimal, no need to build the frontend again
+  #     - name: Setup Java 17 and other dependencies
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         distribution: 'temurin'
+  #         java-version: '17'
+  #     - name: Install Buildozer
+  #       run: |
+  #         sudo apt-get update && sudo apt-get install -y python3-pip
+  #         python3 -m pip install --upgrade pip
+  #         python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
 
-      # --- NEW STEP: Download all the distributions ---
-      - name: Download all compiled distributions
-        uses: actions/download-artifact@v4
-        with:
-          path: dists/
-          pattern: dist-*
-          merge-multiple: true
+  #     # --- NEW STEP: Download all the distributions ---
+  #     - name: Download all compiled distributions
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: dists/
+  #         pattern: dist-*
+  #         merge-multiple: true
 
-      - name: Prepare Buildozer directories
-        run: |
-          echo "--- Verifying downloaded artifact structure ---"
-          ls -R dists/
-          echo "---------------------------------------------"
+  #     - name: Prepare Buildozer directories
+  #       run: |
+  #         echo "--- Verifying downloaded artifact structure ---"
+  #         ls -R dists/
+  #         echo "---------------------------------------------"
 
-          echo "Recreating directory structure for universal build..."
-          # This is the destination p4a will look for multi-arch distributions
-          DEST_DIR=".buildozer/android/platform/build-arm64-v8a_armeabi-v7a_x86_x86_64/dists/"
-          mkdir -p "$DEST_DIR"
+  #         echo "Recreating directory structure for universal build..."
+  #         # This is the destination p4a will look for multi-arch distributions
+  #         DEST_DIR=".buildozer/android/platform/build-arm64-v8a_armeabi-v7a_x86_x86_64/dists/"
+  #         mkdir -p "$DEST_DIR"
 
-          echo "Renaming and moving downloaded distributions..."
-          
-          # Use 'find' to robustly locate the source 'ledfx' directories
-          find dists -mindepth 2 -maxdepth 2 -type d -name ledfx | while read -r src_dist_path; do
-            # Extract the arch from the parent directory name 
-            # e.g., 'dists/dist-arm64-v8a/ledfx' -> 'arm64-v8a'
-            arch=$(echo "$src_dist_path" | cut -d'-' -f2 | cut -d'/' -f1)
+  #         echo "Renaming and moving downloaded distributions..."
+  #         
+  #         # Use 'find' to robustly locate the source 'ledfx' directories
+  #         find dists -mindepth 2 -maxdepth 2 -type d -name ledfx | while read -r src_dist_path; do
+  #           # Extract the arch from the parent directory name 
+  #           # e.g., 'dists/dist-arm64-v8a/ledfx' -> 'arm64-v8a'
+  #           arch=$(echo "$src_dist_path" | cut -d'-' -f2 | cut -d'/' -f1)
 
-            # The destination path needs the p4a suffix format for multi-arch builds
-            dest_dist_path="$DEST_DIR/ledfx__$arch"
-            
-            echo "Moving '$src_dist_path' to '$dest_dist_path'"
-            mv "$src_dist_path" "$dest_dist_path"
-          done
-          
-          echo "--- Final distributions ready for packaging ---"
-          ls -l "$DEST_DIR"
-          echo "---------------------------------------------"
+  #           # The destination path needs the p4a suffix format for multi-arch builds
+  #           dest_dist_path="$DEST_DIR/ledfx__$arch"
+  #           
+  #           echo "Moving '$src_dist_path' to '$dest_dist_path'"
+  #           mv "$src_dist_path" "$dest_dist_path"
+  #         done
+  #         
+  #         echo "--- Final distributions ready for packaging ---"
+  #         ls -l "$DEST_DIR"
+  #         echo "---------------------------------------------"
 
-      - name: Configure buildozer.spec for universal build
-        run: |
-          ARCH_CONFIG="arm64-v8a, armeabi-v7a, x86, x86_64"
-          sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
+  #     - name: Configure buildozer.spec for universal build
+  #       run: |
+  #         ARCH_CONFIG="arm64-v8a, armeabi-v7a, x86, x86_64"
+  #         sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
 
-      - name: Package universal APK using existing distributions
-        continue-on-error: true
-        run: |
-          # The standard 'debug' command will find the pre-compiled distributions
-          # and skip the compilation, proceeding directly to APK packaging.
-          buildozer -v android debug
+  #     - name: Package universal APK using existing distributions
+  #       continue-on-error: true
+  #       run: |
+  #         # The standard 'debug' command will find the pre-compiled distributions
+  #         # and skip the compilation, proceeding directly to APK packaging.
+  #         buildozer -v android debug
 
-      - name: Upload universal APK
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-universal
-          path: ./bin/*.apk
+  #     - name: Upload universal APK
+  #       continue-on-error: true
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: package-universal
+  #         path: ./bin/*.apk
 
   release:
     if: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: [build_archs, build_universal]
+    needs: [build_archs] # build_universal
     permissions:
       contents: write
     steps:
