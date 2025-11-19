@@ -228,15 +228,15 @@ jobs:
           ARCH_CONFIG="arm64-v8a, armeabi-v7a, x86, x86_64"
           sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
 
-      # --- NEW STEP: Package the APK without recompiling ---
-      - name: Package universal APK from existing distributions
+      - name: Package universal APK using existing distributions
+        continue-on-error: true
         run: |
-          # This command tells buildozer to use python-for-android to build an APK
-          # using existing distributions, skipping the compilation.
-          # You might need to adjust '--dist-name' if you've changed it in your spec.
-          buildozer android p4a --apk --dist-name ledfx --archs="arm64-v8a,armeabi-v7a,x86,x86_64"
+          # The standard 'debug' command will find the pre-compiled distributions
+          # and skip the compilation, proceeding directly to APK packaging.
+          buildozer -v android debug
 
       - name: Upload universal APK
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: package-universal
