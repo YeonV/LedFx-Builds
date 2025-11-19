@@ -293,14 +293,14 @@ jobs:
               asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
               echo "Uploading $apk_file as $asset_name"
 
-              # Rename the file to the desired asset name
-              cp "$apk_file" "$asset_name"
+              # Clean the upload URL by removing the template suffix
+              UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
               
               # Using curl to upload directly to the release
               curl -X POST \
                 -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
                 -H "Content-Type: application/vnd.android.package-archive" \
-                --data-binary @"$asset_name" \
-                "${{ github.event.inputs.upload_url }}?name=$asset_name"
+                --data-binary @"$apk_file" \
+                "${UPLOAD_URL}?name=${asset_name}"
             fi
           done
