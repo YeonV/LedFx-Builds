@@ -160,7 +160,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.arch }}
-          path: .buildozer/android/platform/build-*/dists/ledfx__*/
+          path: .buildozer/android/platform/build-${{ matrix.arch }}/dists/ledfx/
 
   build_universal:
     name: Package Universal APK
@@ -196,14 +196,35 @@ jobs:
       # --- NEW STEP: Prepare the build environment ---
       - name: Prepare Buildozer directories
         run: |
-          echo "Recreating directory structure for Buildozer..."
-          # The destination path where p4a expects to find distributions
+          echo "Recreating directory structure for universal build..."
+          # This is the destination p4a will look for multi-arch distributions
           DEST_DIR=".buildozer/android/platform/build-arm64-v8a_armeabi-v7a_x86_x86_64/dists/"
-          mkdir -p $DEST_DIR
-          # Move the downloaded distributions into the correct location
-          mv dists/*/* $DEST_DIR
-          echo "Distributions placed in:"
-          ls -l $DEST_DIR
+          mkdir -p "$DEST_DIR"
+
+          echo "Renaming and moving downloaded distributions..."
+          # Loop through the directories created by download-artifact (e.g., dists/dist-arm64-v8a/)
+          for artifact_dir in dists/dist-*; do
+            # Extract the arch from the directory name (e.g., 'dist-arm64-v8a' -> 'arm64-v8a')
+            arch=$(basename "$artifact_dir" | sed 's/dist-//')
+            
+            # The source path of the downloaded distribution (it's named 'ledfx')
+            src_dist_path="$artifact_dir/ledfx"
+            
+            # The destination path needs the p4a suffix format for multi-arch builds
+            dest_dist_path="$DEST_DIR/ledfx__$arch"
+            
+            if [ -d "$src_dist_path" ]; then
+              echo "Moving '$src_dist_path' to '$dest_dist_path'"
+              mv "$src_dist_path" "$dest_dist_path"
+            else
+              echo "ERROR: Could not find distribution at '$src_dist_path'"
+              exit 1
+            fi
+          done
+          
+          echo "--- Final distributions ready for packaging ---"
+          ls -l "$DEST_DIR"
+          echo "---------------------------------------------"
 
       - name: Configure buildozer.spec for universal build
         run: |
