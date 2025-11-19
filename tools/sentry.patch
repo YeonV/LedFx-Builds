@@ -136,7 +136,7 @@ index 63768137..00000000
 -        release=release,
 -    )
 diff --git a/pyproject.toml b/pyproject.toml
-index baa8a125..486bf062 100644
+index 9f332dc8..6bcd1002 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
 @@ -22,7 +22,6 @@ dependencies = [
@@ -145,5 +145,5 @@ index baa8a125..486bf062 100644
      "sacn>=1.9.0",
 -    "sentry-sdk>=1.40.4",
      "sounddevice>=0.4.6",
-     "samplerate>=0.2.1",
      "icmplib>=3.0.4",
+     "voluptuous>=0.14.1",
