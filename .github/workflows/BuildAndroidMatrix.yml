@@ -285,7 +285,6 @@ jobs:
         continue-on-error: true
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_LEDFX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
-          echo "✅ Keystore decoded successfully"FX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
           echo "✅ Keystore decoded successfully"
 
       - name: Sign APK with apksigner
@@ -309,7 +308,6 @@ jobs:
           echo "✅ APK signed successfully with production keystore"
 
       - name: Upload release artifact for ${{ matrix.arch }}
-      - name: Upload artifact for ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
           name: package-release-${{ matrix.arch }}
@@ -396,9 +394,9 @@ jobs:
   #         path: ./bin/*.apk
 
   release:
-    if: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
+    if: ${{ always() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: [build_archs] # build_universal
+    needs: [build_archs, build_archs_release] # build_universal
     permissions:
       contents: write
     steps:
