@@ -259,6 +259,22 @@ jobs:
       - name: List downloaded files
         run: ls -R apks/
 
+      - name: Extract release tag from upload URL
+        id: extract_tag
+        run: |
+          # Extract tag from upload URL like: https://uploads.github.com/repos/OWNER/REPO/releases/ID/assets{?name,label}
+          # We need to get the release ID and then query for the tag
+          RELEASE_ID=$(echo "${{ github.event.inputs.upload_url }}" | sed -n 's/.*\/releases\/\([0-9]*\)\/.*/\1/p')
+          echo "Release ID: $RELEASE_ID"
+          
+          # Get the tag name from the release
+          TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID" | \
+            jq -r '.tag_name')
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Extracted tag: $TAG"
+
       - name: Upload all APKs to Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -277,10 +293,14 @@ jobs:
               asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
               echo "Uploading $apk_file as $asset_name"
 
-              # Using the official GitHub CLI for robust uploads
-              gh release upload \
-                --clobber \
-                "${{ github.event.inputs.upload_url }}" \
-                "$apk_file#$asset_name"
+              # Rename the file to the desired asset name
+              cp "$apk_file" "$asset_name"
+              
+              # Using curl to upload directly to the release
+              curl -X POST \
+                -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/vnd.android.package-archive" \
+                --data-binary @"$asset_name" \
+                "${{ github.event.inputs.upload_url }}?name=$asset_name"
             fi
           done
