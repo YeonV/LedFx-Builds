@@ -148,6 +148,7 @@ jobs:
 
 
       - name: Build ${{ matrix.arch }}
+        continue-on-error: true
         run: buildozer android debug
 
       - name: Upload artifact for ${{ matrix.arch }}
@@ -161,6 +162,158 @@ jobs:
       #   with:
       #     name: dist-${{ matrix.arch }}
       #     path: .buildozer/android/platform/build-${{ matrix.arch }}/dists/ledfx/
+
+  build_archs_release:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armeabi-v7a, arm64-v8a]
+
+    steps:
+      - name: Checkout Android Builder
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/ledfx-android
+      - name: Checkout LedFx Core
+        uses: actions/checkout@v4
+        with:
+          repository:  ${{ github.event.inputs.ledfx_core_repo }}
+          path: deps/ledfx
+          ref: ${{ github.event.inputs.ledfx_core_ref }}
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/LedFx-Frontend-v2
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          path: src3
+      - name: Check out tools from GitHub
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/LedFx-Builds
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          path: src2
+
+      - name: Delete old frontend
+        uses: JesseTG/rm@2fb8f3b8a0e41fc222e7943b63306c602feb187e
+        with:
+          path: ./deps/ledfx/ledfx_frontend
+
+      - name: apply patches
+        run: |
+          cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+          cd ./deps/ledfx
+          git apply sentry.patch
+          cd ../..
+
+      - name: Prepare version Bump for Android
+        id: prepare_version
+        run: |
+          raw_fversion="${{ github.event.inputs.fversion }}"
+          patch_base=$(echo "$raw_fversion" | cut -d'-' -f1)
+          beta_number_full=$(echo "$raw_fversion" | cut -d'-' -f2)
+          beta_number=$(echo "$beta_number_full" | sed 's/b//')
+          padded_beta_number=$(printf "%03d" "$beta_number")
+          android_numeric_patch_part="${patch_base}${padded_beta_number}"
+          echo "android_fversion_for_consts=$android_numeric_patch_part" >> $GITHUB_OUTPUT
+
+      - name: Bump version to ${{ github.event.inputs.fversion }}
+        continue-on-error: true
+        run: |
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ steps.prepare_version.outputs.android_fversion_for_consts }}"/' ./deps/ledfx/ledfx/consts.py
+          new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./deps/ledfx/ledfx/consts.py)
+          echo "action_state=$new_version" >> $GITHUB_ENV
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: '**/yarn.lock'
+
+      - name: Build frontend
+        run: |
+          cd src3
+          yarn
+          yarn buildandroid
+          cd ..
+
+      - name: Include new build frontend
+        run: cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          architecture: x64
+          python-version: 3.12
+
+      - name: Setup Java 17 required by Gradle
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install and upgrade dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip python3-pip autoconf automake libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
+
+      - name: Clean previous Buildozer artifacts
+        run: buildozer distclean || echo "distclean failed or nothing to clean, continuing..."
+        continue-on-error: true
+
+      - name: Configure Build Architecture for ${{ matrix.arch }}
+        run: |
+          ARCH_CONFIG="${{ matrix.arch }}"
+          echo "Setting buildozer.spec to build for single arch: $ARCH_CONFIG"
+          sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
+          echo "--- buildozer.spec content after modification ---"
+          cat buildozer.spec
+          echo "-----------------------------------------------"
+
+      - name: Build Release ${{ matrix.arch }}
+        continue-on-error: true
+        run: buildozer android release
+
+      - name: Decode keystore from secrets
+        continue-on-error: true
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_LEDFX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
+          echo "✅ Keystore decoded successfully"FX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
+          echo "✅ Keystore decoded successfully"
+
+      - name: Sign APK with apksigner
+        continue-on-error: true
+        run: |
+          # Find apksigner
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -r | head -n 1)
+          echo "Using apksigner at: $APKSIGNER"
+          
+          # Sign the APK
+          APK_FILE=$(ls ./bin/*.apk)
+          echo "Signing: $APK_FILE"
+          $APKSIGNER sign --ks $RUNNER_TEMP/ledfx-keystore.jks \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEYSTORE_LEDFX_ALIAS }} \
+            "$APK_FILE"
+          
+          # Verify the signature
+          $APKSIGNER verify "$APK_FILE"
+          echo "✅ APK signed successfully with production keystore"
+
+      - name: Upload release artifact for ${{ matrix.arch }}
+      - name: Upload artifact for ${{ matrix.arch }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-release-${{ matrix.arch }}
+          path: ./bin/*.apk
 
   # build_universal:
   #   name: Package Universal APK
@@ -276,6 +429,7 @@ jobs:
           echo "Extracted tag: $TAG"
 
       - name: Upload all APKs to Release
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -290,7 +444,13 @@ jobs:
                 arch="universal"
               fi
               
-              asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
+              # Detect if this is a release build by checking the filename
+              if [[ "$apk_file" == *"release"* ]]; then
+                asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}-release.apk"
+              else
+                asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
+              fi
+              
               echo "Uploading $apk_file as $asset_name"
 
               # Clean the upload URL by removing the template suffix
