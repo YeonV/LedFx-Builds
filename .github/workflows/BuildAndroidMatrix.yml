@@ -193,33 +193,30 @@ jobs:
           pattern: dist-*
           merge-multiple: true
 
-      # --- NEW STEP: Prepare the build environment ---
       - name: Prepare Buildozer directories
         run: |
+          echo "--- Verifying downloaded artifact structure ---"
+          ls -R dists/
+          echo "---------------------------------------------"
+
           echo "Recreating directory structure for universal build..."
           # This is the destination p4a will look for multi-arch distributions
           DEST_DIR=".buildozer/android/platform/build-arm64-v8a_armeabi-v7a_x86_x86_64/dists/"
           mkdir -p "$DEST_DIR"
 
           echo "Renaming and moving downloaded distributions..."
-          # Loop through the directories created by download-artifact (e.g., dists/dist-arm64-v8a/)
-          for artifact_dir in dists/dist-*; do
-            # Extract the arch from the directory name (e.g., 'dist-arm64-v8a' -> 'arm64-v8a')
-            arch=$(basename "$artifact_dir" | sed 's/dist-//')
-            
-            # The source path of the downloaded distribution (it's named 'ledfx')
-            src_dist_path="$artifact_dir/ledfx"
-            
+          
+          # Use 'find' to robustly locate the source 'ledfx' directories
+          find dists -mindepth 2 -maxdepth 2 -type d -name ledfx | while read -r src_dist_path; do
+            # Extract the arch from the parent directory name 
+            # e.g., 'dists/dist-arm64-v8a/ledfx' -> 'arm64-v8a'
+            arch=$(echo "$src_dist_path" | cut -d'-' -f2 | cut -d'/' -f1)
+
             # The destination path needs the p4a suffix format for multi-arch builds
             dest_dist_path="$DEST_DIR/ledfx__$arch"
             
-            if [ -d "$src_dist_path" ]; then
-              echo "Moving '$src_dist_path' to '$dest_dist_path'"
-              mv "$src_dist_path" "$dest_dist_path"
-            else
-              echo "ERROR: Could not find distribution at '$src_dist_path'"
-              exit 1
-            fi
+            echo "Moving '$src_dist_path' to '$dest_dist_path'"
+            mv "$src_dist_path" "$dest_dist_path"
           done
           
           echo "--- Final distributions ready for packaging ---"
