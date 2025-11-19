@@ -27,12 +27,12 @@ on:
         default: 'main'
         required: true
 jobs:
-  build_apks:
+  build_archs:
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        arch: [armeabi-v7a, arm64-v8a, x86, x86_64, universal]
+        arch: [armeabi-v7a, arm64-v8a, x86, x86_64]
 
     steps:
       - name: Checkout Android Builder
@@ -132,7 +132,6 @@ jobs:
         run: buildozer distclean || echo "distclean failed or nothing to clean, continuing..."
         continue-on-error: true
 
-      # --- FIX: Directly modify buildozer.spec with sed ---
       - name: Configure Build Architecture for ${{ matrix.arch }}
         run: |
           if [[ "${{ matrix.arch }}" == "universal" ]]; then
@@ -157,10 +156,78 @@ jobs:
           name: package-${{ matrix.arch }}
           path: ./bin/*.apk
 
+      - name: Upload compiled distribution for ${{ matrix.arch }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.arch }}
+          path: .buildozer/android/platform/build-*/dists/ledfx__*/
+
+  build_universal:
+    name: Package Universal APK
+    runs-on: ubuntu-22.04
+    needs: build_archs # This job starts only after all arch builds are done
+    steps:
+      # We need to check out the code again for the buildozer.spec file
+      - name: Checkout Android Builder
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/ledfx-android
+
+      # Setup is minimal, no need to build the frontend again
+      - name: Setup Java 17 and other dependencies
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Install Buildozer
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3-pip
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade git+https://github.com/kivy/buildozer
+
+      # --- NEW STEP: Download all the distributions ---
+      - name: Download all compiled distributions
+        uses: actions/download-artifact@v4
+        with:
+          path: dists/
+          pattern: dist-*
+          merge-multiple: true
+
+      # --- NEW STEP: Prepare the build environment ---
+      - name: Prepare Buildozer directories
+        run: |
+          echo "Recreating directory structure for Buildozer..."
+          # The destination path where p4a expects to find distributions
+          DEST_DIR=".buildozer/android/platform/build-arm64-v8a_armeabi-v7a_x86_x86_64/dists/"
+          mkdir -p $DEST_DIR
+          # Move the downloaded distributions into the correct location
+          mv dists/*/* $DEST_DIR
+          echo "Distributions placed in:"
+          ls -l $DEST_DIR
+
+      - name: Configure buildozer.spec for universal build
+        run: |
+          ARCH_CONFIG="arm64-v8a, armeabi-v7a, x86, x86_64"
+          sed -i "s/^\(android\.archs\s*=\s*\).*\$/\1$ARCH_CONFIG/" buildozer.spec
+
+      # --- NEW STEP: Package the APK without recompiling ---
+      - name: Package universal APK from existing distributions
+        run: |
+          # This command tells buildozer to use python-for-android to build an APK
+          # using existing distributions, skipping the compilation.
+          # You might need to adjust '--dist-name' if you've changed it in your spec.
+          buildozer android p4a --apk --dist-name ledfx --archs="arm64-v8a,armeabi-v7a,x86,x86_64"
+
+      - name: Upload universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-universal
+          path: ./bin/*.apk
+
   release:
     if: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: build_apks
+    needs: [build_archs, build_universal]
     permissions:
       contents: write
     steps:
