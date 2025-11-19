@@ -279,7 +279,7 @@ jobs:
 
       - name: Build Release ${{ matrix.arch }}
         continue-on-error: true
-        run: buildozer android release
+        run: buildozer android release --release-format apk
 
       - name: Decode keystore from secrets
         continue-on-error: true
