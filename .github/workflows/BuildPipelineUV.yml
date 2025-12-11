@@ -899,7 +899,7 @@ jobs:
         if: ${{ env.IS_OSX_ARM64 == 'false' }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'yarn'
           cache-dependency-path: '**/yarn.lock'
           # architecture: ${{ matrix.arch }}
@@ -908,7 +908,7 @@ jobs:
         if: ${{ env.IS_OSX_ARM64 == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           architecture: arm64
           cache: 'yarn'
           cache-dependency-path: '**/yarn.lock'
