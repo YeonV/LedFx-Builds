@@ -97,20 +97,19 @@ jobs:
 
           ---
 
-          ## ⚠️ These builds are not signed  (read this please):
+          ## 🔐 Code Signing Status:
 
           <details><summary>Mac-Users:</summary>
 
-          #### Infos:
-          Reports as damaged, because of unsiged.
-          To fix it open Terminal and type in the following (with a SPACE at the end):
-
-          <code>sudo xattr -cr </code>
-
-          Then drag'n'drop the LedFx.app File into the terminal and hit enter -> it should ask for sudo password
-
-          Now you can open the App normally, give microphone and network permission, and you can even drag it into your applications.
-          Maybe at some point we might buy an apple dev-license for 99€/year, then the voodoo would not be needed anymore.
+          #### ✅ macOS builds are now signed and notarized!
+          
+          All macOS builds (Client and CC) are:
+          - Code signed with Apple Developer ID
+          - Notarized by Apple
+          - Include proper entitlements for hardened runtime
+          
+          You should be able to open the app normally without any xattr workarounds.
+          If you still see warnings, please report them as issues.
 
           </details>
 
@@ -229,7 +228,7 @@ jobs:
             os_list+=('ubuntu-latest')
           fi
           if [ "${{ env.BUILD_OSX_X64 == 'true' }}" = "true" ]; then
-            os_list+=('macos-13')
+            os_list+=('macos-15-intel')
           fi
           if [ "${{ env.BUILD_OSX_ARM64 == 'true' }}" = "true" ]; then
             os_list+=('macos-latest')
@@ -252,7 +251,7 @@ jobs:
     env:
       IS_RELEASE: ${{ github.event.inputs.release == 'Yes' && 'true' || 'false' }}
       IS_OSX_ARM64: ${{ startsWith(matrix.OS, 'macos-latest') }}
-      IS_OSX_X64: ${{ startsWith(matrix.OS, 'macos-13') }}
+      IS_OSX_X64: ${{ startsWith(matrix.OS, 'macos-15-intel') }}
       IS_WIN: ${{ startsWith(matrix.OS, 'windows') }}
       IS_LINUX: ${{ startsWith(matrix.OS, 'ubuntu') }}
       BUILD_OSX_ARM64: ${{ github.event.inputs.osxarm64 == 'true' && 'true' || 'false' }}
@@ -473,6 +472,77 @@ jobs:
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
           xattr -cr ./LedFx.app
+
+      - name: Sign and Notarize Core osx-x64
+        if: ${{ env.IS_OSX_X64 == 'true' && env.BUILD_OSX_X64 == 'true' }}
+        run: |
+          cd src
+          
+          echo "Signing LedFx.app Core with inside-out approach..."
+          
+          # Step 1: Sign all .so and .dylib files
+          echo "Step 1: Signing shared libraries..."
+          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) | while read file; do
+            echo "  Signing: $file"
+            codesign --force --sign "$CODESIGN_IDENTITY" \
+              --timestamp \
+              --options runtime \
+              "$file" || echo "    Warning: Failed to sign $file"
+          done
+          
+          # Step 2: Sign all executables (except the main one)
+          echo "Step 2: Signing executables..."
+          find LedFx.app/Contents/MacOS -type f -perm +111 ! -name "LedFx_v2" | while read file; do
+            echo "  Signing: $file"
+            codesign --force --sign "$CODESIGN_IDENTITY" \
+              --timestamp \
+              --options runtime \
+              "$file" || echo "    Warning: Failed to sign $file"
+          done
+          
+          # Step 3: Sign the main executable
+          echo "Step 3: Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            LedFx.app/Contents/MacOS/LedFx_v2
+          
+          # Step 4: Sign the app bundle itself
+          echo "Step 4: Signing LedFx.app bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            LedFx.app
+          
+          # Verify the signature
+          echo "Verifying LedFx.app signature..."
+          codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          # Create zip for notarization
+          echo "Creating zip for notarization..."
+          ditto -c -k --keepParent LedFx.app LedFx.zip
+          
+          # Submit for notarization
+          echo "Submitting for notarization..."
+          xcrun notarytool submit LedFx.zip \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          
+          # Staple the notarization ticket
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple LedFx.app
+          
+          # Verify notarization
+          echo "Verifying notarization..."
+          spctl -a -vvv -t execute LedFx.app
+          
+          echo "✅ LedFx.app Core signing and notarization complete"
+          
+          # Create final tarball
           tar -czf my_files.tar ./LedFx.app
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-arm64
@@ -487,6 +557,77 @@ jobs:
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
+
+      - name: Sign and Notarize Core osx-arm64
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+        run: |
+          cd src
+          
+          echo "Signing LedFx.app Core with inside-out approach..."
+          
+          # Step 1: Sign all .so and .dylib files
+          echo "Step 1: Signing shared libraries..."
+          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) | while read file; do
+            echo "  Signing: $file"
+            codesign --force --sign "$CODESIGN_IDENTITY" \
+              --timestamp \
+              --options runtime \
+              "$file" || echo "    Warning: Failed to sign $file"
+          done
+          
+          # Step 2: Sign all executables (except the main one)
+          echo "Step 2: Signing executables..."
+          find LedFx.app/Contents/MacOS -type f -perm +111 ! -name "LedFx_v2" | while read file; do
+            echo "  Signing: $file"
+            codesign --force --sign "$CODESIGN_IDENTITY" \
+              --timestamp \
+              --options runtime \
+              "$file" || echo "    Warning: Failed to sign $file"
+          done
+          
+          # Step 3: Sign the main executable
+          echo "Step 3: Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            LedFx.app/Contents/MacOS/LedFx_v2
+          
+          # Step 4: Sign the app bundle itself
+          echo "Step 4: Signing LedFx.app bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            LedFx.app
+          
+          # Verify the signature
+          echo "Verifying LedFx.app signature..."
+          codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          # Create zip for notarization
+          echo "Creating zip for notarization..."
+          ditto -c -k --keepParent LedFx.app LedFx.zip
+          
+          # Submit for notarization
+          echo "Submitting for notarization..."
+          xcrun notarytool submit LedFx.zip \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          
+          # Staple the notarization ticket
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple LedFx.app
+          
+          # Verify notarization
+          echo "Verifying notarization..."
+          spctl -a -vvv -t execute LedFx.app
+          
+          echo "✅ LedFx.app Core signing and notarization complete"
+          
+          # Create final tarball
           tar -czf my_files.tar ./LedFx.app
 
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} linux
@@ -723,6 +864,73 @@ jobs:
 
       - name: Disable CI checks
         run: echo "CI=false" >> $GITHUB_ENV
+
+      # Code Signing and Notarization Setup for macOS
+      - name: Import macOS Code Signing Certificate
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          
+          # Import certificate from secrets
+          echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      - name: Set up Apple API Key for Notarization
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        env:
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          # Create the private key file
+          mkdir -p ~/private_keys
+          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          
+          # Export environment variables for notarization
+          echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
+          echo "APPLE_API_KEY=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
+          echo "APPLE_API_ISSUER=${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" >> $GITHUB_ENV
+
+      - name: Detect Code Signing Identity
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          # Find the Developer ID Application certificate
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | grep -o '[A-F0-9]\{40\}')
+          echo "Found signing identity: $IDENTITY"
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> $GITHUB_ENV
+
+      - name: Verify LedFx_core.app signature (already signed)
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          cd frontend
+          
+          # Verify that the copied LedFx_core.app is already signed
+          if [ -d "extraResources/LedFx_core.app" ]; then
+            echo "Verifying pre-signed LedFx_core.app..."
+            codesign --verify --deep --strict --verbose=2 extraResources/LedFx_core.app
+            spctl -a -vvv -t execute extraResources/LedFx_core.app
+            echo "✅ LedFx_core.app is already signed and notarized (no re-signing needed)"
+          else
+            echo "Warning: LedFx_core.app not found"
+          fi
+
       - name: Building Clients
         run: |
           cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
@@ -1039,6 +1247,19 @@ jobs:
         with:
           name: LedFx_CC-v${{ env.action_state }}--mac-x64.zip
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-x64.zip
+
+      # Cleanup: Remove certificate and API key for security
+      - name: Cleanup macOS Code Signing
+        if: ${{ always() && (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          # Remove the keychain
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          
+          # Remove the API key file
+          rm -f ~/private_keys/AuthKey_*.p8 || true
+          
+          # Remove the certificate file
+          rm -f $RUNNER_TEMP/certificate.p12 || true
 
 #      - name: Send Discord Release Post
 #        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' }}
