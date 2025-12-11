@@ -459,6 +459,57 @@ jobs:
           cd src
           cd installer && makensis ledfx.nsi && ls -la && cd ..
 
+      # Code Signing and Notarization Setup for macOS (must run before building Core)
+      - name: Import macOS Code Signing Certificate
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          
+          # Import certificate from secrets
+          echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      - name: Set up Apple API Key for Notarization
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        env:
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          # Create the private key file
+          mkdir -p ~/private_keys
+          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          
+          # Export environment variables for notarization
+          echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
+          echo "APPLE_API_KEY=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
+          echo "APPLE_API_ISSUER=${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" >> $GITHUB_ENV
+
+      - name: Detect Code Signing Identity
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          # Find the Developer ID Application certificate
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | grep -o '[A-F0-9]\{40\}')
+          echo "Found signing identity: $IDENTITY"
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> $GITHUB_ENV
+
       - name: Build ${{ env.BINARY_NAME }}${{ env.action_state }} osx-x64
         if: ${{ env.IS_OSX_X64 == 'true' }}
         run: |
@@ -864,57 +915,6 @@ jobs:
 
       - name: Disable CI checks
         run: echo "CI=false" >> $GITHUB_ENV
-
-      # Code Signing and Notarization Setup for macOS
-      - name: Import macOS Code Signing Certificate
-        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
-        env:
-          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          # Create variables
-          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-          
-          # Import certificate from secrets
-          echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          
-          # Create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          
-          # Import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-          
-          # Allow codesign to access the keychain
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-      - name: Set up Apple API Key for Notarization
-        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
-        env:
-          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          # Create the private key file
-          mkdir -p ~/private_keys
-          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
-          
-          # Export environment variables for notarization
-          echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
-          echo "APPLE_API_KEY=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
-          echo "APPLE_API_ISSUER=${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" >> $GITHUB_ENV
-
-      - name: Detect Code Signing Identity
-        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
-        run: |
-          # Find the Developer ID Application certificate
-          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | grep -o '[A-F0-9]\{40\}')
-          echo "Found signing identity: $IDENTITY"
-          echo "CODESIGN_IDENTITY=$IDENTITY" >> $GITHUB_ENV
 
       - name: Verify LedFx_core.app signature (already signed)
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
