@@ -878,6 +878,50 @@ jobs:
           cp -r ./src/LedFx_core--v${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
           ls ./frontend/extraResources/LedFx
 
+      - name: Copy Loopback Driver and Audio Manager for macOS ARM64
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+        run: |
+          mkdir -p ./frontend/extraResources
+          cp -r ./src2/tools/mac/loopback/driver/build/Release/LedFx.driver ./frontend/extraResources/
+          cp ./src2/tools/mac/loopback/manager/audio_manager ./frontend/extraResources/
+          ls -la ./frontend/extraResources
+
+      - name: Sign Loopback Driver and Audio Manager for macOS ARM64
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+        run: |
+          echo "Signing LedFx.driver and audio_manager..."
+          
+          # Sign all binaries in the driver bundle
+          echo "Signing driver bundle contents..."
+          find ./frontend/extraResources/LedFx.driver -type f \( -name "*.dylib" -o -perm +111 \) | while read file; do
+            echo "  Signing: $file"
+            codesign --force --sign "$CODESIGN_IDENTITY" \
+              --timestamp \
+              --options runtime \
+              "$file" || echo "    Warning: Failed to sign $file"
+          done
+          
+          # Sign the driver bundle itself
+          echo "Signing LedFx.driver bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            ./frontend/extraResources/LedFx.driver
+          
+          # Sign the audio_manager executable
+          echo "Signing audio_manager..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            ./frontend/extraResources/audio_manager
+          
+          # Verify signatures
+          echo "Verifying signatures..."
+          codesign --verify --deep --strict --verbose=2 ./frontend/extraResources/LedFx.driver
+          codesign --verify --verbose=2 ./frontend/extraResources/audio_manager
+          
+          echo "✅ LedFx.driver and audio_manager signing complete"
+
       - name: Move Core-osx
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
         continue-on-error: true
