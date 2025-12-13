@@ -184,14 +184,14 @@ jobs:
           draft: false
           prerelease: true
 
-      - name: Trigger Build Android
-        continue-on-error: true
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: LedFx BuildPipeline Android
-          repo: YeonV/LedFx-Builds
-          token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
+      # - name: Trigger Build Android
+      #   continue-on-error: true
+      #   uses: benc-uk/workflow-dispatch@v1
+      #   with:
+      #     workflow: LedFx BuildPipeline Android
+      #     repo: YeonV/LedFx-Builds
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
 
       - name: Trigger Build Android Matrix
         continue-on-error: true
@@ -1055,12 +1055,36 @@ jobs:
             echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
 
+      - name: Debug Apple API Credentials for electron-builder
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          echo "🔍 Checking Apple API credentials that will be passed to electron-builder..."
+          
+          KEY_PATH="$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8"
+          echo "📁 APPLE_API_KEY (path): $KEY_PATH"
+          
+          if [ -f "$KEY_PATH" ]; then
+            echo "✅ File exists at: $KEY_PATH"
+            echo "   File size: $(wc -c < "$KEY_PATH") bytes"
+            echo "   First line: $(head -n 1 "$KEY_PATH")"
+          else
+            echo "❌ File NOT found at: $KEY_PATH"
+            echo "   Contents of ~/private_keys/:"
+            ls -la ~/private_keys/ || echo "   Directory doesn't exist!"
+          fi
+          
+          KEY_ID="${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}"
+          echo "🔑 APPLE_API_KEY_ID: ${KEY_ID:0:3}...${KEY_ID: -3}"
+          
+          ISSUER="${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+          echo "🏢 APPLE_API_ISSUER: ${ISSUER:0:8}...${ISSUER: -6}"
+
       - name: Building Clients
         run: |
           cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_API_KEY: /Users/runner/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          APPLE_API_KEY: $HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
           APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
