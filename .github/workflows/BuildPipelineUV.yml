@@ -928,12 +928,97 @@ jobs:
         run: |
           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
           
-          # Remove .dist-info directories that cause codesign to fail
-          echo "Cleaning .dist-info directories from LedFx_core.app..."
-          find ./frontend/extraResources/LedFx_core.app -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+          echo "🧹 NUCLEAR cleanup of LedFx_core.app - removing EVERYTHING non-essential..."
           
-          echo ------------           
-          ls ./frontend/extraResources
+          cd ./frontend/extraResources/LedFx_core.app
+          
+          # Remove all metadata directories
+          find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null || true
+          
+          # Remove ALL text/doc files of ANY kind
+          find . -type f \( -name "*.md" -o -name "*.txt" -o -name "*.rst" -o -name "*.html" -o -name "*.json" -o -name "*.xml" -o -name "*.yaml" -o -name "*.yml" -o -name "*.toml" -o -name "*.cfg" -o -name "*.ini" -o -name "LICENSE*" -o -name "README*" -o -name "COPYING*" -o -name "AUTHORS*" -o -name "CHANGELOG*" -o -name "NOTICE*" -o -name "MANIFEST*" \) -delete 2>/dev/null || true
+          
+          # Remove Python source files (keep only compiled)
+          find ./Contents/Frameworks -type f \( -name "*.py" -o -name "*.pyx" -o -name "*.pxd" -o -name "*.pyi" -o -name "*.pyc" \) -delete 2>/dev/null || true
+          
+          # Remove test/example/docs directories
+          find . -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "example" -o -name "demos" -o -name "docs" -o -name "doc" -o -name "samples" \) -exec rm -rf {} + 2>/dev/null || true
+          
+          # Remove any remaining non-binary files in Frameworks
+          find ./Contents/Frameworks -type f ! -name "*.dylib" ! -name "*.so" ! -perm +111 -delete 2>/dev/null || true
+          
+          cd -
+          
+          echo "✅ Cleanup complete"
+          echo "📦 Contents of extraResources:"
+          ls -la ./frontend/extraResources
+
+      - name: Sign LedFx_core.app with correct entitlements
+        if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
+        run: |
+          set -e
+          echo "🔐 Signing LedFx_core.app (replicating frontend's sign-ledfx-core.sh)..."
+          
+          CORE_APP="./frontend/extraResources/LedFx_core.app"
+          ENTITLEMENTS="./frontend/entitlements.mac.core.plist"
+          
+          # Verify entitlements file exists
+          if [ ! -f "$ENTITLEMENTS" ]; then
+            echo "❌ Entitlements file not found: $ENTITLEMENTS"
+            exit 1
+          fi
+          
+          echo "📋 Using entitlements: $ENTITLEMENTS"
+          echo "🔑 Using identity: $CODESIGN_IDENTITY"
+          
+          # Remove ALL existing signatures first
+          echo "🗑️  Removing all existing signatures..."
+          codesign --remove-signature "$CORE_APP" 2>/dev/null || true
+          find "$CORE_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) | while read file; do
+            codesign --remove-signature "$file" 2>/dev/null || true
+          done
+          codesign --remove-signature "$CORE_APP/Contents/MacOS/LedFx_v2" 2>/dev/null || true
+          
+          # Sign from inside-out: libraries → executables → main binary → bundle with entitlements
+          echo "📝 Signing libraries..."
+          find "$CORE_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) | sort | while read file; do
+            if file "$file" | grep -q "Mach-O"; then
+              echo "  📦 $(basename "$file")"
+              codesign --force --sign "$CODESIGN_IDENTITY" \
+                --timestamp \
+                --options runtime \
+                "$file" || { echo "❌ Failed: $file"; exit 1; }
+            fi
+          done
+          
+          echo "🔧 Signing executables..."
+          find "$CORE_APP/Contents/Frameworks" -type f -perm +111 ! -name "*.dylib" ! -name "*.so" | sort | while read file; do
+            if file "$file" | grep -q "Mach-O"; then
+              echo "  ⚙️  $(basename "$file")"
+              codesign --force --sign "$CODESIGN_IDENTITY" \
+                --timestamp \
+                --options runtime \
+                "$file" || { echo "❌ Failed: $file"; exit 1; }
+            fi
+          done
+          
+          echo "🎯 Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            "$CORE_APP/Contents/MacOS/LedFx_v2" || { echo "❌ Failed"; exit 1; }
+          
+          echo "📦 Signing app bundle with entitlements..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements "$ENTITLEMENTS" \
+            "$CORE_APP" || { echo "❌ Failed"; exit 1; }
+          
+          echo "✅ Verifying signatures..."
+          codesign --verify --deep --strict --verbose=2 "$CORE_APP" || { echo "❌ Verification failed"; exit 1; }
+          
+          echo "🎉 LedFx_core.app signed successfully with core entitlements!"
 
       - name: Move Core Linux
         if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
@@ -965,19 +1050,14 @@ jobs:
       - name: Disable CI checks
         run: echo "CI=false" >> $GITHUB_ENV
 
-      - name: Verify LedFx_core.app signature (already signed)
+      - name: Disable frontend's predistcc script for macOS
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
         run: |
+          # Rename predistcc-darwin.sh so npm won't execute it (we already signed LedFx_core.app above)
           cd frontend
-          
-          # Verify that the copied LedFx_core.app is already signed
-          if [ -d "extraResources/LedFx_core.app" ]; then
-            echo "Verifying pre-signed LedFx_core.app..."
-            codesign --verify --deep --strict --verbose=2 extraResources/LedFx_core.app
-            spctl -a -vvv -t execute extraResources/LedFx_core.app
-            echo "✅ LedFx_core.app is already signed and notarized (no re-signing needed)"
-          else
-            echo "Warning: LedFx_core.app not found"
+          if [ -f "scripts/predistcc-darwin.sh" ]; then
+            mv scripts/predistcc-darwin.sh scripts/predistcc-darwin.sh.disabled
+            echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
 
       - name: Building Clients
