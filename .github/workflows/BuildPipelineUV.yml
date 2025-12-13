@@ -529,54 +529,52 @@ jobs:
         run: |
           cd src
           
-          echo "Signing LedFx.app Core with inside-out approach..."
+          echo "🔐 Signing LedFx.app Core..."
           
-          # Step 1: Sign all .so and .dylib files
-          echo "Step 1: Signing shared libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) | while read file; do
-            echo "  Signing: $file"
-            codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Remove existing signature
+          codesign --remove-signature LedFx.app 2>/dev/null || true
+          
+          # Sign ALL .so and .dylib files (inside-out approach)
+          echo "📝 Signing native libraries..."
+          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
+            echo "   Signing: $file"
+            codesign --sign "$CODESIGN_IDENTITY" \
+              --force \
               --timestamp \
               --options runtime \
-              "$file" || echo "    Warning: Failed to sign $file"
+              "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          # Step 2: Sign all executables (except the main one)
-          echo "Step 2: Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 ! -name "LedFx_v2" | while read file; do
-            echo "  Signing: $file"
-            codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign executables in Contents/MacOS only
+          echo "📝 Signing executables..."
+          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
+            echo "   Signing: $(basename "$file")"
+            codesign --sign "$CODESIGN_IDENTITY" \
+              --force \
               --timestamp \
               --options runtime \
-              "$file" || echo "    Warning: Failed to sign $file"
+              "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          # Step 3: Sign the main executable
-          echo "Step 3: Signing main executable..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
-            LedFx.app/Contents/MacOS/LedFx_v2
-          
-          # Step 4: Sign the app bundle itself
-          echo "Step 4: Signing LedFx.app bundle..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign the app bundle with entitlements
+          echo "📝 Signing app bundle..."
+          codesign --sign "$CODESIGN_IDENTITY" \
+            --force \
             --timestamp \
             --options runtime \
             --entitlements ../src2/tools/mac/entitlements.plist \
             LedFx.app
           
           # Verify the signature
-          echo "Verifying LedFx.app signature..."
+          echo "✅ Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
           
           # Create zip for notarization
-          echo "Creating zip for notarization..."
+          echo "📦 Creating zip for notarization..."
           ditto -c -k --keepParent LedFx.app LedFx.zip
           
           # Submit for notarization
-          echo "Submitting for notarization..."
+          echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
             --key-id "$APPLE_API_KEY" \
@@ -584,11 +582,11 @@ jobs:
             --wait
           
           # Staple the notarization ticket
-          echo "Stapling notarization ticket..."
+          echo "📎 Stapling notarization ticket..."
           xcrun stapler staple LedFx.app
           
           # Verify notarization
-          echo "Verifying notarization..."
+          echo "✅ Verifying notarization..."
           spctl -a -vvv -t execute LedFx.app
           
           echo "✅ LedFx.app Core signing and notarization complete"
@@ -614,54 +612,52 @@ jobs:
         run: |
           cd src
           
-          echo "Signing LedFx.app Core with inside-out approach..."
+          echo "🔐 Signing LedFx.app Core..."
           
-          # Step 1: Sign all .so and .dylib files
-          echo "Step 1: Signing shared libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) | while read file; do
-            echo "  Signing: $file"
-            codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Remove existing signature
+          codesign --remove-signature LedFx.app 2>/dev/null || true
+          
+          # Sign ALL .so and .dylib files (inside-out approach)
+          echo "📝 Signing native libraries..."
+          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
+            echo "   Signing: $file"
+            codesign --sign "$CODESIGN_IDENTITY" \
+              --force \
               --timestamp \
               --options runtime \
-              "$file" || echo "    Warning: Failed to sign $file"
+              "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          # Step 2: Sign all executables (except the main one)
-          echo "Step 2: Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 ! -name "LedFx_v2" | while read file; do
-            echo "  Signing: $file"
-            codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign executables in Contents/MacOS only
+          echo "📝 Signing executables..."
+          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
+            echo "   Signing: $(basename "$file")"
+            codesign --sign "$CODESIGN_IDENTITY" \
+              --force \
               --timestamp \
               --options runtime \
-              "$file" || echo "    Warning: Failed to sign $file"
+              "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          # Step 3: Sign the main executable
-          echo "Step 3: Signing main executable..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
-            LedFx.app/Contents/MacOS/LedFx_v2
-          
-          # Step 4: Sign the app bundle itself
-          echo "Step 4: Signing LedFx.app bundle..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign the app bundle with entitlements
+          echo "📝 Signing app bundle..."
+          codesign --sign "$CODESIGN_IDENTITY" \
+            --force \
             --timestamp \
             --options runtime \
             --entitlements ../src2/tools/mac/entitlements.plist \
             LedFx.app
           
           # Verify the signature
-          echo "Verifying LedFx.app signature..."
+          echo "✅ Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
           
           # Create zip for notarization
-          echo "Creating zip for notarization..."
+          echo "📦 Creating zip for notarization..."
           ditto -c -k --keepParent LedFx.app LedFx.zip
           
           # Submit for notarization
-          echo "Submitting for notarization..."
+          echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
             --key-id "$APPLE_API_KEY" \
@@ -669,11 +665,11 @@ jobs:
             --wait
           
           # Staple the notarization ticket
-          echo "Stapling notarization ticket..."
+          echo "📎 Stapling notarization ticket..."
           xcrun stapler staple LedFx.app
           
           # Verify notarization
-          echo "Verifying notarization..."
+          echo "✅ Verifying notarization..."
           spctl -a -vvv -t execute LedFx.app
           
           echo "✅ LedFx.app Core signing and notarization complete"
@@ -946,12 +942,6 @@ jobs:
           
           # Remove any remaining non-binary files in Frameworks
           find ./Contents/Frameworks -type f ! -name "*.dylib" ! -name "*.so" ! -perm +111 -delete 2>/dev/null || true
-          
-          # FIX: Rename .dylibs directories to dylibs (remove dot) to prevent codesign confusion
-          find ./Contents/Frameworks -type d -name ".dylibs" -o -name "__dot__dylibs" | while read dir; do
-            parent=$(dirname "$dir")
-            mv "$dir" "$parent/dylibs" 2>/dev/null || true
-          done
           
           cd -
           
