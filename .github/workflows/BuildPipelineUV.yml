@@ -927,6 +927,11 @@ jobs:
         continue-on-error: true
         run: |
           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          
+          # Remove .dist-info directories that cause codesign to fail
+          echo "Cleaning .dist-info directories from LedFx_core.app..."
+          find ./frontend/extraResources/LedFx_core.app -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+          
           echo ------------           
           ls ./frontend/extraResources
 
