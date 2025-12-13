@@ -1054,6 +1054,12 @@ jobs:
             mv scripts/predistcc-darwin.sh scripts/predistcc-darwin.sh.disabled
             echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
+          
+          # Rename notarize.cjs so electron-builder won't call it (electron-builder already notarizes)
+          if [ -f "scripts/notarize.cjs" ]; then
+            mv scripts/notarize.cjs scripts/notarize.cjs.disabled
+            echo "✅ Disabled notarize.cjs (electron-builder handles notarization)"
+          fi
 
       - name: Debug Apple API Credentials for electron-builder
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
