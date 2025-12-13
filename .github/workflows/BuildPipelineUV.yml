@@ -1055,10 +1055,17 @@ jobs:
             echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
           
-          # Rename notarize.cjs so electron-builder won't call it (electron-builder already notarizes)
+          # Replace notarize.cjs with a stub (electron-builder already notarizes)
           if [ -f "scripts/notarize.cjs" ]; then
-            mv scripts/notarize.cjs scripts/notarize.cjs.disabled
-            echo "✅ Disabled notarize.cjs (electron-builder handles notarization)"
+            mv scripts/notarize.cjs scripts/notarize.cjs.original
+            cat > scripts/notarize.cjs << 'EOF'
+          // Stub notarize script - electron-builder handles notarization in CI
+          exports.default = async function notarizing(context) {
+            console.log('Skipping notarize.cjs - electron-builder already handled notarization');
+            return;
+          };
+          EOF
+            echo "✅ Replaced notarize.cjs with stub (electron-builder handles notarization)"
           fi
 
       - name: Debug Apple API Credentials for electron-builder
