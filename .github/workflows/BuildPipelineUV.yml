@@ -947,6 +947,12 @@ jobs:
           # Remove any remaining non-binary files in Frameworks
           find ./Contents/Frameworks -type f ! -name "*.dylib" ! -name "*.so" ! -perm +111 -delete 2>/dev/null || true
           
+          # FIX: Rename .dylibs directories to dylibs (remove dot) to prevent codesign confusion
+          find ./Contents/Frameworks -type d -name ".dylibs" -o -name "__dot__dylibs" | while read dir; do
+            parent=$(dirname "$dir")
+            mv "$dir" "$parent/dylibs" 2>/dev/null || true
+          done
+          
           cd -
           
           echo "✅ Cleanup complete"
