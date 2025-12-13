@@ -971,55 +971,46 @@ jobs:
           echo "📋 Using entitlements: $ENTITLEMENTS"
           echo "🔑 Using identity: $CODESIGN_IDENTITY"
           
-          # Remove ALL existing signatures first
-          echo "🗑️  Removing all existing signatures..."
+          # Remove existing signature from app bundle
+          echo "🗑️  Removing existing signatures..."
           codesign --remove-signature "$CORE_APP" 2>/dev/null || true
-          find "$CORE_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" -o -perm +111 \) | while read file; do
-            codesign --remove-signature "$file" 2>/dev/null || true
-          done
-          codesign --remove-signature "$CORE_APP/Contents/MacOS/LedFx_v2" 2>/dev/null || true
           
-          # Sign ALL libraries including those in hidden .dylibs directories
-          echo "📝 Signing ALL libraries (including .dylibs directories)..."
-          find "$CORE_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) | sort | while read file; do
-            if file "$file" | grep -q "Mach-O"; then
-              echo "  📦 $(echo $file | sed "s|$CORE_APP/Contents/Frameworks/||")"
-              codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign ALL .so and .dylib files first (inside-out approach)
+          echo "📝 Signing native libraries (.so and .dylib files)..."
+          find "$CORE_APP" -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
+            echo "   Signing: $(echo "$file" | sed "s|$CORE_APP/||")"
+            codesign --sign "$CODESIGN_IDENTITY" \
+                --force \
                 --timestamp \
                 --options runtime \
-                "$file" || { echo "❌ Failed: $file"; exit 1; }
-            fi
+                "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          # Sign all executables in Frameworks (including those in .dylibs dirs)
-          echo "🔧 Signing ALL executables..."
-          find "$CORE_APP/Contents/Frameworks" -type f -perm +111 ! -name "*.dylib" ! -name "*.so" | sort | while read file; do
-            if file "$file" | grep -q "Mach-O"; then
-              echo "  ⚙️  $(echo $file | sed "s|$CORE_APP/Contents/Frameworks/||")"
-              codesign --force --sign "$CODESIGN_IDENTITY" \
+          # Sign executables in Contents/MacOS only
+          echo "📝 Signing executables in Contents/MacOS..."
+          find "$CORE_APP/Contents/MacOS" -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
+            echo "   Signing: $(basename "$file")"
+            codesign --sign "$CODESIGN_IDENTITY" \
+                --force \
                 --timestamp \
                 --options runtime \
-                "$file" || { echo "❌ Failed: $file"; exit 1; }
-            fi
+                "$file" 2>&1 | grep -v "replacing existing signature" || true
           done
           
-          echo "🎯 Signing main executable..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            "$CORE_APP/Contents/MacOS/LedFx_v2" || { echo "❌ Failed"; exit 1; }
+          # Finally sign the app bundle itself with entitlements
+          echo "📝 Signing app bundle with entitlements..."
+          codesign --sign "$CODESIGN_IDENTITY" \
+              --force \
+              --timestamp \
+              --options runtime \
+              --entitlements "$ENTITLEMENTS" \
+              "$CORE_APP"
           
-          echo "📦 Signing app bundle with entitlements..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            --entitlements "$ENTITLEMENTS" \
-            "$CORE_APP" || { echo "❌ Failed"; exit 1; }
+          # Verify the signature
+          echo "✅ Verifying signature..."
+          codesign --verify --deep --strict --verbose=2 "$CORE_APP"
           
-          echo "✅ Verifying signatures..."
-          codesign --verify --deep --strict --verbose=2 "$CORE_APP" || { echo "❌ Verification failed"; exit 1; }
-          
-          echo "🎉 LedFx_core.app signed successfully with core entitlements!"
+          echo "✅ LedFx Core signed successfully!"
 
       - name: Move Core Linux
         if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
