@@ -971,6 +971,13 @@ jobs:
           echo "🗑️  Removing existing signatures..."
           codesign --remove-signature "$CORE_APP" 2>/dev/null || true
           
+          # FIX: Remove problematic .dylibs directories that codesign sees as malformed bundles
+          echo "🧹 Removing .dylibs directories..."
+          find "$CORE_APP" -type d -name ".dylibs" -print0 | while IFS= read -r -d '' dir; do
+            echo "   Removing: $(echo "$dir" | sed "s|$CORE_APP/||")"
+            rm -rf "$dir"
+          done
+          
           # Sign ALL .so and .dylib files first (inside-out approach)
           echo "📝 Signing native libraries (.so and .dylib files)..."
           find "$CORE_APP" -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
