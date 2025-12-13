@@ -979,11 +979,11 @@ jobs:
           done
           codesign --remove-signature "$CORE_APP/Contents/MacOS/LedFx_v2" 2>/dev/null || true
           
-          # Sign from inside-out: libraries → executables → main binary → bundle with entitlements
-          echo "📝 Signing libraries..."
+          # Sign ALL libraries including those in hidden .dylibs directories
+          echo "📝 Signing ALL libraries (including .dylibs directories)..."
           find "$CORE_APP/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) | sort | while read file; do
             if file "$file" | grep -q "Mach-O"; then
-              echo "  📦 $(basename "$file")"
+              echo "  📦 $(echo $file | sed "s|$CORE_APP/Contents/Frameworks/||")"
               codesign --force --sign "$CODESIGN_IDENTITY" \
                 --timestamp \
                 --options runtime \
@@ -991,10 +991,11 @@ jobs:
             fi
           done
           
-          echo "🔧 Signing executables..."
+          # Sign all executables in Frameworks (including those in .dylibs dirs)
+          echo "🔧 Signing ALL executables..."
           find "$CORE_APP/Contents/Frameworks" -type f -perm +111 ! -name "*.dylib" ! -name "*.so" | sort | while read file; do
             if file "$file" | grep -q "Mach-O"; then
-              echo "  ⚙️  $(basename "$file")"
+              echo "  ⚙️  $(echo $file | sed "s|$CORE_APP/Contents/Frameworks/||")"
               codesign --force --sign "$CODESIGN_IDENTITY" \
                 --timestamp \
                 --options runtime \
