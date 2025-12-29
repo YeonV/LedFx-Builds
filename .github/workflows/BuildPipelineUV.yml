@@ -123,7 +123,8 @@ jobs:
           </details>
           " >> ./messages.md
 
-      - uses: actions/checkout@v4
+      - name: Checkout frontend
+        uses: actions/checkout@v4
         if: ${{ env.IS_RELEASE == 'true' }}
         with:
           repository: YeonV/LedFx-Frontend-v2
@@ -147,7 +148,8 @@ jobs:
           " >> ../messages.md
           cat ../messages.md
 
-      - uses: actions/checkout@v4
+      - name: Checkout backend
+        uses: actions/checkout@v4
         if: ${{ env.IS_RELEASE == 'true' }}
         with:
           repository: LedFx/LedFx
@@ -174,7 +176,7 @@ jobs:
       - name: Create Release
         if: ${{ env.IS_RELEASE == 'true' }}
         id: create_release
-        uses: actions/create-release@v1
+        uses: YeonV/create-release@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -719,7 +721,7 @@ jobs:
       - name: Upload Frontend Build to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' }}
         id: upload-release-asset-2
-        uses: actions/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -737,7 +739,7 @@ jobs:
 
       - name: Upload Core Win To Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -755,7 +757,7 @@ jobs:
 
       - name: Upload Core Win Setup To Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -773,7 +775,7 @@ jobs:
 
       - name: Upload Core Osx-arm64 To Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -791,7 +793,7 @@ jobs:
 
       - name: Upload Core Osx To Release
         if: ${{env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -820,7 +822,7 @@ jobs:
       - name: Upload Core Linux To Release
         if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
         continue-on-error: true
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -838,7 +840,7 @@ jobs:
 
       - name: Upload Core Win Portable To Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1092,6 +1094,12 @@ jobs:
           ISSUER="${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
           echo "🏢 APPLE_API_ISSUER: ${ISSUER:0:8}...${ISSUER: -6}"
 
+      
+      - name: Download latest audio-visualiser module
+        run: |
+          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
+          echo "Audio-visualiser module updated to latest release"
+      
       - name: Building Clients
         run: |
           cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
@@ -1110,7 +1118,7 @@ jobs:
       - name: Upload Win-Portable to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
         id: upload-release-asset-portable
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1129,7 +1137,7 @@ jobs:
       - name: Upload Win-Setup to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
         id: upload-release-asset-setup
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1148,7 +1156,7 @@ jobs:
       - name: Upload Win-Zip to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
         id: upload-release-asset-zip
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1167,7 +1175,7 @@ jobs:
       - name: Upload Win-CC to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
         id: upload-release-asset-cc
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1185,7 +1193,7 @@ jobs:
 
       - name: Upload OSX-arm64-Client dmg to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1203,7 +1211,7 @@ jobs:
 
       - name: Upload OSX-arm64-Client zip to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1221,7 +1229,7 @@ jobs:
 
       - name: Upload OSX-arm64-CC dmg to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1239,7 +1247,7 @@ jobs:
 
       - name: Upload OSX-arm64-CC zip to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1258,7 +1266,7 @@ jobs:
       - name: Upload Linux Client snap to Release
         continue-on-error: true
         if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1278,7 +1286,7 @@ jobs:
       - name: Upload Linux Client AppImage to Release
         continue-on-error: true
         if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1298,7 +1306,7 @@ jobs:
       - name: Upload Linux CC snap to Release
         continue-on-error: true
         if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1318,7 +1326,7 @@ jobs:
       - name: Upload Linux CC AppImage to Release
         continue-on-error: true
         if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1337,7 +1345,7 @@ jobs:
 
       - name: Upload OSX-x64-Client dmg to Release
         if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1355,7 +1363,7 @@ jobs:
 
       - name: Upload OSX-x64-Client zip to Release
         if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1374,7 +1382,7 @@ jobs:
       - name: Upload OSX-x64-CC dmg to Release
         continue-on-error: true
         if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -1395,7 +1403,7 @@ jobs:
       - name: Upload OSX-x64-CC zip to Release
         continue-on-error: true
         if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1
+        uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
