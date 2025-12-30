@@ -926,23 +926,23 @@ jobs:
         run: |
           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
           
-          echo "🧹 Selective cleanup of LedFx_core.app - keeping essential Python runtime..."
+          echo "🧹 Ultra-safe cleanup - only removing known problematic frontend assets..."
           
           cd ./frontend/extraResources/LedFx_core.app
           
-          # Remove metadata directories
+          # Remove ONLY the ledfx_frontend directory assets that cause signing issues
+          if [ -d "./Contents/Frameworks/ledfx_frontend" ]; then
+            echo "Removing problematic files from ledfx_frontend directory..."
+            find ./Contents/Frameworks/ledfx_frontend -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.ico" -o -name "*.svg" -o -name "*.json" -o -name "*.xml" -o -name "*.yaml" -o -name "*.yml" -o -name "*.toml" -o -name "*.cfg" -o -name "*.ini" \) -delete 2>/dev/null || true
+          fi
+          
+          # Remove metadata directories (safe - always regenerated)
           find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null || true
           
-          # Remove documentation files (but NOT Python bytecode or stdlib)
-          find . -type f \( -name "*.md" -o -name "*.txt" -o -name "*.rst" -o -name "*.html" -o -name "LICENSE*" -o -name "README*" -o -name "COPYING*" -o -name "AUTHORS*" -o -name "CHANGELOG*" -o -name "NOTICE*" \) -delete 2>/dev/null || true
+          # Remove test directories (safe - not needed at runtime)
+          find . -type d \( -name "tests" -o -name "test" -o -name "testing" \) -exec rm -rf {} + 2>/dev/null || true
           
-          # Remove test/example/docs directories
-          find . -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "example" -o -name "demos" -o -name "docs" -o -name "doc" -o -name "samples" \) -exec rm -rf {} + 2>/dev/null || true
-          
-          # DO NOT delete Python files - PyInstaller's embedded Python needs them!
-          # The base_library.zip and .pyc files are essential for Python to run
-          
-          echo "⚠️  Keeping all Python runtime files to prevent 'No module named encodings' error"
+          echo "✅ All Python runtime files preserved"
           
           cd -
           
