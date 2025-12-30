@@ -526,7 +526,7 @@ jobs:
           ls
           uv pip install pyinstaller
           uv run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
@@ -541,6 +541,14 @@ jobs:
           
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
+          
+          # FIX .dylibs FOLDERS - They break macOS bundle format
+          echo "🧹 Fixing .dylibs folder names (they break bundle format)..."
+          find LedFx.app -type d -name ".dylibs" 2>/dev/null | while read dir; do
+            parent=$(dirname "$dir")
+            mv "$dir" "$parent/dylibs"
+            echo "   Renamed: $dir -> $parent/dylibs"
+          done
           
           # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
           echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
@@ -618,7 +626,7 @@ jobs:
           ls
           uv pip install pyinstaller
           uv run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
@@ -632,6 +640,14 @@ jobs:
           
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
+          
+          # FIX .dylibs FOLDERS - They break macOS bundle format
+          echo "🧹 Fixing .dylibs folder names (they break bundle format)..."
+          find LedFx.app -type d -name ".dylibs" 2>/dev/null | while read dir; do
+            parent=$(dirname "$dir")
+            mv "$dir" "$parent/dylibs"
+            echo "   Renamed: $dir -> $parent/dylibs"
+          done
           
           # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
           echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
@@ -1038,7 +1054,7 @@ jobs:
       
       - name: Building Clients
         run: |
-          cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
+          cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distcc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_API_KEY: ${{ env.APPLE_API_KEY_PATH }}
@@ -1051,62 +1067,62 @@ jobs:
         with:
           name: release_url
 
-      - name: Upload Win-Portable to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-portable
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
-          asset_name: LedFx_client-v${{ env.action_state }}--win-portable.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+      # - name: Upload Win-Portable to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-portable
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload Win-Portable to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win-portable.exe
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+      # - name: Upload Win-Portable to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
 
-      - name: Upload Win-Setup to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-setup
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
-          asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+      # - name: Upload Win-Setup to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-setup
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload Win-Setup to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win-setup.exe
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+      # - name: Upload Win-Setup to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
 
-      - name: Upload Win-Zip to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-zip
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--win.zip
-          asset_content_type: application/zip
+      # - name: Upload Win-Zip to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-zip
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload Win-Zip to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+      # - name: Upload Win-Zip to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
 
       - name: Upload Win-CC to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
@@ -1127,41 +1143,41 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
 
-      - name: Upload OSX-arm64-Client dmg to Release
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          asset_content_type: application/octet-stream
+      # - name: Upload OSX-arm64-Client dmg to Release
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload OSX-arm64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      # - name: Upload OSX-arm64-Client dmg to Workflow
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
 
-      - name: Upload OSX-arm64-Client zip to Release
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          asset_content_type: application/zip
+      # - name: Upload OSX-arm64-Client zip to Release
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload OSX-arm64-Client zip to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      # - name: Upload OSX-arm64-Client zip to Workflow
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
 
       - name: Upload OSX-arm64-CC dmg to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
@@ -1199,45 +1215,45 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
 
-      - name: Upload Linux Client snap to Release
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
-          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
-          asset_content_type: application/octet-stream
+      # - name: Upload Linux Client snap to Release
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+      #     asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload Linux Client snap to Workflow
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+      # - name: Upload Linux Client snap to Workflow
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
 
-      - name: Upload Linux Client AppImage to Release
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
-          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
-          asset_content_type: application/octet-stream
+      # - name: Upload Linux Client AppImage to Release
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
+      #     asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload Linux Client AppImage to Workflow
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
+      # - name: Upload Linux Client AppImage to Workflow
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
 
       - name: Upload Linux CC snap to Release
         continue-on-error: true
@@ -1279,41 +1295,41 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
-      - name: Upload OSX-x64-Client dmg to Release
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          asset_content_type: application/octet-stream
+      # - name: Upload OSX-x64-Client dmg to Release
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload OSX-x64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      # - name: Upload OSX-x64-Client dmg to Workflow
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
 
-      - name: Upload OSX-x64-Client zip to Release
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          asset_content_type: application/zip
+      # - name: Upload OSX-x64-Client zip to Release
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload OSX-x64-Client zip to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      # - name: Upload OSX-x64-Client zip to Workflow
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
 
       - name: Upload OSX-x64-CC dmg to Release
         continue-on-error: true
