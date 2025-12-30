@@ -1008,17 +1008,17 @@ jobs:
             echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
           
-          # Replace notarize.cjs with a stub (electron-builder already notarizes)
+          # Replace notarize.cjs with a stub (prevent electron-builder from notarizing - we do it manually)
           if [ -f "scripts/notarize.cjs" ]; then
             mv scripts/notarize.cjs scripts/notarize.cjs.original
             cat > scripts/notarize.cjs << 'EOF'
-          // Stub notarize script - electron-builder handles notarization in CI
+          // Stub notarize script - we notarize DMGs manually in the workflow
           exports.default = async function notarizing(context) {
-            console.log('Skipping notarize.cjs - electron-builder already handled notarization');
+            console.log('Skipping notarize.cjs - DMG will be notarized manually in workflow');
             return;
           };
           EOF
-            echo "✅ Replaced notarize.cjs with stub (electron-builder handles notarization)"
+            echo "✅ Replaced notarize.cjs with stub (manual DMG notarization in workflow)"
           fi
 
       - name: Debug Apple API Credentials for electron-builder
@@ -1057,9 +1057,8 @@ jobs:
           cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distcc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_API_KEY: ${{ env.APPLE_API_KEY_PATH }}
-          APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          # Apple API env vars intentionally NOT set - prevents electron-builder from attempting notarization
+          # DMGs will be notarized manually in separate steps below
 
       - name: Load Release URL File from release job
         if: ${{ env.IS_RELEASE == 'true' }}
@@ -1178,6 +1177,29 @@ jobs:
       #   with:
       #     name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
       #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+
+      - name: Notarize and Staple OSX-arm64-CC DMG
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+        run: |
+          cd frontend/dist
+          DMG_FILE="LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg"
+          
+          if [ -f "$DMG_FILE" ]; then
+            echo "🔐 Notarizing $DMG_FILE..."
+            xcrun notarytool submit "$DMG_FILE" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait
+            
+            echo "📎 Stapling notarization ticket..."
+            xcrun stapler staple "$DMG_FILE"
+            
+            echo "✅ $DMG_FILE notarized and stapled"
+          else
+            echo "❌ DMG file not found: $DMG_FILE"
+            exit 1
+          fi
 
       - name: Upload OSX-arm64-CC dmg to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
@@ -1330,6 +1352,29 @@ jobs:
       #   with:
       #     name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
       #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+
+      - name: Notarize and Staple OSX-x64-CC DMG
+        if: ${{ env.IS_OSX_X64 == 'true' && env.BUILD_OSX_X64 == 'true' }}
+        run: |
+          cd frontend/dist
+          DMG_FILE="LedFx_CC-v${{ env.action_state }}--mac-x64.dmg"
+          
+          if [ -f "$DMG_FILE" ]; then
+            echo "🔐 Notarizing $DMG_FILE..."
+            xcrun notarytool submit "$DMG_FILE" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait
+            
+            echo "📎 Stapling notarization ticket..."
+            xcrun stapler staple "$DMG_FILE"
+            
+            echo "✅ $DMG_FILE notarized and stapled"
+          else
+            echo "❌ DMG file not found: $DMG_FILE"
+            exit 1
+          fi
 
       - name: Upload OSX-x64-CC dmg to Release
         continue-on-error: true
