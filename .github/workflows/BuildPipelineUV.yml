@@ -926,24 +926,23 @@ jobs:
         run: |
           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
           
-          echo "🧹 NUCLEAR cleanup of LedFx_core.app - removing EVERYTHING non-essential..."
+          echo "🧹 Selective cleanup of LedFx_core.app - keeping essential Python runtime..."
           
           cd ./frontend/extraResources/LedFx_core.app
           
-          # Remove all metadata directories
+          # Remove metadata directories
           find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null || true
           
-          # Remove ALL text/doc files of ANY kind
-          find . -type f \( -name "*.md" -o -name "*.txt" -o -name "*.rst" -o -name "*.html" -o -name "*.json" -o -name "*.xml" -o -name "*.yaml" -o -name "*.yml" -o -name "*.toml" -o -name "*.cfg" -o -name "*.ini" -o -name "LICENSE*" -o -name "README*" -o -name "COPYING*" -o -name "AUTHORS*" -o -name "CHANGELOG*" -o -name "NOTICE*" -o -name "MANIFEST*" \) -delete 2>/dev/null || true
-          
-          # Remove Python source files (keep only compiled)
-          find ./Contents/Frameworks -type f \( -name "*.py" -o -name "*.pyx" -o -name "*.pxd" -o -name "*.pyi" -o -name "*.pyc" \) -delete 2>/dev/null || true
+          # Remove documentation files (but NOT Python bytecode or stdlib)
+          find . -type f \( -name "*.md" -o -name "*.txt" -o -name "*.rst" -o -name "*.html" -o -name "LICENSE*" -o -name "README*" -o -name "COPYING*" -o -name "AUTHORS*" -o -name "CHANGELOG*" -o -name "NOTICE*" \) -delete 2>/dev/null || true
           
           # Remove test/example/docs directories
           find . -type d \( -name "tests" -o -name "test" -o -name "testing" -o -name "examples" -o -name "example" -o -name "demos" -o -name "docs" -o -name "doc" -o -name "samples" \) -exec rm -rf {} + 2>/dev/null || true
           
-          # Remove any remaining non-binary files in Frameworks
-          find ./Contents/Frameworks -type f ! -name "*.dylib" ! -name "*.so" ! -perm +111 -delete 2>/dev/null || true
+          # DO NOT delete Python files - PyInstaller's embedded Python needs them!
+          # The base_library.zip and .pyc files are essential for Python to run
+          
+          echo "⚠️  Keeping all Python runtime files to prevent 'No module named encodings' error"
           
           cd -
           
@@ -1097,6 +1096,7 @@ jobs:
       
       - name: Download latest audio-visualiser module
         run: |
+          mkdir -p frontend/public/modules
           curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
           echo "Audio-visualiser module updated to latest release"
       
