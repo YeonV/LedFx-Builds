@@ -542,6 +542,14 @@ jobs:
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
           
+          # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
+          echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
+          cd LedFx.app/Contents/Frameworks
+          find . -type f ! -name "*.so" ! -name "*.dylib" ! -perm +111 -delete 2>/dev/null || true
+          find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" -o -name "tests" -o -name "test" \) -exec rm -rf {} + 2>/dev/null || true
+          cd ../../..
+          echo "✅ Cleanup complete, bundle is now ready for signing"
+          
           # Sign ALL .so and .dylib files (inside-out approach)
           echo "📝 Signing native libraries..."
           find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
@@ -624,6 +632,14 @@ jobs:
           
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
+          
+          # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
+          echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
+          cd LedFx.app/Contents/Frameworks
+          find . -type f ! -name "*.so" ! -name "*.dylib" ! -perm +111 -delete 2>/dev/null || true
+          find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" -o -name "tests" -o -name "test" \) -exec rm -rf {} + 2>/dev/null || true
+          cd ../../..
+          echo "✅ Cleanup complete, bundle is now ready for signing"
           
           # Sign ALL .so and .dylib files (inside-out approach)
           echo "📝 Signing native libraries..."
@@ -932,24 +948,7 @@ jobs:
         run: |
           cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
           
-          echo "🧹 Ultra-safe cleanup - only removing known problematic frontend assets..."
-          
-          cd ./frontend/extraResources/LedFx_core.app
-          
-          # Remove metadata directories (safe - always regenerated)
-          find . -type d \( -name "*.dist-info" -o -name "*.egg-info" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null || true
-          
-          # Remove HTML files (they break codesigning when in Contents/Frameworks/)
-          find . -type f -name "*.html" -delete 2>/dev/null || true
-          
-          # Remove test directories (safe - not needed at runtime)
-          find . -type d \( -name "tests" -o -name "test" -o -name "testing" \) -exec rm -rf {} + 2>/dev/null || true
-          
-          echo "✅ All Python runtime files preserved"
-          
-          cd -
-          
-          echo "✅ Cleanup complete"
+          echo "✅ Core copied to extraResources (already cleaned and signed)"
           echo "📦 Contents of extraResources:"
           ls -la ./frontend/extraResources
 
