@@ -558,40 +558,38 @@ jobs:
           cd ../../..
           echo "✅ Cleanup complete, bundle is now ready for signing"
           
-          # Sign ALL .so and .dylib files (inside-out approach)
-          echo "📝 Signing native libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
-            echo "   Signing: $file"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
+          # Sign all native libraries first
+          echo "  Signing native libraries..."
+          find LedFx.app/Contents -type f \( -name "*.so" -o -name "*.dylib" \) | while read -r file; do
+            codesign --force --sign "$CODESIGN_IDENTITY" --timestamp --options runtime "$file" 2>/dev/null || true
           done
           
-          # Sign executables in Contents/MacOS only
-          echo "📝 Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
-            echo "   Signing: $(basename "$file")"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
-          done
+          # Sign the main executable
+          echo "  Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            "LedFx.app/Contents/MacOS/LedFx_v2"
           
-          # Sign the app bundle with entitlements
-          echo "📝 Signing app bundle..."
-          codesign --sign "$CODESIGN_IDENTITY" \
-            --force \
+          # Sign the bundle
+          echo "  Signing bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
             --entitlements ../src2/tools/mac/entitlements.plist \
             LedFx.app
           
-          # Verify the signature
-          echo "✅ Verifying signature..."
+          # Verify signature
+          echo "  Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Core signed successfully"
+          else
+            echo "❌ ERROR: Core signature verification failed"
+            exit 1
+          fi
           
           # Create zip for notarization
           echo "📦 Creating zip for notarization..."
@@ -601,9 +599,14 @@ jobs:
           echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
-            --key-id "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER" \
             --wait
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Core notarization failed"
+            exit 1
+          fi
           
           # Staple the notarization ticket
           echo "📎 Stapling notarization ticket..."
@@ -657,40 +660,38 @@ jobs:
           cd ../../..
           echo "✅ Cleanup complete, bundle is now ready for signing"
           
-          # Sign ALL .so and .dylib files (inside-out approach)
-          echo "📝 Signing native libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
-            echo "   Signing: $file"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
+          # Sign all native libraries first
+          echo "  Signing native libraries..."
+          find LedFx.app/Contents -type f \( -name "*.so" -o -name "*.dylib" \) | while read -r file; do
+            codesign --force --sign "$CODESIGN_IDENTITY" --timestamp --options runtime "$file" 2>/dev/null || true
           done
           
-          # Sign executables in Contents/MacOS only
-          echo "📝 Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
-            echo "   Signing: $(basename "$file")"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
-          done
+          # Sign the main executable
+          echo "  Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src2/tools/mac/entitlements.plist \
+            "LedFx.app/Contents/MacOS/LedFx_v2"
           
-          # Sign the app bundle with entitlements
-          echo "📝 Signing app bundle..."
-          codesign --sign "$CODESIGN_IDENTITY" \
-            --force \
+          # Sign the bundle
+          echo "  Signing bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
             --entitlements ../src2/tools/mac/entitlements.plist \
             LedFx.app
           
-          # Verify the signature
-          echo "✅ Verifying signature..."
+          # Verify signature
+          echo "  Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Core signed successfully"
+          else
+            echo "❌ ERROR: Core signature verification failed"
+            exit 1
+          fi
           
           # Create zip for notarization
           echo "📦 Creating zip for notarization..."
@@ -700,9 +701,14 @@ jobs:
           echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
-            --key-id "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER" \
             --wait
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Core notarization failed"
+            exit 1
+          fi
           
           # Staple the notarization ticket
           echo "📎 Stapling notarization ticket..."
@@ -962,11 +968,17 @@ jobs:
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
         continue-on-error: true
         run: |
-          cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          mkdir -p ./frontend/extraResources
           
-          echo "✅ Core copied to extraResources (already cleaned and signed)"
-          echo "📦 Contents of extraResources:"
-          ls -la ./frontend/extraResources
+          if [ -d "./frontend/extraResources/LedFx_core.app" ]; then
+            echo "🧹 Removing old LedFx_core.app..."
+            rm -rf "./frontend/extraResources/LedFx_core.app"
+          fi
+          
+          echo "  Copying LedFx.app → LedFx_core.app..."
+          cp -R ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          
+          echo "✅ Core copied to extraResources"
 
       - name: Move Core Linux
         if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
@@ -1187,9 +1199,14 @@ jobs:
             echo "🔐 Notarizing $DMG_FILE..."
             xcrun notarytool submit "$DMG_FILE" \
               --key "$APPLE_API_KEY_PATH" \
-              --key-id "$APPLE_API_KEY" \
+              --key-id "$APPLE_API_KEY_ID" \
               --issuer "$APPLE_API_ISSUER" \
               --wait
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ ERROR: DMG notarization failed"
+              exit 1
+            fi
             
             echo "📎 Stapling notarization ticket..."
             xcrun stapler staple "$DMG_FILE"
@@ -1362,9 +1379,14 @@ jobs:
             echo "🔐 Notarizing $DMG_FILE..."
             xcrun notarytool submit "$DMG_FILE" \
               --key "$APPLE_API_KEY_PATH" \
-              --key-id "$APPLE_API_KEY" \
+              --key-id "$APPLE_API_KEY_ID" \
               --issuer "$APPLE_API_ISSUER" \
               --wait
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ ERROR: DMG notarization failed"
+              exit 1
+            fi
             
             echo "📎 Stapling notarization ticket..."
             xcrun stapler staple "$DMG_FILE"
