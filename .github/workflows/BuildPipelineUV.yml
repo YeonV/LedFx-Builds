@@ -569,7 +569,7 @@ jobs:
           codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../frontend/entitlements.mac.core.plist \
             "LedFx.app/Contents/MacOS/LedFx_v2"
           
           # Sign the bundle
@@ -577,7 +577,7 @@ jobs:
           codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../frontend/entitlements.mac.core.plist \
             LedFx.app
           
           # Verify signature
@@ -671,7 +671,7 @@ jobs:
           codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../frontend/entitlements.mac.core.plist \
             "LedFx.app/Contents/MacOS/LedFx_v2"
           
           # Sign the bundle
@@ -679,7 +679,7 @@ jobs:
           codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../frontend/entitlements.mac.core.plist \
             LedFx.app
           
           # Verify signature
