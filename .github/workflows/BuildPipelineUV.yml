@@ -1049,16 +1049,15 @@ jobs:
       - name: Download latest audio-visualiser module
         run: |
           mkdir -p frontend/public/modules
-          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
+          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/mattallmighty/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
           echo "Audio-visualiser module updated to latest release"
       
       - name: Building Clients
         run: |
+          unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY_PATH
           cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distcc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Apple API env vars intentionally NOT set - prevents electron-builder from attempting notarization
-          # DMGs will be notarized manually in separate steps below
 
       - name: Load Release URL File from release job
         if: ${{ env.IS_RELEASE == 'true' }}
