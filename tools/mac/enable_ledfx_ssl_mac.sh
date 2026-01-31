@@ -40,11 +40,20 @@ chmod 600 *.pem
 
 # Step 3: Add certificate to keychain with trust settings
 # This will show a GUI password prompt to the user
-# Use add-trusted-cert which handles trust settings properly
-security add-trusted-cert -d -r trustRoot -k "$USER_HOME/Library/Keychains/login.keychain-db" "$SSL_DIR/fullchain.pem" 2>/dev/null || \
-security add-trusted-cert -d -r trustRoot -k "$USER_HOME/Library/Keychains/login.keychain" "$SSL_DIR/fullchain.pem"
+# Add to login keychain first
+security add-trusted-cert -d -r trustAsRoot -k "$USER_HOME/Library/Keychains/login.keychain-db" "$SSL_DIR/fullchain.pem" 2>/dev/null || \
+security add-trusted-cert -d -r trustAsRoot -k "$USER_HOME/Library/Keychains/login.keychain" "$SSL_DIR/fullchain.pem"
 
-echo "Certificate installed to keychain"
+# Explicitly set trust for SSL - this is what Chrome checks
+# Get the certificate's SHA-1 hash for identification
+CERT_HASH=$(openssl x509 -noout -fingerprint -sha1 -in "$SSL_DIR/fullchain.pem" | cut -d'=' -f2 | tr -d ':')
+
+# Set trust settings explicitly for SSL (this may prompt for password again)
+security set-trust-settings -d "$SSL_DIR/fullchain.pem" 2>/dev/null || \
+security add-trusted-cert -p ssl -k "$USER_HOME/Library/Keychains/login.keychain-db" "$SSL_DIR/fullchain.pem" 2>/dev/null || \
+security add-trusted-cert -p ssl -k "$USER_HOME/Library/Keychains/login.keychain" "$SSL_DIR/fullchain.pem" 2>/dev/null || true
+
+echo "Certificate installed to keychain with SSL trust"
 
 # Step 4: Add to hosts file (needs sudo - handled separately by caller)
 # This part will be handled by Node.js with sudo-prompt if not already added
