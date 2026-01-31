@@ -303,7 +303,6 @@ jobs:
           curl -L --max-redirs 10 -o ledfx_frontend_v2.zip "https://github.com/YeonV/LedFx-Frontend-v2/releases/latest/download/ledfx_frontend_v2.zip"
 
       - name: Checkout frontend
-        if: ${{ env.IS_RELEASE == 'false' }}
         uses: actions/checkout@v4
         with:
           repository: YeonV/LedFx-Frontend-v2
@@ -507,7 +506,7 @@ jobs:
           
           # Export environment variables for notarization
           echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
-          echo "APPLE_API_KEY=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
+          echo "APPLE_API_KEY_ID=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
           echo "APPLE_API_ISSUER=${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" >> $GITHUB_ENV
 
       - name: Detect Code Signing Identity
@@ -526,7 +525,7 @@ jobs:
           ls
           uv pip install pyinstaller
           uv run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-x86-x64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
@@ -542,6 +541,14 @@ jobs:
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
           
+          # FIX .dylibs FOLDERS - They break macOS bundle format
+          echo "🧹 Fixing .dylibs folder names (they break bundle format)..."
+          find LedFx.app -type d -name ".dylibs" 2>/dev/null | while read dir; do
+            parent=$(dirname "$dir")
+            mv "$dir" "$parent/dylibs"
+            echo "   Renamed: $dir -> $parent/dylibs"
+          done
+          
           # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
           echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
           cd LedFx.app/Contents/Frameworks
@@ -550,40 +557,38 @@ jobs:
           cd ../../..
           echo "✅ Cleanup complete, bundle is now ready for signing"
           
-          # Sign ALL .so and .dylib files (inside-out approach)
-          echo "📝 Signing native libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
-            echo "   Signing: $file"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
+          # Sign all native libraries first
+          echo "  Signing native libraries..."
+          find LedFx.app/Contents -type f \( -name "*.so" -o -name "*.dylib" \) | while read -r file; do
+            codesign --force --sign "$CODESIGN_IDENTITY" --timestamp --options runtime "$file" 2>/dev/null || true
           done
           
-          # Sign executables in Contents/MacOS only
-          echo "📝 Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
-            echo "   Signing: $(basename "$file")"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
-          done
-          
-          # Sign the app bundle with entitlements
-          echo "📝 Signing app bundle..."
-          codesign --sign "$CODESIGN_IDENTITY" \
-            --force \
+          # Sign the main executable
+          echo "  Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../src3/entitlements.mac.core.plist \
+            "LedFx.app/Contents/MacOS/LedFx_v2"
+          
+          # Sign the bundle
+          echo "  Signing bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src3/entitlements.mac.core.plist \
             LedFx.app
           
-          # Verify the signature
-          echo "✅ Verifying signature..."
+          # Verify signature
+          echo "  Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Core signed successfully"
+          else
+            echo "❌ ERROR: Core signature verification failed"
+            exit 1
+          fi
           
           # Create zip for notarization
           echo "📦 Creating zip for notarization..."
@@ -593,9 +598,14 @@ jobs:
           echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
-            --key-id "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER" \
             --wait
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Core notarization failed"
+            exit 1
+          fi
           
           # Staple the notarization ticket
           echo "📎 Stapling notarization ticket..."
@@ -618,7 +628,7 @@ jobs:
           ls
           uv pip install pyinstaller
           uv run pyinstaller mac.spec
-          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mkdir -p ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/ && cp -rf ../../src2/tools/mac/libsamplerate-arm64.dylib ./LedFx_v2/Contents/Frameworks/samplerate/_samplerate_data/libsamplerate.dylib && mv ./LedFx_v2 ./LedFx/LedFx.app
+          cd dist/ && mkdir LedFx && chmod +x ./LedFx_v2/Contents/MacOS/LedFx_v2 && mv ./LedFx_v2 ./LedFx/LedFx.app
           cd ..
           rm -rf ./LedFx.app
           mv ./dist/LedFx/LedFx.app ./LedFx.app
@@ -633,6 +643,14 @@ jobs:
           # Remove existing signature
           codesign --remove-signature LedFx.app 2>/dev/null || true
           
+          # FIX .dylibs FOLDERS - They break macOS bundle format
+          echo "🧹 Fixing .dylibs folder names (they break bundle format)..."
+          find LedFx.app -type d -name ".dylibs" 2>/dev/null | while read dir; do
+            parent=$(dirname "$dir")
+            mv "$dir" "$parent/dylibs"
+            echo "   Renamed: $dir -> $parent/dylibs"
+          done
+          
           # CLEANUP BEFORE SIGNING - Remove non-executable files from Contents/Frameworks
           echo "🧹 Cleaning non-executable files from Contents/Frameworks (BEFORE signing)..."
           cd LedFx.app/Contents/Frameworks
@@ -641,40 +659,38 @@ jobs:
           cd ../../..
           echo "✅ Cleanup complete, bundle is now ready for signing"
           
-          # Sign ALL .so and .dylib files (inside-out approach)
-          echo "📝 Signing native libraries..."
-          find LedFx.app -type f \( -name "*.so" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' file; do
-            echo "   Signing: $file"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
+          # Sign all native libraries first
+          echo "  Signing native libraries..."
+          find LedFx.app/Contents -type f \( -name "*.so" -o -name "*.dylib" \) | while read -r file; do
+            codesign --force --sign "$CODESIGN_IDENTITY" --timestamp --options runtime "$file" 2>/dev/null || true
           done
           
-          # Sign executables in Contents/MacOS only
-          echo "📝 Signing executables..."
-          find LedFx.app/Contents/MacOS -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' file; do
-            echo "   Signing: $(basename "$file")"
-            codesign --sign "$CODESIGN_IDENTITY" \
-              --force \
-              --timestamp \
-              --options runtime \
-              "$file" 2>&1 | grep -v "replacing existing signature" || true
-          done
-          
-          # Sign the app bundle with entitlements
-          echo "📝 Signing app bundle..."
-          codesign --sign "$CODESIGN_IDENTITY" \
-            --force \
+          # Sign the main executable
+          echo "  Signing main executable..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
-            --entitlements ../src2/tools/mac/entitlements.plist \
+            --entitlements ../src3/entitlements.mac.core.plist \
+            "LedFx.app/Contents/MacOS/LedFx_v2"
+          
+          # Sign the bundle
+          echo "  Signing bundle..."
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            --entitlements ../src3/entitlements.mac.core.plist \
             LedFx.app
           
-          # Verify the signature
-          echo "✅ Verifying signature..."
+          # Verify signature
+          echo "  Verifying signature..."
           codesign --verify --deep --strict --verbose=2 LedFx.app
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Core signed successfully"
+          else
+            echo "❌ ERROR: Core signature verification failed"
+            exit 1
+          fi
           
           # Create zip for notarization
           echo "📦 Creating zip for notarization..."
@@ -684,9 +700,14 @@ jobs:
           echo "🔐 Submitting for notarization..."
           xcrun notarytool submit LedFx.zip \
             --key "$APPLE_API_KEY_PATH" \
-            --key-id "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
             --issuer "$APPLE_API_ISSUER" \
             --wait
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Core notarization failed"
+            exit 1
+          fi
           
           # Staple the notarization ticket
           echo "📎 Stapling notarization ticket..."
@@ -970,11 +991,17 @@ jobs:
         if: ${{ (env.IS_OSX_X64 == 'true' || env.IS_OSX_ARM64 == 'true') && (env.BUILD_OSX_ARM64 == 'true' || env.BUILD_OSX_X64 == 'true') }}
         continue-on-error: true
         run: |
-          cp -r ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          mkdir -p ./frontend/extraResources
           
-          echo "✅ Core copied to extraResources (already cleaned and signed)"
-          echo "📦 Contents of extraResources:"
-          ls -la ./frontend/extraResources
+          if [ -d "./frontend/extraResources/LedFx_core.app" ]; then
+            echo "🧹 Removing old LedFx_core.app..."
+            rm -rf "./frontend/extraResources/LedFx_core.app"
+          fi
+          
+          echo "  Copying LedFx.app → LedFx_core.app..."
+          cp -R ./src/LedFx.app ./frontend/extraResources/LedFx_core.app
+          
+          echo "✅ Core copied to extraResources"
 
       - name: Move Core Linux
         if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
@@ -1016,17 +1043,17 @@ jobs:
             echo "✅ Disabled predistcc-darwin.sh (already signed in workflow)"
           fi
           
-          # Replace notarize.cjs with a stub (electron-builder already notarizes)
+          # Replace notarize.cjs with a stub (prevent electron-builder from notarizing - we do it manually)
           if [ -f "scripts/notarize.cjs" ]; then
             mv scripts/notarize.cjs scripts/notarize.cjs.original
             cat > scripts/notarize.cjs << 'EOF'
-          // Stub notarize script - electron-builder handles notarization in CI
+          // Stub notarize script - we notarize DMGs manually in the workflow
           exports.default = async function notarizing(context) {
-            console.log('Skipping notarize.cjs - electron-builder already handled notarization');
+            console.log('Skipping notarize.cjs - DMG will be notarized manually in workflow');
             return;
           };
           EOF
-            echo "✅ Replaced notarize.cjs with stub (electron-builder handles notarization)"
+            echo "✅ Replaced notarize.cjs with stub (manual DMG notarization in workflow)"
           fi
 
       - name: Debug Apple API Credentials for electron-builder
@@ -1057,17 +1084,15 @@ jobs:
       - name: Download latest audio-visualiser module
         run: |
           mkdir -p frontend/public/modules
-          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
+          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/mattallmighty/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
           echo "Audio-visualiser module updated to latest release"
       
       - name: Building Clients
         run: |
-          cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distall
+          unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY_PATH
+          cd frontend && npm config set legacy-peer-deps true && npm remove electron -g && npm remove electron-builder -g && npm i -D electron electron-builder && npm install --force && npm install postcss && npm run distcc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_API_KEY: ${{ env.APPLE_API_KEY_PATH }}
-          APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 
       - name: Load Release URL File from release job
         if: ${{ env.IS_RELEASE == 'true' }}
@@ -1075,62 +1100,62 @@ jobs:
         with:
           name: release_url
 
-      - name: Upload Win-Portable to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-portable
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
-          asset_name: LedFx_client-v${{ env.action_state }}--win-portable.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+      # - name: Upload Win-Portable to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-portable
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload Win-Portable to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win-portable.exe
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
+      # - name: Upload Win-Portable to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win-portable.exe
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-portable.exe
 
-      - name: Upload Win-Setup to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-setup
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
-          asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+      # - name: Upload Win-Setup to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-setup
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload Win-Setup to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win-setup.exe
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
+      # - name: Upload Win-Setup to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win-setup.exe
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win-setup.exe
 
-      - name: Upload Win-Zip to Release
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
-        id: upload-release-asset-zip
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--win.zip
-          asset_content_type: application/zip
+      # - name: Upload Win-Zip to Release
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
+      #   id: upload-release-asset-zip
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--win.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload Win-Zip to Workflow
-        if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--win.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
+      # - name: Upload Win-Zip to Workflow
+      #   if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'false' && env.BUILD_WIN == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--win.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--win.zip
 
       - name: Upload Win-CC to Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
@@ -1151,41 +1176,69 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--win-setup.exe
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--win-setup.exe
 
-      - name: Upload OSX-arm64-Client dmg to Release
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          asset_content_type: application/octet-stream
+      # - name: Upload OSX-arm64-Client dmg to Release
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload OSX-arm64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      # - name: Upload OSX-arm64-Client dmg to Workflow
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.dmg
 
-      - name: Upload OSX-arm64-Client zip to Release
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          asset_content_type: application/zip
+      # - name: Upload OSX-arm64-Client zip to Release
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload OSX-arm64-Client zip to Workflow
-        if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      # - name: Upload OSX-arm64-Client zip to Workflow
+      #   if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_ARM64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-arm64.zip
+
+      - name: Notarize and Staple OSX-arm64-CC DMG
+        if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
+        run: |
+          cd frontend/dist
+          DMG_FILE="LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg"
+          
+          if [ -f "$DMG_FILE" ]; then
+            echo "🔐 Notarizing $DMG_FILE..."
+            xcrun notarytool submit "$DMG_FILE" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ ERROR: DMG notarization failed"
+              exit 1
+            fi
+            
+            echo "📎 Stapling notarization ticket..."
+            xcrun stapler staple "$DMG_FILE"
+            
+            echo "✅ $DMG_FILE notarized and stapled"
+          else
+            echo "❌ DMG file not found: $DMG_FILE"
+            exit 1
+          fi
 
       - name: Upload OSX-arm64-CC dmg to Release
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
@@ -1223,45 +1276,45 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--mac-arm64.zip
 
-      - name: Upload Linux Client snap to Release
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
-          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
-          asset_content_type: application/octet-stream
+      # - name: Upload Linux Client snap to Release
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+      #     asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload Linux Client snap to Workflow
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
+      # - name: Upload Linux Client snap to Workflow
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--linux-amd64.snap
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.snap
 
-      - name: Upload Linux Client AppImage to Release
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
-          asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
-          asset_content_type: application/octet-stream
+      # - name: Upload Linux Client AppImage to Release
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
+      #     asset_name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload Linux Client AppImage to Workflow
-        continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
+      # - name: Upload Linux Client AppImage to Workflow
+      #   continue-on-error: true
+      #   if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--linux.AppImage
 
       - name: Upload Linux CC snap to Release
         continue-on-error: true
@@ -1303,41 +1356,69 @@ jobs:
           name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
-      - name: Upload OSX-x64-Client dmg to Release
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          asset_content_type: application/octet-stream
+      # - name: Upload OSX-x64-Client dmg to Release
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     asset_content_type: application/octet-stream
 
-      - name: Upload OSX-x64-Client dmg to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      # - name: Upload OSX-x64-Client dmg to Workflow
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-x64.dmg
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.dmg
 
-      - name: Upload OSX-x64-Client zip to Release
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
-        uses: YeonV/upload-release-asset@v1.0.3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          asset_content_type: application/zip
+      # - name: Upload OSX-x64-Client zip to Release
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: YeonV/upload-release-asset@v1.0.3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+      #     asset_path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     asset_name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     asset_content_type: application/zip
 
-      - name: Upload OSX-x64-Client zip to Workflow
-        if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
-          path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      # - name: Upload OSX-x64-Client zip to Workflow
+      #   if: ${{ env.IS_OSX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_OSX_X64 == 'true' }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LedFx_client-v${{ env.action_state }}--mac-x64.zip
+      #     path: ./frontend/dist/LedFx_client-v${{ env.action_state }}--mac-x64.zip
+
+      - name: Notarize and Staple OSX-x64-CC DMG
+        if: ${{ env.IS_OSX_X64 == 'true' && env.BUILD_OSX_X64 == 'true' }}
+        run: |
+          cd frontend/dist
+          DMG_FILE="LedFx_CC-v${{ env.action_state }}--mac-x64.dmg"
+          
+          if [ -f "$DMG_FILE" ]; then
+            echo "🔐 Notarizing $DMG_FILE..."
+            xcrun notarytool submit "$DMG_FILE" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER" \
+              --wait
+            
+            if [ $? -ne 0 ]; then
+              echo "❌ ERROR: DMG notarization failed"
+              exit 1
+            fi
+            
+            echo "📎 Stapling notarization ticket..."
+            xcrun stapler staple "$DMG_FILE"
+            
+            echo "✅ $DMG_FILE notarized and stapled"
+          else
+            echo "❌ DMG file not found: $DMG_FILE"
+            exit 1
+          fi
 
       - name: Upload OSX-x64-CC dmg to Release
         continue-on-error: true
