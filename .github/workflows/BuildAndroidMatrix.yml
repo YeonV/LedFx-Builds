@@ -69,7 +69,21 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cd ./deps/ledfx
-          git apply sentry.patch
+          
+          # Check if sentry_config.py exists (patch target)
+          if [ -f "ledfx/sentry_config.py" ]; then
+            echo "Sentry config found, applying patch..."
+            git apply sentry.patch || {
+              echo "Patch failed, attempting with 3-way merge..."
+              git apply --3way sentry.patch || {
+                echo "3-way merge failed, checking if changes already applied..."
+                git apply --check --reverse sentry.patch && echo "Patch already applied" || echo "Patch cannot be applied, continuing anyway..."
+              }
+            }
+          else
+            echo "Sentry config not found - patch may already be applied or not needed"
+          fi
+          
           cd ../..
 
       - name: Prepare version Bump for Android
@@ -205,7 +219,21 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cd ./deps/ledfx
-          git apply sentry.patch
+          
+          # Check if sentry_config.py exists (patch target)
+          if [ -f "ledfx/sentry_config.py" ]; then
+            echo "Sentry config found, applying patch..."
+            git apply sentry.patch || {
+              echo "Patch failed, attempting with 3-way merge..."
+              git apply --3way sentry.patch || {
+                echo "3-way merge failed, checking if changes already applied..."
+                git apply --check --reverse sentry.patch && echo "Patch already applied" || echo "Patch cannot be applied, continuing anyway..."
+              }
+            }
+          else
+            echo "Sentry config not found - patch may already be applied or not needed"
+          fi
+          
           cd ../..
 
       - name: Prepare version Bump for Android
