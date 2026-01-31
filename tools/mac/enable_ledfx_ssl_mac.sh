@@ -5,9 +5,16 @@
 
 set -e
 
-# Step 1: Create SSL directory
-SSL_DIR="$HOME/.ledfx/ssl"
+# Step 1: Create SSL directory (use SUDO_USER to get actual user's home)
+if [ -n "$SUDO_USER" ]; then
+  USER_HOME=$(eval echo ~$SUDO_USER)
+else
+  USER_HOME="$HOME"
+fi
+
+SSL_DIR="$USER_HOME/.ledfx/ssl"
 mkdir -p "$SSL_DIR"
+chown -R "$SUDO_USER:staff" "$SSL_DIR" 2>/dev/null || true
 
 # Step 2: Generate SSL certificates
 cd "$SSL_DIR"
@@ -25,12 +32,17 @@ openssl x509 -req -days 3650 -in cert.csr -signkey privkey.pem -out fullchain.pe
 # Clean up CSR
 rm cert.csr
 
-# Step 3: Install certificate as trusted (requires sudo)
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$SSL_DIR/fullchain.pem"
+# Fix permissions
+chown "$SUDO_USER:staff" *.pem 2>/dev/null || true
+chmod 600 *.pem
 
-# Step 4: Add to hosts file (requires sudo)
+# Step 3: Install certificate as trusted in SYSTEM keychain
+# Using system keychain to avoid user interaction prompts
+security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$SSL_DIR/fullchain.pem"
+
+# Step 4: Add to hosts file
 if ! grep -q "ledfx.local" /etc/hosts; then
-  echo "127.0.0.1 ledfx.local" | sudo tee -a /etc/hosts > /dev/null
+  echo "127.0.0.1 ledfx.local" >> /etc/hosts
 fi
 
 exit 0
