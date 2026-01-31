@@ -898,6 +898,30 @@ jobs:
           cp -r ./src/LedFx_core--v${{ env.action_state }}/ ./frontend/extraResources/LedFx/ &&
           ls ./frontend/extraResources/LedFx
 
+      - name: Copy SSL Scripts for All Platforms
+        continue-on-error: true
+        run: |
+          echo "Copying SSL scripts to extraResources..."
+          # Windows scripts
+          if [ -f "./src2/tools/win/enable_ledfx_ssl.ps1" ]; then
+            cp ./src2/tools/win/enable_ledfx_ssl.ps1 ./frontend/extraResources/
+            cp ./src2/tools/win/disable_ledfx_ssl.ps1 ./frontend/extraResources/
+          fi
+          # macOS scripts
+          if [ -f "./src2/tools/mac/enable_ledfx_ssl_mac.sh" ]; then
+            cp ./src2/tools/mac/enable_ledfx_ssl_mac.sh ./frontend/extraResources/
+            cp ./src2/tools/mac/disable_ledfx_ssl_mac.sh ./frontend/extraResources/
+            chmod +x ./frontend/extraResources/*.sh
+          fi
+          # Linux scripts
+          if [ -f "./src2/tools/linux/enable_ledfx_ssl_linux.sh" ]; then
+            cp ./src2/tools/linux/enable_ledfx_ssl_linux.sh ./frontend/extraResources/
+            cp ./src2/tools/linux/disable_ledfx_ssl_linux.sh ./frontend/extraResources/
+            chmod +x ./frontend/extraResources/*.sh
+          fi
+          echo "SSL scripts copied:"
+          ls -la ./frontend/extraResources/
+
       - name: Copy Loopback Driver and Audio Manager for macOS ARM64
         if: ${{ env.IS_OSX_ARM64 == 'true' && env.BUILD_OSX_ARM64 == 'true' }}
         run: |
