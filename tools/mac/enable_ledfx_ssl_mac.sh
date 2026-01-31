@@ -36,9 +36,10 @@ rm cert.csr
 chown "$SUDO_USER:staff" *.pem 2>/dev/null || true
 chmod 600 *.pem
 
-# Step 3: Install certificate as trusted in SYSTEM keychain
-# Using system keychain to avoid user interaction prompts
-security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$SSL_DIR/fullchain.pem"
+# Step 3: Install certificate to user's login keychain (as the actual user)
+# Run as the actual user to avoid authorization issues
+sudo -u "$SUDO_USER" security add-trusted-cert -d -r trustRoot -k "$USER_HOME/Library/Keychains/login.keychain-db" "$SSL_DIR/fullchain.pem" 2>/dev/null || \
+sudo -u "$SUDO_USER" security add-trusted-cert -d -r trustRoot -k "$USER_HOME/Library/Keychains/login.keychain" "$SSL_DIR/fullchain.pem"
 
 # Step 4: Add to hosts file
 if ! grep -q "ledfx.local" /etc/hosts; then
