@@ -188,11 +188,7 @@ async def monitor_media_info(device_name):
     print("\n" + "=" * 60)
     print("              ⚡ Press \033[1m\033[96mCtrl+Alt+T\033[0m in LedFx CC")
     print("=" * 60 + "\n")
-    print(f"OS: {platform.system()} | 
-    print("\n" + "=" * 60)
-    print("              ⚡ Press \033[1m\033[96mCtrl+Alt+T\033[0m in LedFx CC")
-    print("=" * 60 + "\n")
-    print(f"Monitoring media... (\033[1m\033[91mCtrl+C\033[0m to stop)")
+    print(f"OS: {platform.system()} | Monitoring media... (\033[1m\033[91mCtrl+C\033[0m to stop)")
     print("")
 
     try:
