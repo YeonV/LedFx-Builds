@@ -1,18 +1,32 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 from hiddenimports import hiddenimports
-from PyInstaller.utils.hooks import copy_metadata
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files, collect_submodules, copy_metadata
+
 spec_root = os.path.abspath(SPECPATH)
 
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
 print(venv_root)
-# Create prod.env for the packaged binaries to read from
-with open('prod.env', 'w') as file:
+
+# Collect NumPy binaries and data files (required for NumPy 2.x)
+numpy_binaries = collect_dynamic_libs('numpy')
+numpy_datas = collect_data_files('numpy', include_py_files=True)
+numpy_hiddenimports = collect_submodules('numpy')
+
+# Collect lifx-async package metadata (required by lifx/__init__.py for importlib.metadata)
+lifx_metadata = copy_metadata('lifx-async')
+
+# Get GitHub SHA for build metadata
+github_sha_value = os.getenv('GITHUB_SHA')
+
+# Create ledfx.env for the packaged binaries to read from
+with open('ledfx.env', 'w') as file:
+    file.write(f'GITHUB_SHA = {github_sha_value}\n')
     file.write('IS_RELEASE = true')
 
-yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/prod.env','.')]
+yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/ledfx.env','.')]
+yzdata += numpy_datas + lifx_metadata
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')
@@ -20,9 +34,9 @@ yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/led
 
 a = Analysis([f'{spec_root}\\ledfx\\__main__.py'],
              pathex=[f'{spec_root}', f'{spec_root}\\ledfx'],
-             binaries=[],
+             binaries=numpy_binaries,
              datas=yzdata,
-             hiddenimports=hiddenimports,
+             hiddenimports=hiddenimports + numpy_hiddenimports,
              hookspath=[f'{venv_root}\\lib\\site-packages\\pyupdater\\hooks'],
              runtime_hooks=[],
              excludes=[],
@@ -51,5 +65,6 @@ coll = COLLECT(exe,
                upx=True,
                upx_exclude=[],
                name='LedFx')
-# Cleanup prod.env
-os.remove("prod.env")
+
+# Cleanup ledfx.env
+os.remove("ledfx.env")

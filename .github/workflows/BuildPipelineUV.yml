@@ -292,11 +292,9 @@ jobs:
       - name: get git version
         run: |
           cp ./src2/tools/sentry.patch ./src/sentry.patch
-          cp ./src2/tools/utils.patch ./src/utils.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           git apply sentry.patch
-          git apply utils.patch
           cd ..
 
       - name: Get latest frontend
@@ -447,7 +445,7 @@ jobs:
           mv src2/tools/win/win.spec src/win.spec
           cd src
           uv pip install pyinstaller
-          uv run pyinstaller windows-binary.spec
+          uv run pyinstaller win.spec
           rm dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           mv loopback/libportaudio64bit.dll dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           cp -r dist/LedFx $BINARY_NAME-v$action_state          

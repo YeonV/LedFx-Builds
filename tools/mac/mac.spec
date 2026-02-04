@@ -2,12 +2,15 @@
 import os
 from hiddenimports import hiddenimports
 from ledfx.consts import PROJECT_VERSION
-# from PyInstaller.utils.hooks import copy_metadata
+from PyInstaller.utils.hooks import copy_metadata
 # from PyInstaller.utils.hooks import collect_data_files
 
 spec_root = os.path.abspath(SPECPATH)
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
+
+# Collect lifx-async package metadata (required by lifx/__init__.py for importlib.metadata)
+lifx_metadata = copy_metadata('lifx-async')
 
 # Remove the ledfx.env file if it exists
 os.remove("ledfx.env") if os.path.exists("ledfx.env") else None
@@ -26,6 +29,7 @@ with open('ledfx.env', 'a') as file:
 print(venv_root)
 print(f'{spec_root}')
 yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/ledfx.env','.')]
+yzdata += lifx_metadata
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')

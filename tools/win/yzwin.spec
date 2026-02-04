@@ -8,7 +8,12 @@ spec_root = os.path.abspath(SPECPATH)
 venv_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 block_cipher = None
 print(venv_root)
+
+# Collect lifx-async package metadata (required by lifx/__init__.py for importlib.metadata)
+lifx_metadata = copy_metadata('lifx-async')
+
 yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.')]
+yzdata += lifx_metadata
 # yzdata += collect_data_files('bokeh')
 # yzdata += collect_data_files('xyzservices')
 # yzdata += copy_metadata('bokeh')
