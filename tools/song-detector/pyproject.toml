@@ -4,8 +4,7 @@ version = "0.0.1"
 description = "Send Songname to LedFx CC"
 authors = ["YeonV"]
 license = "GPL-3.0 License"
-packages = []
-include = []
+package-mode = false
 
 
 [tool.poetry.dependencies]
