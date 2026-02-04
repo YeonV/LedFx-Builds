@@ -171,6 +171,8 @@ async def monitor_media_info(device_name):
             await asyncio.sleep(1)
     except asyncio.CancelledError:
         print("Song Detector exited.")
+
+if __name__ == "__main__":
     # Check OS support
     if platform.system() not in ["Windows", "Linux"]:
         print(f"⚠️  Unsupported operating system: {platform.system()}")
@@ -186,9 +188,9 @@ async def monitor_media_info(device_name):
         device_name = "ledfxcc"
     
     print("\n" + "=" * 60)
-    print("              ⚡ Press \033[1m\033[96mCtrl+Alt+T\033[0m in LedFx CC")
+    print("              >> Press Ctrl+Alt+T in LedFx CC")
     print("=" * 60 + "\n")
-    print(f"OS: {platform.system()} | Monitoring media... (\033[1m\033[91mCtrl+C\033[0m to stop)")
+    print(f"OS: {platform.system()} | Monitoring media... (Ctrl+C to stop)")
     print("")
 
     try:
