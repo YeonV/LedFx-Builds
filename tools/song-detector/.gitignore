@@ -1,0 +1,16 @@
+# Build outputs
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Poetry
+poetry.lock

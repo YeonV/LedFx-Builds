@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "SongDetector"
+version = "0.0.1"
+description = "Send Songname to LedFx CC"
+authors = ["YeonV"]
+license = "GPL-3.0 License"
+packages = []
+include = []
+
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pyinstaller = "^6.11.1"
+winsdk = { version = "^1.0.0b10", markers = "sys_platform == 'win32'" }
+dbus-python = { version = "^1.3.2", markers = "sys_platform == 'linux'" }
+
+
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+pytest-order = "^1.2.0"
+pyinstaller = "^6.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

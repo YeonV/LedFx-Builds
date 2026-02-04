@@ -1,0 +1,84 @@
+name: Build Song Detector
+
+on:
+  workflow_dispatch:
+    inputs:
+      fversion:
+        description: 'Frontend Version'
+        required: true
+      release:
+        description: 'Is Release? (Yes/No)'
+        required: true
+        default: 'No'
+      upload_url:
+        description: 'Release upload URL'
+        required: false
+
+jobs:
+  build:
+    name: Build Song Detector - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: song-detector-windows.exe
+            output_name: song-detector.exe
+          - os: ubuntu-latest
+            artifact_name: song-detector-linux
+            output_name: song-detector
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ./tools/song-detector
+        run: |
+          poetry install --no-interaction
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: ./tools/song-detector
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev libdbus-glib-1-dev
+          poetry install --no-interaction
+
+      - name: Build with PyInstaller
+        working-directory: ./tools/song-detector
+        run: |
+          poetry run pyinstaller --onefile --name song-detector song-detector.py
+
+      - name: Rename output
+        working-directory: ./tools/song-detector/dist
+        run: |
+          mv song-detector${{ matrix.os == 'windows-latest' && '.exe' || '' }} ${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ./tools/song-detector/dist/${{ matrix.artifact_name }}
+
+      - name: Upload to Release
+        if: ${{ github.event.inputs.release == 'Yes' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.inputs.upload_url }}
+          asset_path: ./tools/song-detector/dist/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.artifact_name }}
+          asset_content_type: application/octet-stream
