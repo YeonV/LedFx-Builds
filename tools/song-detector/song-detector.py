@@ -266,19 +266,130 @@ def send_media_info(info, device_name):
         print(f"Failed to send: {url}, Error: {e}")
 
 async def monitor_media_info(device_name):
+    if platform.system() == "Darwin":
+        # macOS: Use streaming mode for real-time updates
+        monitor_media_info_macos_stream(device_name)
+    else:
+        # Windows/Linux: Poll every second
+        previous_info = None
+        try:
+            while True:
+                info = await get_current_media_info()
+                if info != previous_info:
+                    if info:
+                        send_media_info(info, device_name)
+                    else:
+                        send_media_info({"artist": "Unknown", "title": "No media is currently playing"}, device_name)
+                    previous_info = info
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            print("Song Detector exited.")
+
+def monitor_media_info_macos_stream(device_name):
+    """Monitor media info on macOS using stream mode for real-time updates"""
+    
+    def get_resource_path(relative_path):
+        """Get absolute path to resource, works for dev and for PyInstaller"""
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base_path, relative_path)
+    
+    def save_artwork(artwork_data):
+        """Save base64-encoded artwork to file"""
+        try:
+            home = Path.home()
+            assets_dir = home / "Library" / "Application Support" / ".ledfx" / "assets"
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            thumbnail_path = assets_dir / "current_album_art.jpg"
+            
+            image_data = base64.b64decode(artwork_data)
+            with open(thumbnail_path, 'wb') as f:
+                f.write(image_data)
+            
+            return str(thumbnail_path)
+        except Exception as e:
+            print(f"Failed to save album art: {e}")
+            return None
+    
     previous_info = None
+    process = None
+    
     try:
-        while True:
-            info = await get_current_media_info()
-            if info != previous_info:
-                if info:
-                    send_media_info(info, device_name)
-                else:
-                    send_media_info({"artist": "Unknown", "title": "No media is currently playing"}, device_name)
-                previous_info = info
-            await asyncio.sleep(1)
-    except asyncio.CancelledError:
+        # Try system media-control first
+        if shutil.which('media-control'):
+            process = subprocess.Popen(
+                ['media-control', 'stream'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+        else:
+            # Use bundled mediaremote-adapter
+            framework_path = get_resource_path('MediaRemoteAdapter.framework')
+            perl_script = get_resource_path('mediaremote-adapter.pl')
+            
+            if os.path.exists(framework_path) and os.path.exists(perl_script):
+                process = subprocess.Popen(
+                    ['/usr/bin/perl', perl_script, framework_path, 'stream'],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1
+                )
+        
+        if not process:
+            print("⚠️  No media-control method available on macOS")
+            return
+        
+        # Read streaming output line by line
+        for line in process.stdout:
+            try:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                data = json.loads(line)
+                
+                # Check if it's a data payload (stream outputs multiple types)
+                if data.get('type') == 'data':
+                    payload = data.get('payload', {})
+                    
+                    if payload and payload.get('playing') and payload.get('title'):
+                        thumbnail_path = None
+                        if payload.get('artworkData'):
+                            thumbnail_path = save_artwork(payload['artworkData'])
+                        
+                        media_info = {
+                            "title": payload.get('title', 'Unknown'),
+                            "artist": payload.get('artist', 'Unknown'),
+                            "album": payload.get('album', ''),
+                            "thumbnail": thumbnail_path
+                        }
+                        
+                        if media_info != previous_info:
+                            send_media_info(media_info, device_name)
+                            previous_info = media_info
+                    else:
+                        # No media playing
+                        if previous_info is not None:
+                            send_media_info({"artist": "Unknown", "title": "No media is currently playing"}, device_name)
+                            previous_info = None
+                
+            except json.JSONDecodeError:
+                continue
+            except Exception as e:
+                print(f"Error processing stream: {e}")
+                continue
+        
+    except KeyboardInterrupt:
         print("Song Detector exited.")
+    finally:
+        if process:
+            process.terminate()
+            process.wait()
 
 if __name__ == "__main__":
     # Check OS support
