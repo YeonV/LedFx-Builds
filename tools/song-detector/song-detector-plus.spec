@@ -2,6 +2,10 @@
 import platform
 import os
 
+# Get the directory containing this spec file
+spec_root = os.path.abspath(SPECPATH)
+spec_dir = os.path.dirname(spec_root)
+
 # macOS-specific data files
 datas = []
 if platform.system() == 'Darwin':
@@ -47,5 +51,5 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=os.environ.get('CODESIGN_IDENTITY'),
-    entitlements_file=os.path.join(os.path.dirname(SPECPATH), 'entitlements.plist') if platform.system() == 'Darwin' else None,
+    entitlements_file=os.path.join(spec_dir, 'entitlements.plist') if platform.system() == 'Darwin' else None,
 )
