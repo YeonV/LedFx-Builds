@@ -142,18 +142,7 @@ jobs:
           echo "  Verifying signature..."
           codesign --verify --verbose=2 ${{ matrix.artifact_name }}
           
-      # Cleanup: Remove certificate and API key for security
-      - name: Cleanup macOS Code Signing
-        if: always() && matrix.os == 'macos-latest'
-        run: |
-          # Remove the keychain
-          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
-          
-          # Remove the API key file
-          rm -f ~/private_keys/AuthKey_*.p8 || true
-          
-          # Remove the certificate file
-          rm -f $RUNNER_TEMP/certificate.p12 || true          if [ $? -eq 0 ]; then
+          if [ $? -eq 0 ]; then
             echo "✅ Binary signed successfully"
           else
             echo "❌ ERROR: Binary signature verification failed"
@@ -189,6 +178,19 @@ jobs:
           rm ${{ matrix.artifact_name }}.zip
           
           echo "✅ song-detector-macos signing and notarization complete"
+          
+      # Cleanup: Remove certificate and API key for security
+      - name: Cleanup macOS Code Signing
+        if: always() && matrix.os == 'macos-latest'
+        run: |
+          # Remove the keychain
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          
+          # Remove the API key file
+          rm -f ~/private_keys/AuthKey_*.p8 || true
+          
+          # Remove the certificate file
+          rm -f $RUNNER_TEMP/certificate.p12 || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
