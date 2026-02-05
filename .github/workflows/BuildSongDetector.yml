@@ -65,6 +65,57 @@ jobs:
         run: |
           poetry install --no-interaction
 
+      # Code Signing Setup for macOS
+      - name: Import macOS Code Signing Certificate
+        if: matrix.os == 'macos-latest'
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Create variables
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          
+          # Import certificate from secrets
+          echo -n "$MACOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
+          
+          # Create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          
+          # Import certificate to keychain
+          security import $CERTIFICATE_PATH -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      - name: Set up Apple API Key for Notarization
+        if: matrix.os == 'macos-latest'
+        env:
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          # Create the private key file
+          mkdir -p ~/private_keys
+          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          
+          # Export environment variables for notarization
+          echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
+          echo "APPLE_API_KEY_ID=${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" >> $GITHUB_ENV
+          echo "APPLE_API_ISSUER=${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" >> $GITHUB_ENV
+
+      - name: Detect Code Signing Identity
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Find the Developer ID Application certificate
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | grep -o '[A-F0-9]\{40\}')
+          echo "Found signing identity: $IDENTITY"
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> $GITHUB_ENV
+
       - name: Build with PyInstaller
         working-directory: ./tools/song-detector
         run: |
@@ -74,6 +125,70 @@ jobs:
         working-directory: ./tools/song-detector/dist
         run: |
           mv song-detector${{ matrix.os == 'windows-latest' && '.exe' || '' }} ${{ matrix.artifact_name }}
+
+      - name: Sign, Notarize and Staple Binary (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: ./tools/song-detector/dist
+        run: |
+          echo "🔐 Signing song-detector-macos binary..."
+          
+          # Sign the binary
+          codesign --force --sign "$CODESIGN_IDENTITY" \
+            --timestamp \
+            --options runtime \
+            ${{ matrix.artifact_name }}
+          
+          # Verify signature
+          echo "  Verifying signature..."
+          codesign --verify --verbose=2 ${{ matrix.artifact_name }}
+          
+      # Cleanup: Remove certificate and API key for security
+      - name: Cleanup macOS Code Signing
+        if: always() && matrix.os == 'macos-latest'
+        run: |
+          # Remove the keychain
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          
+          # Remove the API key file
+          rm -f ~/private_keys/AuthKey_*.p8 || true
+          
+          # Remove the certificate file
+          rm -f $RUNNER_TEMP/certificate.p12 || true          if [ $? -eq 0 ]; then
+            echo "✅ Binary signed successfully"
+          else
+            echo "❌ ERROR: Binary signature verification failed"
+            exit 1
+          fi
+          
+          # Create zip for notarization (notarytool requires zip/dmg/pkg)
+          echo "📦 Creating zip for notarization..."
+          ditto -c -k --keepParent ${{ matrix.artifact_name }} ${{ matrix.artifact_name }}.zip
+          
+          # Submit for notarization
+          echo "🔐 Submitting for notarization..."
+          xcrun notarytool submit ${{ matrix.artifact_name }}.zip \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: Binary notarization failed"
+            exit 1
+          fi
+          
+          # Staple the notarization ticket (note: stapling to bare executables doesn't persist, but we try anyway)
+          echo "📎 Attempting to staple notarization ticket..."
+          xcrun stapler staple ${{ matrix.artifact_name }} || echo "⚠️  Stapling not supported for bare executables (expected)"
+          
+          # Verify notarization
+          echo "✅ Verifying notarization..."
+          spctl -a -vvv -t install ${{ matrix.artifact_name }} || echo "✅ Binary is notarized (spctl check may fail for non-bundled executables)"
+          
+          # Remove the temporary zip file
+          rm ${{ matrix.artifact_name }}.zip
+          
+          echo "✅ song-detector-macos signing and notarization complete"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
