@@ -964,14 +964,16 @@ jobs:
             codesign --force --sign "$CODESIGN_IDENTITY" \
               --timestamp \
               --options runtime \
+              --entitlements ./src3/entitlements.mac.core.plist \
               "$file" || echo "    Warning: Failed to sign $file"
           done
           
-          # Sign the driver bundle itself
+          # Sign the driver bundle itself with driver-specific entitlements
           echo "Signing LedFx.driver bundle..."
-          codesign --force --sign "$CODESIGN_IDENTITY" \
+          codesign --force --deep --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
+            --entitlements ./src3/entitlements.mac.core.plist \
             ./frontend/extraResources/LedFx.driver
           
           # Sign the audio_manager executable
@@ -979,6 +981,7 @@ jobs:
           codesign --force --sign "$CODESIGN_IDENTITY" \
             --timestamp \
             --options runtime \
+            --entitlements ./src3/entitlements.mac.core.plist \
             ./frontend/extraResources/audio_manager
           
           # Verify signatures

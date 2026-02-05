@@ -139,6 +139,8 @@ jobs:
 
       - name: Build with PyInstaller
         working-directory: ./tools/song-detector
+        env:
+          CODESIGN_IDENTITY: ${{ env.CODESIGN_IDENTITY }}
         run: |
           poetry run pyinstaller ${{ matrix.spec_file }}
 
@@ -151,24 +153,20 @@ jobs:
         if: matrix.os == 'macos-latest'
         working-directory: ./tools/song-detector/dist
         run: |
-          echo "🔐 Signing ${{ matrix.artifact_name }} binary..."
+          echo "🔐 Verifying PyInstaller signing of ${{ matrix.artifact_name }}..."
           
-          # Sign the binary
-          codesign --force --sign "$CODESIGN_IDENTITY" \
-            --timestamp \
-            --options runtime \
-            ${{ matrix.artifact_name }}
-          
-          # Verify signature
-          echo "  Verifying signature..."
-          codesign --verify --verbose=2 ${{ matrix.artifact_name }}
+          # Verify signature (should already be signed by PyInstaller)
+          codesign --verify --deep --strict --verbose=2 ${{ matrix.artifact_name }}
           
           if [ $? -eq 0 ]; then
-            echo "✅ Binary signed successfully"
+            echo "✅ Binary signed successfully by PyInstaller"
           else
             echo "❌ ERROR: Binary signature verification failed"
             exit 1
           fi
+          
+          # Display signature details
+          codesign -dvvv ${{ matrix.artifact_name }}
           
           # Create zip for notarization (notarytool requires zip/dmg/pkg)
           echo "📦 Creating zip for notarization..."
@@ -184,6 +182,12 @@ jobs:
           
           if [ $? -ne 0 ]; then
             echo "❌ ERROR: Binary notarization failed"
+            echo "📋 Getting notarization log..."
+            xcrun notarytool log \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY_ID" \
+              --issuer "$APPLE_API_ISSUER" \
+              $(xcrun notarytool history --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" | head -n 2 | tail -n 1 | awk '{print $2}')
             exit 1
           fi
           
