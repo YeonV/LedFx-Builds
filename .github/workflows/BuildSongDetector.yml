@@ -16,21 +16,42 @@ on:
 
 jobs:
   build:
-    name: Build Song Detector - ${{ matrix.os }}
+    name: Build Song Detector (${{ matrix.variant }}) - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
+            variant: standard
+            spec_file: song-detector.spec
             artifact_name: song-detector.exe
             output_name: song-detector.exe
+          - os: windows-latest
+            variant: plus
+            spec_file: song-detector-plus.spec
+            artifact_name: song-detector-plus.exe
+            output_name: song-detector-plus.exe
           - os: ubuntu-latest
+            variant: standard
+            spec_file: song-detector.spec
             artifact_name: song-detector-linux
             output_name: song-detector
+          - os: ubuntu-latest
+            variant: plus
+            spec_file: song-detector-plus.spec
+            artifact_name: song-detector-plus-linux
+            output_name: song-detector-plus
           - os: macos-latest
+            variant: standard
+            spec_file: song-detector.spec
             artifact_name: song-detector-macos
             output_name: song-detector
+          - os: macos-latest
+            variant: plus
+            spec_file: song-detector-plus.spec
+            artifact_name: song-detector-plus-macos
+            output_name: song-detector-plus
 
     steps:
       - name: Checkout
@@ -119,18 +140,18 @@ jobs:
       - name: Build with PyInstaller
         working-directory: ./tools/song-detector
         run: |
-          poetry run pyinstaller song-detector.spec
+          poetry run pyinstaller ${{ matrix.spec_file }}
 
       - name: Rename output
         working-directory: ./tools/song-detector/dist
         run: |
-          mv song-detector${{ matrix.os == 'windows-latest' && '.exe' || '' }} ${{ matrix.artifact_name }}
+          mv ${{ matrix.output_name }} ${{ matrix.artifact_name }}
 
       - name: Sign, Notarize and Staple Binary (macOS)
         if: matrix.os == 'macos-latest'
         working-directory: ./tools/song-detector/dist
         run: |
-          echo "🔐 Signing song-detector-macos binary..."
+          echo "🔐 Signing ${{ matrix.artifact_name }} binary..."
           
           # Sign the binary
           codesign --force --sign "$CODESIGN_IDENTITY" \
@@ -177,7 +198,7 @@ jobs:
           # Remove the temporary zip file
           rm ${{ matrix.artifact_name }}.zip
           
-          echo "✅ song-detector-macos signing and notarization complete"
+          echo "✅ ${{ matrix.artifact_name }} signing and notarization complete"
           
       # Cleanup: Remove certificate and API key for security
       - name: Cleanup macOS Code Signing
