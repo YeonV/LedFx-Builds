@@ -2,16 +2,12 @@
 import platform
 import os
 
-# Get the directory containing this spec file
-spec_root = os.path.abspath(SPECPATH)
-spec_dir = os.path.dirname(spec_root)
-
 # macOS-specific data files
 datas = []
 if platform.system() == 'Darwin':
     # Bundle the MediaRemoteAdapter framework and Perl script
-    framework_path = os.path.join(os.path.dirname(SPECPATH), 'MediaRemoteAdapter.framework')
-    perl_script = os.path.join(os.path.dirname(SPECPATH), 'mediaremote-adapter.pl')
+    framework_path = os.path.join(os.getcwd(), 'MediaRemoteAdapter.framework')
+    perl_script = os.path.join(os.getcwd(), 'mediaremote-adapter.pl')
     
     if os.path.exists(framework_path):
         datas.append((framework_path, 'MediaRemoteAdapter.framework'))
@@ -51,5 +47,5 @@ exe = EXE(
     argv_emulation=False,
     target_arch=None,
     codesign_identity=os.environ.get('CODESIGN_IDENTITY'),
-    entitlements_file=os.path.join(spec_dir, 'entitlements.plist') if platform.system() == 'Darwin' else None,
+    entitlements_file=os.path.join(os.getcwd(), 'entitlements.plist') if platform.system() == 'Darwin' else None,
 )
