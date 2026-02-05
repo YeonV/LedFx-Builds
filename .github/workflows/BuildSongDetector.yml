@@ -23,10 +23,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: song-detector-windows.exe
+            artifact_name: song-detector.exe
             output_name: song-detector.exe
           - os: ubuntu-latest
             artifact_name: song-detector-linux
+            output_name: song-detector
+          - os: macos-latest
+            artifact_name: song-detector-macos
             output_name: song-detector
 
     steps:
@@ -56,10 +59,16 @@ jobs:
           sudo apt-get install -y libdbus-1-dev libdbus-glib-1-dev
           poetry install --no-interaction
 
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: ./tools/song-detector
+        run: |
+          poetry install --no-interaction
+
       - name: Build with PyInstaller
         working-directory: ./tools/song-detector
         run: |
-          poetry run pyinstaller --onefile --name song-detector song-detector.py
+          poetry run pyinstaller song-detector.spec
 
       - name: Rename output
         working-directory: ./tools/song-detector/dist

@@ -3,6 +3,10 @@ import os
 import argparse
 import platform
 import subprocess
+import json
+import shutil
+import sys
+import base64
 from pathlib import Path
 from urllib.parse import quote
 
@@ -17,6 +21,9 @@ elif platform.system() == "Linux":
     except ImportError:
         print("⚠️  dbus-python not installed. Install with: pip install dbus-python")
         exit(1)
+elif platform.system() == "Darwin":
+    # macOS - uses subprocess for AppleScript, no additional imports needed
+    pass
 
 async def get_windows_media_info():
     """Get current media info on Windows using WinSDK"""
@@ -127,12 +134,111 @@ def get_linux_media_info():
         print(f"Failed to get media info: {e}")
         return None
 
+def get_macos_media_info():
+    """Get current media info on macOS using media-control or bundled mediaremote-adapter"""
+    
+    # Helper function to get script directory (works with PyInstaller)
+    def get_resource_path(relative_path):
+        """Get absolute path to resource, works for dev and for PyInstaller"""
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base_path, relative_path)
+    
+    def save_artwork(artwork_data):
+        """Save base64-encoded artwork to file"""
+        try:
+            # Determine assets directory
+            home = Path.home()
+            assets_dir = home / "Library" / "Application Support" / ".ledfx" / "assets"
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            thumbnail_path = assets_dir / "current_album_art.jpg"
+            
+            # Decode and save
+            image_data = base64.b64decode(artwork_data)
+            with open(thumbnail_path, 'wb') as f:
+                f.write(image_data)
+            
+            return str(thumbnail_path)
+        except Exception as e:
+            print(f"Failed to save album art: {e}")
+            return None
+    
+    try:
+        media_info = None
+        
+        # Strategy 1: Try system-installed media-control (if available)
+        if shutil.which('media-control'):
+            try:
+                result = subprocess.run(
+                    ['media-control', 'get'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    data = json.loads(result.stdout.strip())
+                    if data and data.get('playing') and data.get('title'):
+                        thumbnail_path = None
+                        if data.get('artworkData'):
+                            thumbnail_path = save_artwork(data['artworkData'])
+                        
+                        media_info = {
+                            "title": data.get('title', 'Unknown'),
+                            "artist": data.get('artist', 'Unknown'),
+                            "album": data.get('album', ''),
+                            "thumbnail": thumbnail_path
+                        }
+            except Exception as e:
+                print(f"media-control failed: {e}")
+        
+        # Strategy 2: Use bundled mediaremote-adapter framework
+        if not media_info:
+            try:
+                framework_path = get_resource_path('MediaRemoteAdapter.framework')
+                perl_script = get_resource_path('mediaremote-adapter.pl')
+                
+                if os.path.exists(framework_path) and os.path.exists(perl_script):
+                    result = subprocess.run(
+                        ['/usr/bin/perl', perl_script, framework_path, 'get'],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    
+                    if result.returncode == 0 and result.stdout.strip():
+                        data = json.loads(result.stdout.strip())
+                        if data and data.get('playing') and data.get('title'):
+                            thumbnail_path = None
+                            if data.get('artworkData'):
+                                thumbnail_path = save_artwork(data['artworkData'])
+                            
+                            media_info = {
+                                "title": data.get('title', 'Unknown'),
+                                "artist": data.get('artist', 'Unknown'),
+                                "album": data.get('album', ''),
+                                "thumbnail": thumbnail_path
+                            }
+            except Exception as e:
+                print(f"bundled mediaremote-adapter failed: {e}")
+        
+        return media_info
+        
+    except Exception as e:
+        print(f"Failed to get media info: {e}")
+        return None
+
 async def get_current_media_info():
     """Get current media info (OS-aware)"""
     if platform.system() == "Windows":
         return await get_windows_media_info()
     elif platform.system() == "Linux":
         return get_linux_media_info()
+    elif platform.system() == "Darwin":
+        return get_macos_media_info()
     else:
         print(f"⚠️  Unsupported OS: {platform.system()}")
         return None
@@ -149,6 +255,8 @@ def send_media_info(info, device_name):
             os.startfile(url)
         elif platform.system() == "Linux":
             subprocess.run(['xdg-open', url], check=False)
+        elif platform.system() == "Darwin":
+            subprocess.run(['open', url], check=False)
         else:
             print(f"⚠️  Cannot open URL on {platform.system()}")
             return
@@ -174,9 +282,9 @@ async def monitor_media_info(device_name):
 
 if __name__ == "__main__":
     # Check OS support
-    if platform.system() not in ["Windows", "Linux"]:
+    if platform.system() not in ["Windows", "Linux", "Darwin"]:
         print(f"⚠️  Unsupported operating system: {platform.system()}")
-        print("Song Detector only supports Windows and Linux")
+        print("Song Detector only supports Windows, Linux, and macOS")
         exit(1)
     
     parser = argparse.ArgumentParser(description="Send media info to a virtual device.")

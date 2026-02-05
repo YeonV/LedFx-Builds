@@ -1,11 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
+import platform
+import os
 
+# macOS-specific data files
+datas = []
+if platform.system() == 'Darwin':
+    # Bundle the MediaRemoteAdapter framework and Perl script
+    framework_path = os.path.join(os.path.dirname(SPECPATH), 'MediaRemoteAdapter.framework')
+    perl_script = os.path.join(os.path.dirname(SPECPATH), 'mediaremote-adapter.pl')
+    
+    if os.path.exists(framework_path):
+        datas.append((framework_path, 'MediaRemoteAdapter.framework'))
+    if os.path.exists(perl_script):
+        datas.append((perl_script, '.'))
 
 a = Analysis(
     ['song-detector.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
