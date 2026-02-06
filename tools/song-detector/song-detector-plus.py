@@ -18,6 +18,14 @@ from pathlib import Path
 from urllib.parse import quote
 from datetime import datetime
 
+def parse_time_value(value):
+    """Parse time values that may have 's' suffix (e.g., '5081.3s' -> 5081.3)"""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return float(value.rstrip('s'))
+    return float(value)
+
 # Platform-specific imports
 if platform.system() == "Windows":
     from winsdk.windows.media.control import \
@@ -243,8 +251,8 @@ def get_macos_media_info():
                             "artist": data.get('artist', 'Unknown'),
                             "album": data.get('album', ''),
                             "thumbnail": thumbnail_path,
-                            "position": data.get('elapsedTime'),  # May be available from MediaRemote
-                            "duration": data.get('duration'),     # May be available from MediaRemote
+                            "position": parse_time_value(data.get('elapsedTime')),
+                            "duration": parse_time_value(data.get('duration')),
                             "playing": data.get('playing', False),
                             "timestamp": time.time()
                         }
@@ -277,8 +285,8 @@ def get_macos_media_info():
                                 "artist": data.get('artist', 'Unknown'),
                                 "album": data.get('album', ''),
                                 "thumbnail": thumbnail_path,
-                                "position": data.get('elapsedTime'),  # May be available
-                                "duration": data.get('duration'),     # May be available
+                                "position": parse_time_value(data.get('elapsedTime')),
+                                "duration": parse_time_value(data.get('duration')),
                                 "playing": data.get('playing', False),
                                 "timestamp": time.time()
                             }
@@ -305,7 +313,8 @@ async def get_current_media_info():
 
 def send_media_info(info, device_name):
     """Send media info via protocol handler - WITH POSITION DATA"""
-    url = f"ledfx://song/{device_name}/{info['artist']} - {info['title']}"
+    artist_title = f"{info['artist']} - {info['title']}"
+    url = f"ledfx://song/{device_name}/{quote(artist_title, safe='')}"
     
     # Add URI-encoded thumbnail path if available
     if info.get('thumbnail'):
@@ -479,8 +488,8 @@ def monitor_media_info_macos_stream(device_name):
                             "artist": payload.get('artist', 'Unknown'),
                             "album": payload.get('album', ''),
                             "thumbnail": thumbnail_path,
-                            "position": payload.get('elapsedTime'),
-                            "duration": payload.get('duration'),
+                            "position": parse_time_value(payload.get('elapsedTime')),
+                            "duration": parse_time_value(payload.get('duration')),
                             "playing": payload.get('playing', False),
                             "timestamp": time.time()
                         }
