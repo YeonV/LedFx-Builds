@@ -89,6 +89,10 @@ async def get_windows_media_info():
             artist = info.artist or "Unknown"
             title = title_raw
         
+        # Clean up YouTube Music "Topic" artist suffix
+        if artist.endswith(' - Topic'):
+            artist = artist[:-8].strip()
+        
         # Extract position and duration
         position_seconds = None
         duration_seconds = None
@@ -140,6 +144,10 @@ def get_linux_media_info():
         artist = str(artist_list[0]) if artist_list else 'Unknown'
         album = str(metadata.get('xesam:album', ''))
         art_url = str(metadata.get('mpris:artUrl', ''))
+        
+        # Clean up YouTube Music "Topic" artist suffix
+        if artist.endswith(' - Topic'):
+            artist = artist[:-8].strip()
         
         # Get position (in microseconds)
         position_seconds = None
@@ -246,9 +254,14 @@ def get_macos_media_info():
                         if data.get('artworkData'):
                             thumbnail_path = save_artwork(data['artworkData'])
                         
+                        artist = data.get('artist', 'Unknown')
+                        # Clean up YouTube Music "Topic" artist suffix
+                        if artist.endswith(' - Topic'):
+                            artist = artist[:-8].strip()
+                        
                         media_info = {
                             "title": data.get('title', 'Unknown'),
-                            "artist": data.get('artist', 'Unknown'),
+                            "artist": artist,
                             "album": data.get('album', ''),
                             "thumbnail": thumbnail_path,
                             "position": parse_time_value(data.get('elapsedTime')),
@@ -280,9 +293,14 @@ def get_macos_media_info():
                             if data.get('artworkData'):
                                 thumbnail_path = save_artwork(data['artworkData'])
                             
+                            artist = data.get('artist', 'Unknown')
+                            # Clean up YouTube Music "Topic" artist suffix
+                            if artist.endswith(' - Topic'):
+                                artist = artist[:-8].strip()
+                            
                             media_info = {
                                 "title": data.get('title', 'Unknown'),
-                                "artist": data.get('artist', 'Unknown'),
+                                "artist": artist,
                                 "album": data.get('album', ''),
                                 "thumbnail": thumbnail_path,
                                 "position": parse_time_value(data.get('elapsedTime')),
@@ -483,9 +501,14 @@ def monitor_media_info_macos_stream(device_name):
                         if payload.get('artworkData'):
                             thumbnail_path = save_artwork(payload['artworkData'])
                         
+                        artist = payload.get('artist', 'Unknown')
+                        # Clean up YouTube Music "Topic" artist suffix
+                        if artist.endswith(' - Topic'):
+                            artist = artist[:-8].strip()
+                        
                         media_info = {
                             "title": payload.get('title', 'Unknown'),
-                            "artist": payload.get('artist', 'Unknown'),
+                            "artist": artist,
                             "album": payload.get('album', ''),
                             "thumbnail": thumbnail_path,
                             "position": parse_time_value(payload.get('elapsedTime')),
