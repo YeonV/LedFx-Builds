@@ -314,9 +314,9 @@ async def get_current_media_info():
 def send_media_info(info, device_name):
     """Send media info via protocol handler - WITH POSITION DATA"""
     artist_title = f"{info['artist']} - {info['title']}"
-    url = f"ledfx://song/{device_name}/{quote(artist_title, safe='')}"
+    url = f"ledfx://song/{device_name}/{artist_title}"
     
-    # Add URI-encoded thumbnail path if available
+    # Add URI-encoded thumbnail path if available (needs encoding for file paths)
     if info.get('thumbnail'):
         url += f"/{quote(str(info['thumbnail']), safe='')}"
     
