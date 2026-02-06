@@ -218,9 +218,9 @@ def get_macos_media_info():
     def save_artwork(artwork_data):
         """Save base64-encoded artwork to file"""
         try:
-            # Determine assets directory
+            # Save to ~/.ledfx/assets/ (standard location, works with core)
             home = Path.home()
-            assets_dir = home / "Library" / "Application Support" / ".ledfx" / "assets"
+            assets_dir = home / ".ledfx" / "assets"
             assets_dir.mkdir(parents=True, exist_ok=True)
             thumbnail_path = assets_dir / "current_album_art.jpg"
             
@@ -334,9 +334,10 @@ def send_media_info(info, device_name):
     artist_title = f"{info['artist']} - {info['title']}"
     url = f"ledfx://song/{device_name}/{artist_title}"
     
-    # Add URI-encoded thumbnail path if available (needs encoding for file paths)
+    # Add just the filename (backend serves from ~/.ledfx/assets/)
     if info.get('thumbnail'):
-        url += f"/{quote(str(info['thumbnail']), safe='')}"
+        thumbnail_filename = Path(info['thumbnail']).name
+        url += f"/{thumbnail_filename}"
     
     # Add position tracking query parameters
     query_params = []
@@ -438,8 +439,9 @@ def monitor_media_info_macos_stream(device_name):
     def save_artwork(artwork_data):
         """Save base64-encoded artwork to file"""
         try:
+            # Save to ~/.ledfx/assets/ (standard location, works with core)
             home = Path.home()
-            assets_dir = home / "Library" / "Application Support" / ".ledfx" / "assets"
+            assets_dir = home / ".ledfx" / "assets"
             assets_dir.mkdir(parents=True, exist_ok=True)
             thumbnail_path = assets_dir / "current_album_art.jpg"
             
