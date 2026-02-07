@@ -217,6 +217,9 @@ def get_macos_media_info():
     
     def save_artwork(artwork_data):
         """Save base64-encoded artwork to file"""
+        if not artwork_data:
+            return None
+        
         try:
             # Save to ~/.ledfx/assets/ (standard location, works with core)
             home = Path.home()
@@ -226,12 +229,16 @@ def get_macos_media_info():
             
             # Decode and save
             image_data = base64.b64decode(artwork_data)
+            image_hash = hash(image_data) % 1000000  # Simple hash for comparison
+            
             with open(thumbnail_path, 'wb') as f:
                 f.write(image_data)
             
             return str(thumbnail_path)
         except Exception as e:
-            print(f"Failed to save album art: {e}")
+            print(f"❌ Failed to save album art: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     try:
@@ -259,6 +266,18 @@ def get_macos_media_info():
                         if artist.endswith(' - Topic'):
                             artist = artist[:-8].strip()
                         
+                        # Parse ISO timestamp or use current time
+                        timestamp_str = data.get('timestamp')
+                        if timestamp_str:
+                            try:
+                                from dateutil.parser import parse as parse_iso
+                                timestamp = parse_iso(timestamp_str).timestamp()
+                            except ImportError:
+                                # Fallback if dateutil not installed
+                                timestamp = time.time()
+                        else:
+                            timestamp = time.time()
+                        
                         media_info = {
                             "title": data.get('title', 'Unknown'),
                             "artist": artist,
@@ -267,7 +286,8 @@ def get_macos_media_info():
                             "position": parse_time_value(data.get('elapsedTime')),
                             "duration": parse_time_value(data.get('duration')),
                             "playing": data.get('playing', False),
-                            "timestamp": time.time()
+                            "timestamp": timestamp,
+                            "content_id": data.get('contentItemIdentifier')
                         }
             except Exception as e:
                 print(f"media-control failed: {e}")
@@ -298,6 +318,18 @@ def get_macos_media_info():
                             if artist.endswith(' - Topic'):
                                 artist = artist[:-8].strip()
                             
+                            # Parse ISO timestamp or use current time
+                            timestamp_str = data.get('timestamp')
+                            if timestamp_str:
+                                try:
+                                    from dateutil.parser import parse as parse_iso
+                                    timestamp = parse_iso(timestamp_str).timestamp()
+                                except ImportError:
+                                    # Fallback if dateutil not installed
+                                    timestamp = time.time()
+                            else:
+                                timestamp = time.time()
+                            
                             media_info = {
                                 "title": data.get('title', 'Unknown'),
                                 "artist": artist,
@@ -306,7 +338,8 @@ def get_macos_media_info():
                                 "position": parse_time_value(data.get('elapsedTime')),
                                 "duration": parse_time_value(data.get('duration')),
                                 "playing": data.get('playing', False),
-                                "timestamp": time.time()
+                                "timestamp": timestamp,
+                                "content_id": data.get('contentItemIdentifier')
                             }
             except Exception as e:
                 print(f"bundled mediaremote-adapter failed: {e}")
@@ -348,8 +381,10 @@ def send_media_info(info, device_name):
     if info.get('playing') is not None:
         query_params.append(f"playing={'true' if info['playing'] else 'false'}")
     if info.get('timestamp') is not None:
-        query_params.append(f"timestamp={info['timestamp']}")
-    
+        query_params.append(f"timestamp={info['timestamp']}")    
+    # Add cache-buster for thumbnail to force browser reload
+    if info.get('thumbnail'):
+        query_params.append(f"_cb={int(time.time() * 1000)}")    
     if query_params:
         url += "?" + "&".join(query_params)
     
@@ -380,12 +415,22 @@ def should_send_update(current, previous):
     if previous is None:
         return True
     
-    # Track changed
+    # Track changed (use content_id for robust detection)
+    curr_content_id = current.get('content_id')
+    prev_content_id = previous.get('content_id')
+    if curr_content_id and prev_content_id and curr_content_id != prev_content_id:
+        return True
+    
+    # Fallback: Track changed (title/artist comparison)
     if current['title'] != previous['title'] or current['artist'] != previous['artist']:
         return True
     
     # Playback state changed (play/pause)
     if current.get('playing') != previous.get('playing'):
+        return True
+    
+    # Artwork changed
+    if current.get('thumbnail') != previous.get('thumbnail'):
         return True
     
     # Position jumped significantly (seek detected)
@@ -438,6 +483,9 @@ def monitor_media_info_macos_stream(device_name):
     
     def save_artwork(artwork_data):
         """Save base64-encoded artwork to file"""
+        if not artwork_data:
+            return None
+        
         try:
             # Save to ~/.ledfx/assets/ (standard location, works with core)
             home = Path.home()
@@ -446,12 +494,15 @@ def monitor_media_info_macos_stream(device_name):
             thumbnail_path = assets_dir / "current_album_art.jpg"
             
             image_data = base64.b64decode(artwork_data)
+            
             with open(thumbnail_path, 'wb') as f:
                 f.write(image_data)
             
             return str(thumbnail_path)
         except Exception as e:
-            print(f"Failed to save album art: {e}")
+            print(f"❌ Failed to save album art: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     previous_info = None
@@ -498,15 +549,86 @@ def monitor_media_info_macos_stream(device_name):
                 if data.get('type') == 'data':
                     payload = data.get('payload', {})
                     
-                    if payload and payload.get('playing') and payload.get('title'):
+                    # Skip empty payloads completely
+                    if not payload:
+                        continue
+                    
+                    # Check if media stopped playing
+                    # BUT: Only if 'playing' field is explicitly present (diff:true may omit it)
+                    if 'playing' in payload and not payload.get('playing'):
+                        # Only send "no media" notification once when transitioning from playing
+                        if previous_info is not None and previous_info.get('playing'):
+                            send_media_info({"artist": "Unknown", "title": "No media is currently playing"}, device_name)
+                            previous_info = None
+                        continue
+                    
+                    # Early filter: ignore if no title AND not a diff:true event
+                    # (diff:true events may contain only artwork)
+                    if not payload.get('title') and not data.get('diff'):
+                        continue
+                    
+                    # Parse artist
+                    artist = payload.get('artist', 'Unknown')
+                    if artist.endswith(' - Topic'):
+                        artist = artist[:-8].strip()
+                    
+                    # Parse ISO timestamp or use current time
+                    timestamp_str = payload.get('timestamp')
+                    if timestamp_str:
+                        try:
+                            from dateutil.parser import parse as parse_iso
+                            timestamp = parse_iso(timestamp_str).timestamp()
+                        except ImportError:
+                            timestamp = time.time()
+                    else:
+                        timestamp = time.time()
+                    
+                    # Build media_info - merge with previous to handle diff:true events
+                    # BUT: Don't merge if track changed (different title/artist)
+                    should_merge = False
+                    if previous_info and data.get('diff'):
+                        # Check if track changed before merging
+                        prev_title = previous_info.get('title', '')
+                        prev_artist = previous_info.get('artist', '')
+                        curr_title = payload.get('title', prev_title)  # Use prev if not in payload
+                        curr_artist = artist if artist != 'Unknown' else previous_info.get('artist', '')
+                        
+                        # Only merge if same track (title/artist unchanged)
+                        if curr_title == prev_title and curr_artist == prev_artist:
+                            should_merge = True
+                    
+                    if should_merge:
+                        # diff:true - merge update with previous state (SAME track)
+                        media_info = previous_info.copy()
+                        
+                        # Handle artwork if present in diff
+                        if payload.get('artworkData'):
+                            thumbnail_path = save_artwork(payload['artworkData'])
+                            media_info['thumbnail'] = thumbnail_path
+                        
+                        # Update only fields that are present in payload
+                        if 'title' in payload:
+                            media_info['title'] = payload['title']
+                        if artist != 'Unknown':
+                            media_info['artist'] = artist
+                        if 'album' in payload:
+                            media_info['album'] = payload.get('album', '')
+                        if 'elapsedTime' in payload:
+                            media_info['position'] = parse_time_value(payload['elapsedTime'])
+                        if 'duration' in payload:
+                            media_info['duration'] = parse_time_value(payload['duration'])
+                        if 'playing' in payload:
+                            media_info['playing'] = payload['playing']
+                        if timestamp_str:
+                            media_info['timestamp'] = timestamp
+                        if 'contentItemIdentifier' in payload:
+                            media_info['content_id'] = payload['contentItemIdentifier']
+                    else:
+                        # diff:false or no previous - full update
+                        # Handle artwork
                         thumbnail_path = None
                         if payload.get('artworkData'):
                             thumbnail_path = save_artwork(payload['artworkData'])
-                        
-                        artist = payload.get('artist', 'Unknown')
-                        # Clean up YouTube Music "Topic" artist suffix
-                        if artist.endswith(' - Topic'):
-                            artist = artist[:-8].strip()
                         
                         media_info = {
                             "title": payload.get('title', 'Unknown'),
@@ -516,19 +638,56 @@ def monitor_media_info_macos_stream(device_name):
                             "position": parse_time_value(payload.get('elapsedTime')),
                             "duration": parse_time_value(payload.get('duration')),
                             "playing": payload.get('playing', False),
-                            "timestamp": time.time()
+                            "timestamp": timestamp,
+                            "content_id": payload.get('contentItemIdentifier')
                         }
+                    
+                    # Detect track change
+                    track_changed = False
+                    if previous_info:
+                        prev_title = previous_info.get('title', '')
+                        prev_artist = previous_info.get('artist', '')
+                        prev_content_id = previous_info.get('content_id')
                         
-                        if should_send_update(media_info, previous_info):
-                            send_media_info(media_info, device_name)
-                            previous_info = media_info
-                        else:
-                            previous_info = media_info
+                        curr_title = media_info.get('title', '')
+                        curr_artist = media_info.get('artist', '')
+                        curr_content_id = media_info.get('content_id')
+                        
+                        # Track changed if title/artist/contentId different
+                        if (curr_title != prev_title or 
+                            curr_artist != prev_artist or 
+                            (curr_content_id and prev_content_id and curr_content_id != prev_content_id)):
+                            track_changed = True
+                    
+                    # On track change: reset position to 0 and clear old duration
+                    if track_changed:
+                        media_info['position'] = 0
+                        # Don't inherit old track's duration if new track has no duration
+                        if media_info.get('duration', 0) == 0:
+                            media_info['duration'] = 0
+                    
+                    # Calculate position based on timestamp (if playing and timestamp available)
+                    if media_info.get('playing') and media_info.get('timestamp'):
+                        elapsed_since_timestamp = time.time() - media_info['timestamp']
+                        base_position = media_info.get('position', 0) or 0
+                        calculated_position = base_position + elapsed_since_timestamp
+                        media_info['position'] = calculated_position
+                    
+                    # Only send if position < duration (skip if at end)
+                    # But allow 0 duration (unknown duration case)
+                    duration = media_info.get('duration')
+                    position = media_info.get('position')
+                    
+                    if duration and position and duration > 0 and position >= duration:
+                        # Track at end, skip sending
+                        previous_info = media_info
+                        continue
+                    
+                    if should_send_update(media_info, previous_info):
+                        send_media_info(media_info, device_name)
+                        previous_info = media_info
                     else:
-                        # No media playing
-                        if previous_info is not None:
-                            send_media_info({"artist": "Unknown", "title": "No media is currently playing"}, device_name)
-                            previous_info = None
+                        previous_info = media_info
                 
             except json.JSONDecodeError:
                 continue
