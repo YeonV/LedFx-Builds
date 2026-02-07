@@ -65,63 +65,61 @@ jobs:
         if: ${{ env.IS_RELEASE == 'true' }}
         run: |
           unzip -p ledfx_frontend_v2.zip ledfx_frontend_v2/messages.md >message.md
-          echo "## New LedFx binaries available:
+          echo "## 🎉 New LedFx Binaries Available!
 
-          ### Core:  -- Browser-Based
-          ### Client:   -- Desktop-App (needs a running Core)
-          ### CC:  -- Desktop-App (Core-integrated)
-
-          ---
-
-          ##  More informations regarding Core, Client and CC:
-
-          <details><summary>expand</summary>
-
-          #### Core
-          If you don't know where to start, get this, open an internet browser, go to https://localhost:8888/ and off you go.
-          This is the server/backend that takes in audio, does the calculations and outputs blinking lights. Runs in the background on a Windows/Mac/Linux computer. You can then open the frontend in an internet browser, by going to https://localhost:8888/ on the same computer that is running the Core.
-          You can also pull up the frontend on your smartphone (or any other computer on the same network) by finding out what local IP your computer running the Core uses (most likely something like this 192.168.1.XXX, or 192.168.0.XXX) and opening a Browser on your smartphone and going to eg. https://192.168.1.123:8888/
-
-          #### Client
-          This is a Desktop App that opens the frontend of LedFx in a window on your desktop.
-          This app does NOT include the LedFx backend/server and cannot run LedFx by itself without the Core.
-          This Client app is useful for connecting to a running Core on your network (or the same machine).
-
-          ### CC (Client + Core = CC)
-          This is the Client and Core integrated into one Desktop App.
-          This Desktop App opens the Client frontend of LedFx in a window on your desktop AND runs the Core backend/server in the background.
-          This is useful for people who want the whole LedFx experience in one nice and tidy package.
-          With this, you can still connect to the backend server via a Client or browser.
-
-          </details>
+          | Variant | Description | Best For |
+          |---------|-------------|----------|
+          | **Core** | Browser-based server | Headless setups, remote access, Raspberry Pi |
+          | **CC** | Desktop app (Core + UI) | Desktop users, integrated experience |
+          | **Client** | Frontend only (needs Core) | deprecated - use CC instead |
 
           ---
 
-          ## 🔐 Code Signing Status:
+          ## ⭐ CC Features (Core + Client + extra love):
 
-          <details><summary>Mac-Users:</summary>
+          <details><summary>Expand</summary>
 
-          #### ✅ macOS builds are now signed and notarized!
-          
-          All macOS builds (Client and CC) are:
-          - Code signed with Apple Developer ID
-          - Notarized by Apple
-          - Include proper entitlements for hardened runtime
-          
-          You should be able to open the app normally without any xattr workarounds.
-          If you still see warnings, please report them as issues.
+          ### 🖥️ Integrated Experience
+          - Everything in one window - no browser juggling, just open the app and go
+
+          ### ⚙️ System Integration
+          - **System tray** - minimize to tray, quick access menu with shortcuts
+          - **Multi-instance** - manage multiple LedFx servers from one interface
+
+          ### 🎵 macOS Audio Helpers
+          - **[Custom BlackHole](https://github.com/YeonV/LedFx-Builds/tree/main/tools/mac/loopback/driver) installer** - one-click audio driver setup, no Terminal needed
+          - **Device toggle** - enable/disable audio devices without Audio MIDI Setup
+          - **Volume control** - adjust output volume directly in LedFx settings
+          - **Auto-configuration** - handles audio routing automatically
+
+          ### 🔒 Local SSL Made Easy
+          - **One-click HTTPS** - self-signed cert generation and installation
+          - **ledfx.local domain** - auto-edits hosts file for clean URLs
+          - **Secure local networking** - HTTPS for accessing from other devices
+          - **Cross-platform** - works on Windows, macOS, and Linux
+
+          ### 🎼 Song Detector Integration
+          Automatic track info from Spotify, YouTube Music, etc:
+
+          **Song Detector** (basic):
+          - Artist & title → LED matrix text display
+          - Album artwork → LED matrix image visualization  
+          - Color extraction → auto-generate gradients for your virtuals (effect keeps running)
+
+          **Song Detector Plus** (advanced):
+          - Everything above, plus:
+          - Real-time playback position & duration
+          - Built-in player controls
+          - **Song Triggers** - auto-apply specific scenes when certain songs play
+
+          All managed from CC settings - download, install, auto-start configuration built-in.
+
+          info: on mac we are using a [custom Adapter](https://github.com/YeonV/LedFx-Builds/tree/main/tools/song-detector/MediaRemoteAdapter.framework) of media-control
 
           </details>
 
-          <details><summary>Win-Users:</summary>
+          ---
 
-          #### Infos:
-          Reports as unsave, because of unsiged.
-
-          Maybe at some point we might buy a microsoft dev-license
-
-          </details>
-          " >> ./messages.md
 
       - name: Checkout frontend
         uses: actions/checkout@v4
