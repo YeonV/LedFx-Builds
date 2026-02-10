@@ -119,6 +119,7 @@ jobs:
           </details>
 
           ---
+          " >> ./messages.md
 
 
       - name: Checkout frontend
