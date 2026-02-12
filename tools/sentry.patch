@@ -135,6 +135,112 @@ index 63768137..00000000
 -        integrations=[AioHttpIntegration()],
 -        release=release,
 -    )
+diff --git a/ledfx/core.py b/ledfx/core.py
+index 00000000..11111111 100644
+--- a/ledfx/core.py
++++ b/ledfx/core.py
+@@ -308,49 +308,49 @@ class LedFxCore:
+ 
+     def check_and_notify_updates(self, show_check_notification=None):
+-        """
+-        Checks for updates of LedFx and notifies the user if a new version is available.
+-
+-        Args:
+-            show_check_notification (object): An optional parameter that is never called with any specific value.
+-                When called via pystray, it is an icon object. This behavior is unintended but functional.
+-
+-        Returns:
+-            None
+-
+-        Raises:
+-            None
+-        """
+-
+-        if show_check_notification:
+-            if self.icon and self.icon.HAS_NOTIFICATION:
+-                self.icon.notify("Checking for updates...", "LedFx")
+-        is_release = os.getenv("IS_RELEASE", "false").lower()
+-        if is_release == "false":
+-            _LOGGER.info("Not checking for updates - not a release.")
+-            return
+-        _LOGGER.info("Checking for updates...")
+-        if UpdateChecker.get_release_information():
+-            if UpdateChecker.update_available():
+-                latest_version = UpdateChecker.get_latest_version()
+-                release_url = UpdateChecker.get_release_url()
+-                _LOGGER.warning(
+-                    f"New version of LedFx available: {latest_version} - {release_url}"
+-                )
+-
+-                if self.icon and self.icon.HAS_NOTIFICATION:
+-                    self.icon.notify(
+-                        f"New version of LedFx available: {latest_version}",
+-                        "LedFx",
+-                    )
+-                    try:
+-                        webbrowser.get().open(release_url)
+-                    except webbrowser.Error:
+-                        pass
+-            else:
+-                _LOGGER.info("LedFx is up to date.")
+-        else:
+-            _LOGGER.warning("Unable to get update information.")
+-            if show_check_notification:
+-                if self.icon and self.icon.HAS_NOTIFICATION:
+-                    self.icon.notify(
+-                        "Unable to get update information", "LedFx"
+-                    )
++        # """
++        # Checks for updates of LedFx and notifies the user if a new version is available.
++        #
++        # Args:
++        #     show_check_notification (object): An optional parameter that is never called with any specific value.
++        #         When called via pystray, it is an icon object. This behavior is unintended but functional.
++        #
++        # Returns:
++        #     None
++        #
++        # Raises:
++        #     None
++        # """
++        #
++        # if show_check_notification:
++        #     if self.icon and self.icon.HAS_NOTIFICATION:
++        #         self.icon.notify("Checking for updates...", "LedFx")
++        # is_release = os.getenv("IS_RELEASE", "false").lower()
++        # if is_release == "false":
++        #     _LOGGER.info("Not checking for updates - not a release.")
++        #     return
++        # _LOGGER.info("Checking for updates...")
++        # if UpdateChecker.get_release_information():
++        #     if UpdateChecker.update_available():
++        #         latest_version = UpdateChecker.get_latest_version()
++        #         release_url = UpdateChecker.get_release_url()
++        #         _LOGGER.warning(
++        #             f"New version of LedFx available: {latest_version} - {release_url}"
++        #         )
++        #
++        #         if self.icon and self.icon.HAS_NOTIFICATION:
++        #             self.icon.notify(
++        #                 f"New version of LedFx available: {latest_version}",
++        #                 "LedFx",
++        #             )
++        #             try:
++        #                 webbrowser.get().open(release_url)
++        #             except webbrowser.Error:
++        #                 pass
++        #     else:
++        #         _LOGGER.info("LedFx is up to date.")
++        # else:
++        #     _LOGGER.warning("Unable to get update information.")
++        #     if show_check_notification:
++        #         if self.icon and self.icon.HAS_NOTIFICATION:
++        #             self.icon.notify(
++        #                 "Unable to get update information", "LedFx"
++        #             )
++        pass
+ 
+     def start(self, open_ui=False, pause_all=False):
 diff --git a/pyproject.toml b/pyproject.toml
 index 9f332dc8..6bcd1002 100644
 --- a/pyproject.toml
