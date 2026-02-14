@@ -35,6 +35,10 @@ on:
         default: true
         required: false
         type: boolean
+      backend_branch:
+        description: 'Backend branch to use'
+        required: false
+        default: 'main'
 
 jobs:
   createrelease:
@@ -49,6 +53,7 @@ jobs:
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
       action_state: "2.1"  # Default value
+      BACKEND_BRANCH: ${{ github.event.inputs.backend_branch || 'main' }}
 
     steps:
       - name: Get latest frontend and prepare matrix
@@ -127,7 +132,7 @@ jobs:
         if: ${{ env.IS_RELEASE == 'true' }}
         with:
           repository: YeonV/LedFx-Frontend-v2
-          ref: main
+          ref: ${{ github.event.inputs.backend_branch || 'main' }}
           path: frontend
           fetch-depth: 0
 
@@ -152,7 +157,7 @@ jobs:
         if: ${{ env.IS_RELEASE == 'true' }}
         with:
           repository: LedFx/LedFx
-          ref: main
+          ref: ${{ github.event.inputs.backend_branch || 'main' }}
           path: backend
           fetch-depth: 0
 
