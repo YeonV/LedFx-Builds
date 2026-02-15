@@ -1,5 +1,5 @@
 diff --git a/hiddenimports.py b/hiddenimports.py
-index e824cc9f..c8cee220 100644
+index e22954cd..0ac5ad5a 100644
 --- a/hiddenimports.py
 +++ b/hiddenimports.py
 @@ -29,14 +29,6 @@ hiddenimports = [
@@ -18,46 +18,35 @@ index e824cc9f..c8cee220 100644
      "xled",
      "xled.control",
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index 8a606640..0926833c 100644
+index ecdd5433..c2717da7 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
-@@ -16,8 +16,6 @@ import os
+@@ -16,7 +16,6 @@ import os
  import sys
  from logging.handlers import RotatingFileHandler
  
 -from ledfx.sentry_config import setup_sentry
--
+ 
  try:
      import psutil
- 
-@@ -269,9 +267,6 @@ def main():
-         else:
-             p.nice(15)
- 
--    if args.offline_mode is False:
--        setup_sentry()
--
-     if args.sentry_test:
-         _LOGGER.warning("Steering LedFx into a brick wall.")
-         _ = 1 / 0
 diff --git a/ledfx/api/__init__.py b/ledfx/api/__init__.py
-index 22d7dbd6..80620d7a 100644
+index 062c9626..4f9f5f93 100644
 --- a/ledfx/api/__init__.py
 +++ b/ledfx/api/__init__.py
-@@ -13,6 +13,12 @@ _LOGGER = logging.getLogger(__name__)
- SNACKBAR_OPTIONS = ["success", "info", "warning", "error"]
- 
- 
+@@ -1,3 +1,12 @@
++from aiohttp import web
++
++
++# CORS middleware to allow private network access
 +@web.middleware
 +async def cors_middleware(request, handler):
 +    response = await handler(request)
 +    response.headers['Access-Control-Allow-Private-Network'] = 'true'
 +    return response
-+
- @BaseRegistry.no_registration
- class RestEndpoint(BaseRegistry):
-     def __init__(self, ledfx):
-@@ -192,6 +198,7 @@ class RestApi(RegistryLoader):
+ import inspect
+ import logging
+ import uuid
+@@ -194,6 +203,7 @@ class RestApi(RegistryLoader):
          self._ledfx = ledfx
  
      def register_routes(self, app):
@@ -65,81 +54,12 @@ index 22d7dbd6..80620d7a 100644
          methods = ["GET", "PUT", "POST", "DELETE"]
          cors = aiohttp_cors.setup(
              app,
-diff --git a/ledfx/sentry_config.py b/ledfx/sentry_config.py
-deleted file mode 100644
-index 63768137..00000000
---- a/ledfx/sentry_config.py
-+++ /dev/null
-@@ -1,64 +0,0 @@
--import logging
--import os
--
--from ledfx.consts import PROJECT_VERSION
--from ledfx.utils import currently_frozen
--
--_LOGGER = logging.getLogger(__name__)
--
--
--def setup_sentry():
--    """
--    Set up the Sentry configuration based on the environment variables.
--    If running in development mode, a development Sentry DSN is used along with a sample rate of 0.
--    If running in production mode, a production Sentry DSN is used along with a sample rate of 0.
--    The release version is determined based on the project version and the git commit hash.
--    """
--
--    # import is done here to avoid attempting to import sentry_sdk when in offline mode
--    import sentry_sdk
--    from sentry_sdk.integrations.aiohttp import AioHttpIntegration
--
--    is_release = os.getenv("IS_RELEASE", "false").lower()
--
--    if is_release == "false":
--        _LOGGER.debug("Running in development mode.")
--        sentry_dsn = "https://b192934eebd517c86bf7e9c512b3888a@o482797.ingest.sentry.io/4506350241841152"
--        # Change sample_rate to 1 to look at http calls, so all rest traffic stats
--        sample_rate = 0
--
--        try:
--            if currently_frozen():
--                commit_hash = os.getenv("GITHUB_SHA", "unknown")
--            else:
--                from subprocess import PIPE, Popen
--
--                process = Popen(["git", "rev-parse", "HEAD"], stdout=PIPE)
--                (commit_hash, err) = process.communicate()
--                commit_hash = commit_hash[:7].decode("utf-8")
--                process.wait()
--            # TODO: trap explicit exceptions if it becomes clear what they are
--        except Exception as e:
--            commit_hash = "unknown"
--            _LOGGER.warning(f"Failed to get git commit hash: {e}")
--        finally:
--            commit_hash = commit_hash[:7]
--            release = f"ledfx@{PROJECT_VERSION}-{commit_hash}"
--    else:
--        _LOGGER.debug("Running in production mode.")
--        # production / release behaviour due to injection of "prod" or anything really into ENVIRONMENT env variable
--        sentry_dsn = "https://dc6070345a8dfa1f2f24433d16f7a133@o482797.ingest.sentry.io/4506350233321472"
--        sample_rate = 0
--        release = f"ledfx@{PROJECT_VERSION}"
--
--    _LOGGER.info("Sentry Configuration:")
--    _LOGGER.info(f"DSN (first ten): {sentry_dsn[8:18]}")
--    _LOGGER.info(f"Sample rate: {sample_rate}")
--    _LOGGER.info(f"LedFx release: {release}")
--
--    sentry_sdk.init(
--        sentry_dsn,
--        traces_sample_rate=sample_rate,
--        integrations=[AioHttpIntegration()],
--        release=release,
--    )
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 00000000..11111111 100644
+index 6f8be152..20a2664a 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -308,49 +308,49 @@ class LedFxCore:
+@@ -306,54 +306,7 @@ class LedFxCore:
+         root_logger.addHandler(logqueue_handler)
  
      def check_and_notify_updates(self, show_check_notification=None):
 -        """
@@ -190,62 +110,15 @@ index 00000000..11111111 100644
 -                    self.icon.notify(
 -                        "Unable to get update information", "LedFx"
 -                    )
-+        # """
-+        # Checks for updates of LedFx and notifies the user if a new version is available.
-+        #
-+        # Args:
-+        #     show_check_notification (object): An optional parameter that is never called with any specific value.
-+        #         When called via pystray, it is an icon object. This behavior is unintended but functional.
-+        #
-+        # Returns:
-+        #     None
-+        #
-+        # Raises:
-+        #     None
-+        # """
-+        #
-+        # if show_check_notification:
-+        #     if self.icon and self.icon.HAS_NOTIFICATION:
-+        #         self.icon.notify("Checking for updates...", "LedFx")
-+        # is_release = os.getenv("IS_RELEASE", "false").lower()
-+        # if is_release == "false":
-+        #     _LOGGER.info("Not checking for updates - not a release.")
-+        #     return
-+        # _LOGGER.info("Checking for updates...")
-+        # if UpdateChecker.get_release_information():
-+        #     if UpdateChecker.update_available():
-+        #         latest_version = UpdateChecker.get_latest_version()
-+        #         release_url = UpdateChecker.get_release_url()
-+        #         _LOGGER.warning(
-+        #             f"New version of LedFx available: {latest_version} - {release_url}"
-+        #         )
-+        #
-+        #         if self.icon and self.icon.HAS_NOTIFICATION:
-+        #             self.icon.notify(
-+        #                 f"New version of LedFx available: {latest_version}",
-+        #                 "LedFx",
-+        #             )
-+        #             try:
-+        #                 webbrowser.get().open(release_url)
-+        #             except webbrowser.Error:
-+        #                 pass
-+        #     else:
-+        #         _LOGGER.info("LedFx is up to date.")
-+        # else:
-+        #     _LOGGER.warning("Unable to get update information.")
-+        #     if show_check_notification:
-+        #         if self.icon and self.icon.HAS_NOTIFICATION:
-+        #             self.icon.notify(
-+        #                 "Unable to get update information", "LedFx"
-+        #             )
 +        pass
  
      def start(self, open_ui=False, pause_all=False):
+         async_fire_and_forget(
 diff --git a/pyproject.toml b/pyproject.toml
-index 9f332dc8..6bcd1002 100644
+index c529b171..556269d5 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -22,7 +22,6 @@ dependencies = [
+@@ -20,7 +20,6 @@ dependencies = [
      "python-rtmidi>=1.5.8",
      "requests>=2.31.0",
      "sacn>=1.9.0",
