@@ -12,6 +12,8 @@ python = ">=3.9,<3.13"
 pyinstaller = "^6.11.1"
 winsdk = { version = "^1.0.0b10", markers = "sys_platform == 'win32'" }
 dbus-python = { version = "^1.3.2", markers = "sys_platform == 'linux'" }
+websockets = ">=12.0,<13.0"
+pillow = ">=10.0.0"
 
 
 
