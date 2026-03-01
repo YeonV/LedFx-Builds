@@ -122,10 +122,17 @@ jobs:
           cd src3
           yarn
           yarn buildandroid
+          ls -la build/modules || ls -la build | sed -n '1,120p'
           cd ..
 
       - name: Include new build frontend
-        run: cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+        run: |
+          cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+          if [ ! -d deps/ledfx/ledfx_frontend/modules ] || [ ! -s deps/ledfx/ledfx_frontend/modules/yz-audio-visualiser.js ]; then
+            echo "Missing frontend modules in deps/ledfx/ledfx_frontend:" 
+            ls -la deps/ledfx/ledfx_frontend || true
+            exit 1
+          fi
 
       - name: Setup python
         uses: actions/setup-python@v5
@@ -275,7 +282,13 @@ jobs:
           cd ..
 
       - name: Include new build frontend
-        run: cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+        run: |
+          cp -r ./src3/build ./deps/ledfx/ledfx_frontend
+          if [ ! -d deps/ledfx/ledfx_frontend/modules ] || [ ! -s deps/ledfx/ledfx_frontend/modules/yz-audio-visualiser.js ]; then
+            echo "Missing frontend modules in deps/ledfx/ledfx_frontend:" 
+            ls -la deps/ledfx/ledfx_frontend || true
+            exit 1
+          fi
 
       - name: Setup python
         uses: actions/setup-python@v5
