@@ -111,6 +111,13 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: '**/yarn.lock'
 
+      - name: Download audio-visualiser for frontend build
+        if: ${{ env.IS_RELEASE == 'false' }}
+        run: |
+          mkdir -p src3/public/modules
+          curl -L -o src3/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
+          echo "Audio-visualiser module added before frontend build"
+          
       - name: Build frontend
         run: |
           cd src3
