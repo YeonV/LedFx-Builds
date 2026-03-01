@@ -32,6 +32,11 @@ jobs:
             spec_file: song-detector-plus.spec
             artifact_name: song-detector-plus.exe
             output_name: song-detector-plus.exe
+          - os: windows-latest
+            variant: blade
+            spec_file: blade-song-detector.spec
+            artifact_name: blade-song-detector.exe
+            output_name: blade-song-detector.exe
           - os: ubuntu-latest
             variant: standard
             spec_file: song-detector.spec
@@ -42,6 +47,11 @@ jobs:
             spec_file: song-detector-plus.spec
             artifact_name: song-detector-plus-linux
             output_name: song-detector-plus
+          - os: ubuntu-latest
+            variant: blade
+            spec_file: blade-song-detector.spec
+            artifact_name: blade-song-detector-linux
+            output_name: blade-song-detector
           - os: macos-latest
             variant: standard
             spec_file: song-detector.spec
@@ -52,6 +62,11 @@ jobs:
             spec_file: song-detector-plus.spec
             artifact_name: song-detector-plus-macos
             output_name: song-detector-plus
+          - os: macos-latest
+            variant: blade
+            spec_file: blade-song-detector.spec
+            artifact_name: blade-song-detector-macos
+            output_name: blade-song-detector
 
     steps:
       - name: Checkout

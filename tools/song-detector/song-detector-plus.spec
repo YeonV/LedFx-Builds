@@ -2,8 +2,15 @@
 import platform
 import os
 
-# macOS-specific data files
+# Data files (icons only bundled for Windows)
 datas = []
+if platform.system() == 'Windows':
+    datas.extend([
+        ('icon.ico', '.'),
+        ('icon.png', '.'),
+    ])
+
+# macOS-specific data files
 if platform.system() == 'Darwin':
     # Bundle the MediaRemoteAdapter framework and Perl script
     framework_path = os.path.join(os.getcwd(), 'MediaRemoteAdapter.framework')
@@ -46,6 +53,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
+    icon=('icon.ico' if platform.system() == 'Windows' else None),
     codesign_identity=os.environ.get('CODESIGN_IDENTITY'),
     entitlements_file=os.path.join(os.getcwd(), 'entitlements.plist') if platform.system() == 'Darwin' else None,
 )
