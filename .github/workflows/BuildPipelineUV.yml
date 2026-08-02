@@ -394,11 +394,15 @@ jobs:
         if: ${{ env.IS_WIN == 'false' }}
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      # Was repolevedavaj/install-nsis@v1.1.0, which downloads from a single
+      # hardcoded SourceForge mirror (deac-riga) and verifies nothing. That
+      # mirror now answers with a redirect instead of the binary, so the action
+      # saved an HTML page as nsis-3.11-setup.exe and the install failed with
+      # "The file or directory is corrupted and unreadable". Chocolatey is
+      # preinstalled on windows-latest and installs to the same location.
       - name: Install NSIS (installer)
         if: ${{ env.IS_WIN == 'true' && env.BUILD_WIN == 'true' }}
-        uses: repolevedavaj/install-nsis@v1.1.0
-        with:
-          nsis-version: "3.11"
+        run: choco install nsis --version=3.11.0 -y --no-progress
 
       - name: Add NSIS to PATH
         if: ${{ env.IS_WIN == 'true' && env.BUILD_WIN == 'true' }}
