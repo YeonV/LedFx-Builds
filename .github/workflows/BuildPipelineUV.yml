@@ -1019,11 +1019,20 @@ jobs:
         if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
         continue-on-error: true
         run: |
-          ls
+          mkdir -p ./frontend/extraResources
+
+          if [ -d "./frontend/extraResources/LedFx" ]; then
+            echo "🧹 Removing old LedFx..."
+            rm -rf "./frontend/extraResources/LedFx"
+          fi
+
+          echo "  Copying LedFx-linux/LedFx → LedFx..."
           cp -r ./src/dist/LedFx-linux/LedFx ./frontend/extraResources/LedFx
-          echo ------------      (without --deep due to HTML files in ledfx_frontend)
-          echo "✅ Verifying signature..."
-          codesign --verify
+
+          # PyInstaller onedir: the launcher sits inside the copied directory
+          test -x ./frontend/extraResources/LedFx/LedFx
+
+          echo "✅ Core copied to extraResources"
       - name: Set up Node.js
         if: ${{ env.IS_OSX_ARM64 == 'false' }}
         uses: actions/setup-node@v4
