@@ -1119,10 +1119,10 @@ index 9a1c074..9b1e226 100644
  
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
 new file mode 100644
-index 0000000..6da85e4
+index 0000000..2d1b919
 --- /dev/null
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -0,0 +1,272 @@
+@@ -0,0 +1,320 @@
 +"""Android Now Playing provider.
 +
 +Reads the phone's own media sessions (Spotify, YouTube Music, anything that
@@ -1155,6 +1155,14 @@ index 0000000..6da85e4
 +_KEY_ARTIST = "android.media.metadata.ARTIST"
 +_KEY_ALBUM_ARTIST = "android.media.metadata.ALBUM_ARTIST"
 +_KEY_ALBUM = "android.media.metadata.ALBUM"
++
++# Artwork the player already holds. ALBUM_ART is what the big players publish;
++# ART and DISPLAY_ICON are checked too because the key is the app's choice.
++_ART_KEYS = (
++    "android.media.metadata.ALBUM_ART",
++    "android.media.metadata.ART",
++    "android.media.metadata.DISPLAY_ICON",
++)
 +
 +_STATE_PLAYING = 3  # PlaybackState.STATE_PLAYING
 +
@@ -1317,6 +1325,12 @@ index 0000000..6da85e4
 +        if now_playing is None:
 +            return
 +
++        # The player is already holding the cover for this exact track, so a
++        # MusicBrainz lookup would be both slower and a worse match. Fetched
++        # before set_metadata so the service is told up front whether artwork
++        # is coming, and only falls back when it is not.
++        artwork = self._artwork(metadata)
++
 +        now_playing.set_metadata(
 +            SOURCE_ID,
 +            TrackMetadata(
@@ -1325,7 +1339,41 @@ index 0000000..6da85e4
 +                artist=artist,
 +                album=album,
 +            ),
++            has_own_artwork=artwork is not None,
 +        )
++
++        if artwork is not None:
++            now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
++
++    def _artwork(self, metadata):
++        """PNG bytes of the track's embedded cover, or None.
++
++        Android hands the artwork over as a Bitmap, so it is re-encoded here.
++        PNG keeps the colours exact, which matters because the bytes go
++        straight into gradient extraction.
++        """
++        from jnius import autoclass
++
++        for key in _ART_KEYS:
++            try:
++                bitmap = metadata.getBitmap(key)
++            except Exception:
++                continue
++            if bitmap is None:
++                continue
++            try:
++                ByteArrayOutputStream = autoclass("java.io.ByteArrayOutputStream")
++                CompressFormat = autoclass("android.graphics.Bitmap$CompressFormat")
++                stream = ByteArrayOutputStream()
++                bitmap.compress(CompressFormat.PNG, 100, stream)
++                raw = stream.toByteArray()
++                if isinstance(raw, (bytes, bytearray)):
++                    return bytes(raw)
++                # Some pyjnius versions hand back signed Java bytes.
++                return bytes(bytearray(b & 0xFF for b in raw))
++            except Exception:
++                _LOGGER.exception("Android: could not read artwork from %s", key)
++        return None
 +
 +    # ------------------------------------------------------------------
 +    # Sessions
