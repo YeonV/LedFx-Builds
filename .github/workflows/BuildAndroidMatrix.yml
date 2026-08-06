@@ -69,6 +69,7 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
+          cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -90,6 +91,14 @@ jobs:
           # UI and nothing in the build log says why - which is exactly how
           # b25 shipped.
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+
+          # Discovery hands WLED's .local hostname to the resolver, which
+          # Android cannot answer. Unlike the patch above this one is meant to
+          # land upstream, so once it does, "already applied" is success and
+          # this file can simply be deleted.
+          git apply wled_mdns.patch \
+            || git apply --check --reverse wled_mdns.patch \
+            || { echo "::error::wled_mdns.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -239,6 +248,7 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
+          cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -260,6 +270,14 @@ jobs:
           # UI and nothing in the build log says why - which is exactly how
           # b25 shipped.
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+
+          # Discovery hands WLED's .local hostname to the resolver, which
+          # Android cannot answer. Unlike the patch above this one is meant to
+          # land upstream, so once it does, "already applied" is success and
+          # this file can simply be deleted.
+          git apply wled_mdns.patch \
+            || git apply --check --reverse wled_mdns.patch \
+            || { echo "::error::wled_mdns.patch did not apply"; exit 1; }
 
           cd ../..
 

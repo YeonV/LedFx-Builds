@@ -1,0 +1,33 @@
+diff --git a/ledfx/mdns_manager.py b/ledfx/mdns_manager.py
+index 5a62e666..fac7629c 100644
+--- a/ledfx/mdns_manager.py
++++ b/ledfx/mdns_manager.py
+@@ -1,6 +1,6 @@
+ import logging
+ 
+-from zeroconf import ServiceStateChange, Zeroconf
++from zeroconf import IPVersion, ServiceStateChange, Zeroconf
+ from zeroconf.asyncio import (
+     AsyncServiceBrowser,
+     AsyncServiceInfo,
+@@ -114,10 +114,18 @@ class ZeroConfRunner:
+         await info.async_request(zeroconf, 3000)
+         if info:
+             hostname = str(info.server).rstrip(".")
+-            _LOGGER.info("Found WLED device: %s", hostname)
++
++            # Use the address the mDNS reply already carried, rather than
++            # resolving the .local hostname again. That second lookup needs an
++            # mDNS-aware system resolver: Windows and Linux have one, Android
++            # does not, so there it times out and the device is discarded even
++            # though its address arrived with the service record.
++            addresses = info.parsed_addresses(IPVersion.V4Only)
++            destination = addresses[0] if addresses else hostname
++            _LOGGER.info("Found WLED device: %s (%s)", hostname, destination)
+ 
+             device_type = "wled"
+-            device_config = {"ip_address": hostname}
++            device_config = {"ip_address": destination}
+ 
+             def handle_exception(future):
+                 # Ignore exceptions, these will be raised when a device is found that already exists
