@@ -38,24 +38,6 @@ numpy_binaries = collect_dynamic_libs('numpy')
 numpy_datas = collect_data_files('numpy', include_py_files=True)
 numpy_hiddenimports = collect_submodules('numpy')
 
-# Collect lifx-async package metadata (required by lifx/__init__.py for importlib.metadata)
-lifx_metadata = copy_metadata('lifx-async')
-
-# Get GitHub SHA for build metadata
-github_sha_value = os.getenv('GITHUB_SHA')
-
-# Create ledfx.env for the packaged binaries to read from
-with open('ledfx.env', 'w') as file:
-    file.write(f'GITHUB_SHA = {github_sha_value}\n')
-    file.write('IS_RELEASE = true')
-
-yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/ledfx.env','.')]
-yzdata += numpy_datas + lifx_metadata + onnx_datas
-# yzdata += collect_data_files('bokeh')
-# yzdata += collect_data_files('xyzservices')
-# yzdata += copy_metadata('bokeh')
-# yzdata += copy_metadata('xyzservices')
-
 # onnxruntime powers real-time stem separation. It is an optional extra, so
 # collect it defensively: a build without `--extra stems` simply has no
 # onnxruntime, and LedFx reports separation as unavailable at runtime rather
@@ -73,6 +55,24 @@ try:
 except Exception as exc:
     print(f'onnxruntime not bundled ({exc}) - stem separation will be unavailable')
     onnx_binaries, onnx_datas, onnx_hiddenimports = [], [], []
+
+# Collect lifx-async package metadata (required by lifx/__init__.py for importlib.metadata)
+lifx_metadata = copy_metadata('lifx-async')
+
+# Get GitHub SHA for build metadata
+github_sha_value = os.getenv('GITHUB_SHA')
+
+# Create ledfx.env for the packaged binaries to read from
+with open('ledfx.env', 'w') as file:
+    file.write(f'GITHUB_SHA = {github_sha_value}\n')
+    file.write('IS_RELEASE = true')
+
+yzdata = [(f'{spec_root}/ledfx_frontend', 'ledfx_frontend/'), (f'{spec_root}/ledfx/', 'ledfx/'), (f'{spec_root}/ledfx_assets', 'ledfx_assets/'),(f'{spec_root}/ledfx_assets/tray.png','.'), (f'{spec_root}/ledfx.env','.')]
+yzdata += numpy_datas + lifx_metadata + onnx_datas
+# yzdata += collect_data_files('bokeh')
+# yzdata += collect_data_files('xyzservices')
+# yzdata += copy_metadata('bokeh')
+# yzdata += copy_metadata('xyzservices')
 
 a = Analysis([f'{spec_root}\\ledfx\\__main__.py'],
              pathex=[f'{spec_root}', f'{spec_root}\\ledfx'],

@@ -462,7 +462,11 @@ jobs:
           mv src2/tools/win/win.spec src/win.spec
           cd src
           uv pip install pyinstaller
-          uv run pyinstaller win.spec
+          # Checked explicitly rather than with `set -e`: later commands in this
+          # step rely on failures being tolerated (mkdir on an existing dir).
+          # Without this, a dead build limps on for eight more commands and only
+          # surfaces as a confusing makensis "no files found".
+          uv run pyinstaller win.spec || { echo "::error::pyinstaller failed - no dist produced"; exit 1; }
           rm dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           mv loopback/libportaudio64bit.dll dist/LedFx/_internal/_sounddevice_data/portaudio-binaries/libportaudio64bit.dll
           cp -r dist/LedFx $BINARY_NAME-v$action_state          
