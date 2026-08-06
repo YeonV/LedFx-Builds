@@ -68,8 +68,9 @@ jobs:
       - name: apply patches
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+          cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cd ./deps/ledfx
-          
+
           # Check if sentry_config.py exists (patch target)
           if [ -f "ledfx/sentry_config.py" ]; then
             echo "Sentry config found, applying patch..."
@@ -83,7 +84,13 @@ jobs:
           else
             echo "Sentry config not found - patch may already be applied or not needed"
           fi
-          
+
+          # Now Playing must not fail quietly. Without this patch the core
+          # never reports the feature, so the switch is simply absent from the
+          # UI and nothing in the build log says why - which is exactly how
+          # b25 shipped.
+          git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+
           cd ../..
 
       - name: Prepare version Bump for Android
@@ -231,8 +238,9 @@ jobs:
       - name: apply patches
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
+          cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cd ./deps/ledfx
-          
+
           # Check if sentry_config.py exists (patch target)
           if [ -f "ledfx/sentry_config.py" ]; then
             echo "Sentry config found, applying patch..."
@@ -246,7 +254,13 @@ jobs:
           else
             echo "Sentry config not found - patch may already be applied or not needed"
           fi
-          
+
+          # Now Playing must not fail quietly. Without this patch the core
+          # never reports the feature, so the switch is simply absent from the
+          # UI and nothing in the build log says why - which is exactly how
+          # b25 shipped.
+          git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+
           cd ../..
 
       - name: Prepare version Bump for Android

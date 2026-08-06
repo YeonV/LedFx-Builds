@@ -1035,3 +1035,386 @@ index 1c8b1c55..a7e79f49 100644
      "dbus-fast>=5.0.22,<6.0.0; sys_platform == \"linux\"",
  ]
  name = "LedFx"
+diff --git a/ledfx/api/info.py b/ledfx/api/info.py
+index ce8ff02..3de8221 100644
+--- a/ledfx/api/info.py
++++ b/ledfx/api/info.py
+@@ -6,6 +6,10 @@ from aiohttp import web
+ 
+ from ledfx.api import RestEndpoint
+ from ledfx.consts import PROJECT_VERSION
++from ledfx.nowplaying.providers.android import (
++    notification_access_granted,
++    running_on_android,
++)
+ from ledfx.sendspin import SENDSPIN_AVAILABLE
+ 
+ # Platforms with a Now Playing provider. Elsewhere the switch would be an
+@@ -41,6 +45,12 @@ class InfoEndpoint(RestEndpoint):
+                 "now_playing_enabled": bool(
+                     self._ledfx.config.get("now_playing_enabled", False)
+                 ),
++                # Android reads the media session through a notification
++                # listener, which is a special access the user grants in
++                # Settings. Reported so a client can tell "nothing is playing"
++                # apart from "LedFx is not allowed to look".
++                "now_playing_needs_access": running_on_android()
++                and not notification_access_granted(),
+             },
+         }
+         return await self.bare_request_success(response)
+diff --git a/ledfx/core.py b/ledfx/core.py
+index 9a1c074..9b1e226 100644
+--- a/ledfx/core.py
++++ b/ledfx/core.py
+@@ -43,6 +43,7 @@ from ledfx.http_manager import HttpServer
+ from ledfx.integrations import Integrations
+ from ledfx.mdns_manager import ZeroConfRunner
+ from ledfx.nowplaying import NowPlayingService
++from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
+ from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
+ from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
+ from ledfx.playlists import PlaylistManager
+@@ -141,6 +142,7 @@ class LedFxCore:
+         self.audio_device_monitor = None
+         self._mpris_now_playing = None
+         self._smtc_now_playing = None
++        self._android_now_playing = None
+ 
+         if self.config.get("debug_asyncio", False):
+             self.loop.set_debug(True)
+@@ -194,7 +196,11 @@ class LedFxCore:
+         re-check, never *what* to do.
+         """
+         enabled = self.config.get("now_playing_enabled", False)
+-        providers = (self._smtc_now_playing, self._mpris_now_playing)
++        providers = (
++            self._smtc_now_playing,
++            self._mpris_now_playing,
++            self._android_now_playing,
++        )
+ 
+         for provider in providers:
+             if provider is None:
+@@ -583,6 +589,7 @@ class LedFxCore:
+         self.now_playing = NowPlayingService(self)
+         self._smtc_now_playing = SMTCNowPlayingProvider(self)
+         self._mpris_now_playing = MPRISNowPlayingProvider(self)
++        self._android_now_playing = AndroidNowPlayingProvider(self)
+         self.reconcile_now_playing_runtime("startup")
+ 
+         self.devices = Devices(self)
+@@ -756,6 +763,12 @@ class LedFxCore:
+                 except Exception as e:
+                     _LOGGER.warning("Error stopping MPRIS provider: %s", e)
+ 
++            if self._android_now_playing is not None:
++                try:
++                    self._android_now_playing.stop()
++                except Exception as e:
++                    _LOGGER.warning("Error stopping Android provider: %s", e)
++
+             _LOGGER.info("Stopping HTTP Server...")
+             await self.http.stop()
+ 
+diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
+new file mode 100644
+index 0000000..6da85e4
+--- /dev/null
++++ b/ledfx/nowplaying/providers/android.py
+@@ -0,0 +1,272 @@
++"""Android Now Playing provider.
++
++Reads the phone's own media sessions (Spotify, YouTube Music, anything that
++publishes a MediaSession) through MediaSessionManager via pyjnius. Track
++metadata is forwarded to NowPlayingService; artwork is left to the album-art
++resolver, exactly as the SMTC and MPRIS providers do.
++
++Android gates ``getActiveSessions`` behind notification access, which is a
++*special access* rather than a runtime permission: there is no in-app dialog
++that can request it, the user has to grant it once in Settings. Until then the
++call raises SecurityException and this provider stays quiet.
++"""
++
++import asyncio
++import logging
++
++from ledfx.nowplaying.models import TrackMetadata
++
++_LOGGER = logging.getLogger(__name__)
++
++SOURCE_ID = "android"
++
++# Declared in the manifest by the python-for-android webview bootstrap.
++# getActiveSessions only accepts a listener component the user has granted
++# access to, and Android checks that it belongs to the calling package.
++LISTENER_CLASS = "org.kivy.android.PythonNotificationListenerService"
++
++# MediaMetadata keys, used as literals so no extra JNI lookups are needed.
++_KEY_TITLE = "android.media.metadata.TITLE"
++_KEY_ARTIST = "android.media.metadata.ARTIST"
++_KEY_ALBUM_ARTIST = "android.media.metadata.ALBUM_ARTIST"
++_KEY_ALBUM = "android.media.metadata.ALBUM"
++
++_STATE_PLAYING = 3  # PlaybackState.STATE_PLAYING
++
++# MediaSession has no "metadata changed" callback that pyjnius can implement -
++# MediaController.Callback is an abstract class, not an interface - so the
++# session list is polled instead. Two seconds is below what anyone notices on
++# a virtual and costs nothing measurable.
++_POLL_INTERVAL = 2.0
++
++_context = None
++_context_checked = False
++
++
++def android_context():
++    """The app context, or None when this is not an Android build.
++
++    Cached: the answer cannot change within a process, and every lookup is a
++    JNI class load.
++    """
++    global _context, _context_checked
++    if _context_checked:
++        return _context
++    _context_checked = True
++
++    try:
++        from jnius import autoclass
++    except Exception:
++        return None
++
++    # The core runs in the service process, so mService is the context that
++    # exists here; mActivity covers the app process.
++    for class_name, attr in (
++        ("org.kivy.android.PythonService", "mService"),
++        ("org.kivy.android.PythonActivity", "mActivity"),
++    ):
++        try:
++            obj = getattr(autoclass(class_name), attr, None)
++        except Exception:
++            continue
++        if obj is not None:
++            _context = obj
++            break
++    return _context
++
++
++def running_on_android() -> bool:
++    """True when a live Android context is reachable.
++
++    ``sys.platform`` is ``"linux"`` in a python-for-android build, so platform
++    sniffing cannot tell Android from desktop Linux - asking for the context
++    can.
++    """
++    return android_context() is not None
++
++
++def notification_access_granted() -> bool:
++    """Has the user granted LedFx notification access?
++
++    Readable without any permission, so clients can be told why Now Playing is
++    switched on yet reporting nothing.
++    """
++    context = android_context()
++    if context is None:
++        return False
++    try:
++        from jnius import autoclass
++
++        Secure = autoclass("android.provider.Settings$Secure")
++        enabled = Secure.getString(
++            context.getContentResolver(), "enabled_notification_listeners"
++        )
++    except Exception:
++        return False
++    if not enabled:
++        return False
++    return f"{context.getPackageName()}/{LISTENER_CLASS}" in enabled
++
++
++class AndroidNowPlayingProvider:
++    def __init__(self, ledfx):
++        self._ledfx = ledfx
++        self._task = None
++        self._context = None
++        self._manager = None
++        self._component = None
++        self._access_warned = False
++        self._last_identity = None
++
++    # ------------------------------------------------------------------
++    # Lifecycle
++    # ------------------------------------------------------------------
++
++    def start(self):
++        if self._task is not None:
++            return
++        self._context = android_context()
++        if self._context is None:
++            return
++        self._task = asyncio.ensure_future(self._run())
++
++    def stop(self):
++        if self._task is not None:
++            self._task.cancel()
++            self._task = None
++        self._manager = None
++        self._component = None
++        self._access_warned = False
++        self._last_identity = None
++
++    def clear(self):
++        """Explicitly reset this provider's state and notify the service."""
++        self._last_identity = None
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is not None:
++            now_playing.clear(SOURCE_ID)
++
++    # ------------------------------------------------------------------
++    # Polling
++    # ------------------------------------------------------------------
++
++    async def _run(self):
++        while True:
++            try:
++                self._poll()
++            except asyncio.CancelledError:
++                raise
++            except Exception:
++                _LOGGER.exception("Android: Now Playing poll failed")
++            await asyncio.sleep(_POLL_INTERVAL)
++
++    def _poll(self):
++        controller = self._active_controller()
++        if controller is None:
++            self._maybe_clear()
++            return
++
++        metadata = controller.getMetadata()
++        if metadata is None:
++            self._maybe_clear()
++            return
++
++        title = metadata.getString(_KEY_TITLE) or None
++        artist = (
++            metadata.getString(_KEY_ARTIST)
++            or metadata.getString(_KEY_ALBUM_ARTIST)
++            or None
++        )
++        album = metadata.getString(_KEY_ALBUM) or None
++
++        if title is None and artist is None:
++            self._maybe_clear()
++            return
++
++        identity = (title, artist, album)
++        if identity == self._last_identity:
++            return
++        self._last_identity = identity
++
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is None:
++            return
++
++        now_playing.set_metadata(
++            SOURCE_ID,
++            TrackMetadata(
++                source_id=SOURCE_ID,
++                title=title,
++                artist=artist,
++                album=album,
++            ),
++        )
++
++    # ------------------------------------------------------------------
++    # Sessions
++    # ------------------------------------------------------------------
++
++    def _active_controller(self):
++        """The playing session, else the first one that exists."""
++        from jnius import cast
++
++        sessions = self._active_sessions()
++        if sessions is None:
++            return None
++
++        fallback = None
++        for index in range(sessions.size()):
++            controller = cast(
++                "android.media.session.MediaController", sessions.get(index)
++            )
++            state = controller.getPlaybackState()
++            if state is not None and state.getState() == _STATE_PLAYING:
++                return controller
++            if fallback is None:
++                fallback = controller
++        return fallback
++
++    def _active_sessions(self):
++        from jnius import autoclass, cast
++
++        if self._manager is None:
++            Context = autoclass("android.content.Context")
++            ComponentName = autoclass("android.content.ComponentName")
++            self._manager = cast(
++                "android.media.session.MediaSessionManager",
++                self._context.getSystemService(Context.MEDIA_SESSION_SERVICE),
++            )
++            self._component = ComponentName(
++                self._context.getPackageName(), LISTENER_CLASS
++            )
++
++        try:
++            return self._manager.getActiveSessions(self._component)
++        except Exception as exc:
++            self._warn_missing_access(exc)
++            return None
++
++    def _warn_missing_access(self, exc):
++        """Say it once, and say what fixes it.
++
++        Repeating this every two seconds would bury the rest of the log, and
++        the situation only changes when the user acts in Settings.
++        """
++        if self._access_warned:
++            return
++        self._access_warned = True
++        _LOGGER.warning(
++            "Android: cannot read the media session - LedFx does not have "
++            "notification access. Grant it under Settings > Notifications > "
++            "Device & app notifications > LedFx, then toggle Now Playing off "
++            "and on. (%s)",
++            exc,
++        )
++
++    def _maybe_clear(self):
++        if self._last_identity is None:
++            return
++        self._last_identity = None
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is not None:
++            now_playing.clear(SOURCE_ID)
+diff --git a/ledfx/nowplaying/providers/mpris.py b/ledfx/nowplaying/providers/mpris.py
+index 285e4b3..6763035 100644
+--- a/ledfx/nowplaying/providers/mpris.py
++++ b/ledfx/nowplaying/providers/mpris.py
+@@ -20,6 +20,7 @@ except (
+     Message = None
+ 
+ from ledfx.nowplaying.models import TrackMetadata
++from ledfx.nowplaying.providers.android import running_on_android
+ 
+ _LOGGER = logging.getLogger(__name__)
+ 
+@@ -59,6 +60,10 @@ class MPRISNowPlayingProvider:
+         """Start provider initialization on Linux."""
+         if sys.platform != "linux":
+             return
++        # A python-for-android build also reports "linux", but there is no
++        # session bus on a phone - Android has its own provider.
++        if running_on_android():
++            return
+         if self._init_task is not None:
+             return
+ 
