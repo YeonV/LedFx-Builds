@@ -1,3 +1,128 @@
+diff --git a/ledfx/api/stem_model.py b/ledfx/api/stem_model.py
+new file mode 100644
+index 00000000..6458297e
+--- /dev/null
++++ b/ledfx/api/stem_model.py
+@@ -0,0 +1,119 @@
++"""API endpoint for the stem separation model download.
++
++The model is a ~210 MB third-party artifact, so LedFx does not ship it: it is
++fetched on request from the upstream repository that publishes it. That also
++keeps LedFx clear of redistributing weights whose training data is undocumented.
++
++A packaged binary has no interpreter, so `python -m ledfx.tools.stem_model` is
++not reachable for most users - this endpoint is how they get the model.
++"""
++
++import logging
++import threading
++
++from aiohttp import web
++
++from ledfx.api import RestEndpoint
++from ledfx.effects.stems import (
++    model_available,
++    model_path,
++    unavailable_reason,
++)
++from ledfx.tools.stem_model import TOTAL_BYTES, download
++
++_LOGGER = logging.getLogger(__name__)
++
++# Guarded by _LOCK. A single download at a time is enough: the only caller is a
++# button, and two concurrent writers would fight over the same .part files.
++_LOCK = threading.Lock()
++_STATE = {
++    "downloading": False,
++    "done_bytes": 0,
++    "total_bytes": TOTAL_BYTES,
++    "message": "",
++    "error": None,
++}
++
++
++def _snapshot():
++    with _LOCK:
++        return dict(_STATE)
++
++
++class StemModelEndpoint(RestEndpoint):
++    """Status and download control for the stem separation model.
++
++    GET  /api/stem_model  -> whether it is installed, and download progress
++    POST /api/stem_model  -> start the download ({"force": true} to redo it)
++    """
++
++    ENDPOINT_PATH = "/api/stem_model"
++
++    async def get(self, request: web.Request) -> web.Response:
++        state = _snapshot()
++        config_dir = self._ledfx.config_dir
++        total = state["total_bytes"] or 1
++        return await self.bare_request_success(
++            {
++                "installed": model_available(config_dir),
++                "path": model_path(config_dir),
++                "reason": unavailable_reason(config_dir),
++                "progress": round(state["done_bytes"] / total, 4),
++                **state,
++            }
++        )
++
++    async def post(self, request: web.Request) -> web.Response:
++        try:
++            data = await request.json()
++        except Exception:
++            # An empty body is a legitimate "just download it"
++            data = {}
++
++        force = bool(data.get("force", False))
++        config_dir = self._ledfx.config_dir
++
++        if model_available(config_dir) and not force:
++            return await self.request_success(
++                type="info", message="Separation model is already installed"
++            )
++
++        with _LOCK:
++            if _STATE["downloading"]:
++                return await self.request_success(
++                    type="info", message="Download already in progress"
++                )
++            _STATE.update(
++                downloading=True,
++                done_bytes=0,
++                message="Starting",
++                error=None,
++            )
++
++        def progress(done, total, message):
++            with _LOCK:
++                _STATE.update(
++                    done_bytes=done, total_bytes=total, message=message
++                )
++
++        def worker():
++            try:
++                download(config_dir, force=force, progress=progress)
++                _LOGGER.info("Stem separation model downloaded")
++            except Exception as exc:
++                _LOGGER.error("Stem model download failed: %s", exc)
++                with _LOCK:
++                    _STATE["error"] = str(exc)
++            finally:
++                with _LOCK:
++                    _STATE["downloading"] = False
++
++        # Off the event loop: this is a ~210 MB blocking download and would
++        # otherwise stall every other request for its duration.
++        threading.Thread(
++            target=worker, name="StemModelDownload", daemon=True
++        ).start()
++
++        return await self.request_success(
++            type="info", message="Downloading separation model"
++        )
 diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
 index 86017b1f..201213fb 100644
 --- a/ledfx/api/utils.py
@@ -925,10 +1050,10 @@ index 00000000..223a6046
 +        self.pixels = self.apply_gradient(self._trail)
 diff --git a/ledfx/effects/stems.py b/ledfx/effects/stems.py
 new file mode 100644
-index 00000000..f0b40656
+index 00000000..de56a33d
 --- /dev/null
 +++ b/ledfx/effects/stems.py
-@@ -0,0 +1,786 @@
+@@ -0,0 +1,788 @@
 +"""Real-time stem separation.
 +
 +Runs a causal HS-TasNet model (ONNX) over the incoming audio so that effects can
@@ -1116,9 +1241,11 @@ index 00000000..f0b40656
 +            "extra to enable stem separation."
 +        )
 +    if not os.path.isfile(model_path(config_dir)):
++        # Deliberately not "run python -m ...": most users are on a packaged
++        # binary with no interpreter, so that advice is impossible to follow.
 +        return (
-+            f"Separation model not found at {model_path(config_dir)}. "
-+            "Run 'python -m ledfx.tools.stem_model' to download it."
++            "Separation model not downloaded yet. Use the download button in "
++            "Settings -> Audio, or POST to /api/stem_model."
 +        )
 +    return None
 +
@@ -1918,10 +2045,10 @@ index 2cd5fdef..b52dc936 100644
                  "background_brightness": 0.3,
 diff --git a/ledfx/tools/stem_model.py b/ledfx/tools/stem_model.py
 new file mode 100644
-index 00000000..694e879f
+index 00000000..499a6ffc
 --- /dev/null
 +++ b/ledfx/tools/stem_model.py
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,202 @@
 +"""Download the stem separation model.
 +
 +The model is ~210 MB, so it is not shipped with LedFx. It is fetched from the
@@ -1995,7 +2122,10 @@ index 00000000..694e879f
 +    return by_oid
 +
 +
-+def _download(url, target, expected_oid, expected_size):
++TOTAL_BYTES = sum(o["size"] for o in OBJECTS.values())
++
++
++def _download(url, target, expected_oid, expected_size, on_bytes=None):
 +    digest = hashlib.sha256()
 +    written = 0
 +    partial = target + ".part"
@@ -2009,15 +2139,8 @@ index 00000000..694e879f
 +                handle.write(block)
 +                digest.update(block)
 +                written += len(block)
-+                if expected_size:
-+                    percent = 100 * written / expected_size
-+                    print(
-+                        f"\r  {os.path.basename(target)}: {percent:5.1f}% "
-+                        f"({written / 1e6:.0f}/{expected_size / 1e6:.0f} MB)",
-+                        end="",
-+                        flush=True,
-+                    )
-+    print()
++                if on_bytes:
++                    on_bytes(len(block))
 +
 +    if written != expected_size:
 +        os.remove(partial)
@@ -2031,25 +2154,50 @@ index 00000000..694e879f
 +    os.replace(partial, target)
 +
 +
-+def download(config_dir, force=False):
-+    """Fetch the model into the LedFx config directory. Returns True on success."""
++def download(config_dir, force=False, progress=None):
++    """Fetch the model into the LedFx config directory. Returns True on success.
++
++    `progress` is called as progress(done_bytes, total_bytes, message). It lets
++    the REST endpoint report a percentage without this module knowing anything
++    about the API, and keeps the CLI's printing in one place.
++    """
++
++    def report(done, message):
++        if progress:
++            progress(done, TOTAL_BYTES, message)
++
 +    destination = model_dir(config_dir)
 +    os.makedirs(destination, exist_ok=True)
 +
 +    if os.path.isfile(model_path(config_dir)) and not force:
-+        print(f"Model already present at {model_path(config_dir)}")
-+        print("Pass --force to download it again.")
++        report(TOTAL_BYTES, "Model already present")
 +        return True
 +
-+    print("Resolving download URLs...")
++    report(0, "Resolving download URLs")
 +    urls = _resolve_urls()
 +
++    done = 0
 +    for name, meta in OBJECTS.items():
 +        target = os.path.join(destination, name)
 +        url = urls.get(meta["oid"])
 +        if not url:
 +            raise RuntimeError(f"No URL resolved for {name}")
-+        _download(url, target, meta["oid"], meta["size"])
++
++        def on_bytes(count, _name=name):
++            nonlocal done
++            done += count
++            report(done, f"Downloading {_name}")
++
++        _download(url, target, meta["oid"], meta["size"], on_bytes)
++        done = max(
++            done,
++            sum(
++                OBJECTS[n]["size"]
++                for n in list(OBJECTS)[: list(OBJECTS).index(name) + 1]
++            ),
++        )
++
++    report(TOTAL_BYTES, "Verified and installed")
 +
 +    print(f"\nModel installed to {destination}")
 +    print("Enable it in LedFx: Settings -> Audio -> stem separation.")
@@ -2074,8 +2222,18 @@ index 00000000..694e879f
 +    args = parser.parse_args()
 +
 +    config_dir = args.config_dir or get_default_config_directory()
++
++    def show(done, total, message):
++        pct = 100 * done / total if total else 0
++        print(
++            f"\r  {message}: {pct:5.1f}% "
++            f"({done / 1e6:.0f}/{total / 1e6:.0f} MB)   ",
++            end="",
++            flush=True,
++        )
++
 +    try:
-+        download(config_dir, force=args.force)
++        download(config_dir, force=args.force, progress=show)
 +    except Exception as exc:
 +        print(f"Download failed: {exc}", file=sys.stderr)
 +        return 1
