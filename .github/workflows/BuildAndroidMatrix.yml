@@ -202,6 +202,36 @@ jobs:
         continue-on-error: true
         run: buildozer android debug
 
+      # buildozer's own debug signing uses an auto-generated keystore that
+      # lives on the ephemeral runner - different (or absent) on every CI
+      # run, which is exactly what caused an INSTALL_FAILED_UPDATE_INCOMPATIBLE
+      # trying to update one debug build over another. Re-signing with the
+      # same production key used for the release build below means every
+      # build, debug or release, shares one stable signing identity - also
+      # what lets the rootpack stub (signed with this same key) systemize
+      # against either variant.
+      - name: Decode keystore from secrets
+        continue-on-error: true
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_LEDFX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
+
+      - name: Sign APK with apksigner
+        continue-on-error: true
+        run: |
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" | sort -r | head -n 1)
+          echo "Using apksigner at: $APKSIGNER"
+
+          APK_FILE=$(ls ./bin/*.apk)
+          echo "Signing: $APK_FILE"
+          $APKSIGNER sign --ks $RUNNER_TEMP/ledfx-keystore.jks \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEYSTORE_LEDFX_ALIAS }} \
+            "$APK_FILE"
+
+          $APKSIGNER verify "$APK_FILE"
+          echo "✅ Debug APK re-signed successfully with production keystore"
+
       - name: Upload artifact for ${{ matrix.arch }}
         uses: actions/upload-artifact@v4
         with:
