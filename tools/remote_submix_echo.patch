@@ -22,3 +22,15 @@ index 4c480384..64bada31 100644
              },
              extra=vol.ALLOW_EXTRA,
          )
+diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
+index e4e1e2c7..95f7e05a 100644
+--- a/ledfx/api/utils.py
++++ b/ledfx/api/utils.py
+@@ -26,6 +26,7 @@ PERMITTED_KEYS = {
+         "pitch_method",
+         "onset_method",
+         "pitch_tolerance",
++        "android_remote_submix_echo",
+     ),
+     "melbanks": (
+         "max_frequencies",

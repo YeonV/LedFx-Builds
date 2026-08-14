@@ -494,7 +494,7 @@ jobs:
   #         name: package-universal
   #         path: ./bin/*.apk
 
-  build_rootpack:
+  build_stub:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Android Builder
@@ -502,16 +502,72 @@ jobs:
         with:
           repository: YeonV/ledfx-android
 
-      # Same reasoning as APK builds NOT bundling their own copy of anything
-      # that goes stale: this module doesn't bundle a LedFx APK either, it
-      # systemizes whatever's already installed at apply-time. So the zip
-      # itself is just the install/service scripts - identical regardless of
-      # CPU arch, hence its own job rather than duplicated across the APK
-      # build matrix.
+      # A minimal, code-free APK that only ever exists at /system/priv-app
+      # as a signed permission anchor - never executed (pm path always
+      # resolves to the real, functional /data/app install regardless).
+      # hasCode="false" in the manifest means no classes.dex is needed at
+      # all. Built once here with the same production key as the real
+      # release builds, so the rootpack module never again needs to touch
+      # the real LedFx APK's native libs/Python bundle to stay systemized -
+      # this is what eliminates the whole class of SSL-rename ordering bugs
+      # that came from keeping a full copy of the real app in sync.
+      - name: Build unsigned stub APK
+        run: |
+          AAPT2=$(find "$ANDROID_HOME" -name "aapt2" -type f | sort -r | head -n 1)
+          PLATFORM=$(ls "$ANDROID_HOME/platforms" | sort -V | tail -n 1)
+          echo "Using aapt2: $AAPT2"
+          echo "Using platform: $PLATFORM"
+          "$AAPT2" link \
+            -o rootpack/stub/stub-unsigned.apk \
+            --manifest rootpack/stub/AndroidManifest.xml \
+            -I "$ANDROID_HOME/platforms/$PLATFORM/android.jar"
+
+      - name: Decode keystore from secrets
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_LEDFX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
+
+      - name: Sign stub APK
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name "apksigner" | sort -r | head -n 1)
+          echo "Using apksigner: $APKSIGNER"
+          "$APKSIGNER" sign --ks $RUNNER_TEMP/ledfx-keystore.jks \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEYSTORE_LEDFX_ALIAS }} \
+            --out rootpack/stub/stub.apk \
+            rootpack/stub/stub-unsigned.apk
+          "$APKSIGNER" verify rootpack/stub/stub.apk
+          echo "✅ Stub APK signed successfully with production keystore"
+
+      - name: Upload stub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stub
+          path: rootpack/stub/stub.apk
+
+  build_rootpack:
+    runs-on: ubuntu-22.04
+    needs: [build_stub]
+    steps:
+      - name: Checkout Android Builder
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/ledfx-android
+
+      - name: Download stub artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stub
+          path: rootpack/
+
+      # The scripts stay tiny and CPU-arch-independent (still their own job
+      # rather than duplicated across the APK build matrix); the stub is
+      # now the only thing that's actually bundled, and it's arch-agnostic
+      # too since it carries no native code at all.
       - name: Zip root-audio module
         run: |
           cd rootpack
-          zip -r ../ledfx_root_audio_module.zip module.prop customize.sh service.sh common.sh
+          zip -r ../ledfx_root_audio_module.zip module.prop customize.sh service.sh common.sh stub.apk
           cd ..
           echo "--- module zip contents ---"
           unzip -l ledfx_root_audio_module.zip
