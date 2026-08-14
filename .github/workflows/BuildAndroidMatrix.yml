@@ -70,6 +70,7 @@ jobs:
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
+          cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -99,6 +100,13 @@ jobs:
           git apply wled_mdns.patch \
             || git apply --check --reverse wled_mdns.patch \
             || { echo "::error::wled_mdns.patch did not apply"; exit 1; }
+
+          # Android-only user override for the RemoteSubmix echo (see
+          # android_remote_submix.py) - harmless on every other platform,
+          # since nothing outside Android's own device code reads this key.
+          git apply remote_submix_echo.patch \
+            || git apply --check --reverse remote_submix_echo.patch \
+            || { echo "::error::remote_submix_echo.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -249,6 +257,7 @@ jobs:
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
+          cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -278,6 +287,13 @@ jobs:
           git apply wled_mdns.patch \
             || git apply --check --reverse wled_mdns.patch \
             || { echo "::error::wled_mdns.patch did not apply"; exit 1; }
+
+          # Android-only user override for the RemoteSubmix echo (see
+          # android_remote_submix.py) - harmless on every other platform,
+          # since nothing outside Android's own device code reads this key.
+          git apply remote_submix_echo.patch \
+            || git apply --check --reverse remote_submix_echo.patch \
+            || { echo "::error::remote_submix_echo.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -478,10 +494,38 @@ jobs:
   #         name: package-universal
   #         path: ./bin/*.apk
 
+  build_rootpack:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Android Builder
+        uses: actions/checkout@v4
+        with:
+          repository: YeonV/ledfx-android
+
+      # Same reasoning as APK builds NOT bundling their own copy of anything
+      # that goes stale: this module doesn't bundle a LedFx APK either, it
+      # systemizes whatever's already installed at apply-time. So the zip
+      # itself is just the install/service scripts - identical regardless of
+      # CPU arch, hence its own job rather than duplicated across the APK
+      # build matrix.
+      - name: Zip root-audio module
+        run: |
+          cd rootpack
+          zip -r ../ledfx_root_audio_module.zip module.prop customize.sh service.sh common.sh
+          cd ..
+          echo "--- module zip contents ---"
+          unzip -l ledfx_root_audio_module.zip
+
+      - name: Upload root-audio module artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootpack
+          path: ledfx_root_audio_module.zip
+
   release:
     if: ${{ always() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: [build_archs, build_archs_release] # build_universal
+    needs: [build_archs, build_archs_release, build_rootpack] # build_universal
     permissions:
       contents: write
     steps:
@@ -492,8 +536,14 @@ jobs:
           pattern: package-*
           merge-multiple: true
 
+      - name: Download root-audio module artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rootpack
+          path: rootpack-dl/
+
       - name: List downloaded files
-        run: ls -R apks/
+        run: ls -R apks/ rootpack-dl/
 
       - name: Extract release tag from upload URL
         id: extract_tag
@@ -538,7 +588,7 @@ jobs:
 
               # Clean the upload URL by removing the template suffix
               UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
-              
+
               # Using curl to upload directly to the release
               curl -X POST \
                 -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
@@ -547,3 +597,24 @@ jobs:
                 "${UPLOAD_URL}?name=${asset_name}"
             fi
           done
+
+      - name: Upload root-audio module to Release
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          module_file="rootpack-dl/ledfx_root_audio_module.zip"
+          if [ -f "$module_file" ]; then
+            asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-root-audio-module.zip"
+            echo "Uploading $module_file as $asset_name"
+
+            UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
+
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/zip" \
+              --data-binary @"$module_file" \
+              "${UPLOAD_URL}?name=${asset_name}"
+          else
+            echo "::warning::root-audio module zip not found, skipping"
+          fi

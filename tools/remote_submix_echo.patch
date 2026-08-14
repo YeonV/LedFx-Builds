@@ -1,0 +1,24 @@
+diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
+index 4c480384..64bada31 100644
+--- a/ledfx/effects/audio.py
++++ b/ledfx/effects/audio.py
+@@ -168,6 +168,19 @@ class AudioInputSource:
+                     default=0,
+                     description="Add a delay to LedFx's output to sync with your audio. Useful for Bluetooth devices which typically have a short audio lag.",
+                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=5000)),
++                # Android-only: "System Audio (root)" (REMOTE_SUBMIX) is an
++                # exclusive tap on some ROMs, silencing the phone's own
++                # speaker unless LedFx echoes the captured audio back out
++                # through a second AudioTrack. Auto-detection can get this
++                # wrong (e.g. before a permission it needs is granted, it
++                # fails safe and assumes echo IS needed) - this override lets
++                # the user correct it without waiting on a new build. Inert
++                # on every other platform and every other Android input.
++                vol.Optional(
++                    "android_remote_submix_echo",
++                    default="auto",
++                    description='Only affects the Android "System Audio (root)" input. Auto detects whether the ROM already plays audio through the speaker while capturing and only echoes it back when needed; On/Off override that detection.',
++                ): vol.In(["auto", "on", "off"]),
+             },
+             extra=vol.ALLOW_EXTRA,
+         )
