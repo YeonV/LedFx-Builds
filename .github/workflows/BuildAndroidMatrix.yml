@@ -597,7 +597,7 @@ jobs:
       - name: Zip root-audio module
         run: |
           cd rootpack
-          zip -r ../ledfx_root_audio_module.zip module.prop customize.sh service.sh common.sh stub.apk
+          zip -r ../ledfx_root_audio_module.zip module.prop customize.sh service.sh uninstall.sh common.sh stub.apk
           cd ..
           echo "--- module zip contents ---"
           unzip -l ledfx_root_audio_module.zip
