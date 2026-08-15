@@ -1,8 +1,8 @@
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 9ecccff..ab6fa4e 100644
+index 4ac6822..c56a151 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -160,6 +160,20 @@ class LedFxCore:
+@@ -162,6 +162,20 @@ class LedFxCore:
 
          self.exit_code = None
 
@@ -23,7 +23,7 @@ index 9ecccff..ab6fa4e 100644
      def handle_base_configuration_update(self, event):
          """
          Handles the update of the base configuration where there are specific things that need to be done.
-@@ -510,6 +524,7 @@ class LedFxCore:
+@@ -515,6 +529,7 @@ class LedFxCore:
          _LOGGER.info(
              "Starting LedFx, listening on %s:%s", self.host, self.port
          )
@@ -31,15 +31,15 @@ index 9ecccff..ab6fa4e 100644
 
          if (
              self.icon is not None
-@@ -539,6 +554,7 @@ class LedFxCore:
-         self._mpris_now_playing = MPRISNowPlayingProvider(self)
-         self._mpris_now_playing.start()
+@@ -543,6 +558,7 @@ class LedFxCore:
+         self._android_now_playing = AndroidNowPlayingProvider(self)
+         self.reconcile_now_playing_runtime("startup")
 
 +        self._write_boot_stage("loading_modules")
          self.devices = Devices(self)
          self.effects = Effects(self)
          self.virtuals = Virtuals(self)
-@@ -564,6 +580,7 @@ class LedFxCore:
+@@ -568,6 +584,7 @@ class LedFxCore:
              parse_gradient,
          )
 
@@ -47,7 +47,7 @@ index 9ecccff..ab6fa4e 100644
          # TODO: Deferr
          self.devices.create_from_config(self.config["devices"])
          await self.devices.async_initialize_devices()
-@@ -579,6 +596,7 @@ class LedFxCore:
+@@ -583,6 +600,7 @@ class LedFxCore:
          )
          self.integrations.create_from_config(self.config["integrations"])
 
