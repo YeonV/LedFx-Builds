@@ -71,6 +71,7 @@ jobs:
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
+          cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -107,6 +108,15 @@ jobs:
           git apply remote_submix_echo.patch \
             || git apply --check --reverse remote_submix_echo.patch \
             || { echo "::error::remote_submix_echo.patch did not apply"; exit 1; }
+
+          # Writes a tiny boot_status.txt (starting/loading_modules/
+          # connecting_audio/starting_server) at real startup checkpoints in
+          # core.py, so the Android splash screen has something honest to
+          # poll instead of guessing off a timer - see rootpack's Java-side
+          # bridge for the reader half. No-op cost on every other platform.
+          git apply boot_status.patch \
+            || git apply --check --reverse boot_status.patch \
+            || { echo "::error::boot_status.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -288,6 +298,7 @@ jobs:
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
+          cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -324,6 +335,15 @@ jobs:
           git apply remote_submix_echo.patch \
             || git apply --check --reverse remote_submix_echo.patch \
             || { echo "::error::remote_submix_echo.patch did not apply"; exit 1; }
+
+          # Writes a tiny boot_status.txt (starting/loading_modules/
+          # connecting_audio/starting_server) at real startup checkpoints in
+          # core.py, so the Android splash screen has something honest to
+          # poll instead of guessing off a timer - see rootpack's Java-side
+          # bridge for the reader half. No-op cost on every other platform.
+          git apply boot_status.patch \
+            || git apply --check --reverse boot_status.patch \
+            || { echo "::error::boot_status.patch did not apply"; exit 1; }
 
           cd ../..
 
