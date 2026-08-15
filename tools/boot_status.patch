@@ -1,11 +1,11 @@
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 6f8be152..a0a05bca 100644
+index 9ecccff..ab6fa4e 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -145,6 +145,20 @@ class LedFxCore:
- 
+@@ -160,6 +160,20 @@ class LedFxCore:
+
          self.exit_code = None
- 
+
 +    def _write_boot_stage(self, stage):
 +        """Best-effort progress marker for the Android splash screen, which
 +        has no way to know what's happening during the (highly hardware-
@@ -23,34 +23,34 @@ index 6f8be152..a0a05bca 100644
      def handle_base_configuration_update(self, event):
          """
          Handles the update of the base configuration where there are specific things that need to be done.
-@@ -380,6 +394,7 @@ class LedFxCore:
- 
-     async def async_start(self, open_ui=False, pause_all=False):
-         _LOGGER.info(f"Starting LedFx, listening on {self.host}:{self.port}")
+@@ -510,6 +524,7 @@ class LedFxCore:
+         _LOGGER.info(
+             "Starting LedFx, listening on %s:%s", self.host, self.port
+         )
 +        self._write_boot_stage("starting")
- 
+
          if (
              self.icon is not None
-@@ -398,6 +413,7 @@ class LedFxCore:
-             max_items=cache_config.get("max_items", 500),
-         )
- 
+@@ -539,6 +554,7 @@ class LedFxCore:
+         self._mpris_now_playing = MPRISNowPlayingProvider(self)
+         self._mpris_now_playing.start()
+
 +        self._write_boot_stage("loading_modules")
          self.devices = Devices(self)
          self.effects = Effects(self)
          self.virtuals = Virtuals(self)
-@@ -423,6 +439,7 @@ class LedFxCore:
+@@ -564,6 +580,7 @@ class LedFxCore:
              parse_gradient,
          )
- 
+
 +        self._write_boot_stage("connecting_audio")
          # TODO: Deferr
          self.devices.create_from_config(self.config["devices"])
          await self.devices.async_initialize_devices()
-@@ -433,6 +450,7 @@ class LedFxCore:
+@@ -579,6 +596,7 @@ class LedFxCore:
          )
          self.integrations.create_from_config(self.config["integrations"])
- 
+
 +        self._write_boot_stage("starting_server")
          # Start the HTTP server once internal registries are initialized so
          # websockets and REST endpoints are fully ready before the UI opens.
