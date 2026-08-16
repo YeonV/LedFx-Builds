@@ -72,6 +72,7 @@ jobs:
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
+          cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -117,6 +118,14 @@ jobs:
           git apply boot_status.patch \
             || git apply --check --reverse boot_status.patch \
             || { echo "::error::boot_status.patch did not apply"; exit 1; }
+
+          # New file (ledfx/api/android_capture.py): a REST endpoint for the
+          # real Playback Capture state and a revoke action. Lives here
+          # because the JS-bridge equivalent runs in the wrong process (see
+          # the file's own docstring) and can never reflect reality.
+          git apply android_capture_control.patch \
+            || git apply --check --reverse android_capture_control.patch \
+            || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -299,6 +308,7 @@ jobs:
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
+          cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -344,6 +354,14 @@ jobs:
           git apply boot_status.patch \
             || git apply --check --reverse boot_status.patch \
             || { echo "::error::boot_status.patch did not apply"; exit 1; }
+
+          # New file (ledfx/api/android_capture.py): a REST endpoint for the
+          # real Playback Capture state and a revoke action. Lives here
+          # because the JS-bridge equivalent runs in the wrong process (see
+          # the file's own docstring) and can never reflect reality.
+          git apply android_capture_control.patch \
+            || git apply --check --reverse android_capture_control.patch \
+            || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
 
           cd ../..
 

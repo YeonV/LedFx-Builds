@@ -32,6 +32,7 @@ PATCHES=(
   wled_mdns.patch
   remote_submix_echo.patch
   boot_status.patch
+  android_capture_control.patch
 )
 
 echo "==> Cloning LedFx/LedFx@main (fresh, depth 1) ..."

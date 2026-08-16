@@ -1,0 +1,66 @@
+diff --git a/ledfx/api/android_capture.py b/ledfx/api/android_capture.py
+new file mode 100644
+index 0000000..dae95b5
+--- /dev/null
++++ b/ledfx/api/android_capture.py
+@@ -0,0 +1,60 @@
++"""Android Playback Capture control (MediaProjection-based system audio).
++
++Exposes the real capture state and a revoke action here, in the actual REST
++API, rather than through the Android JS bridge's equivalent check. The
++bridge's hasPlaybackCapture() runs in the Activity process and reads
++PythonService's static consent fields there - but only PythonService's own
++broadcast receiver, running in the :service_ledfx process, ever sets them.
++Android does not share static state across process boundaries, so the
++bridge check can never reflect reality; it reads a copy that is never
++written. The actual AndroidPlaybackCapture object lives entirely in this
++process (see _pipeline_android/src/android_playback_capture.py), so this
++endpoint asks it directly instead.
++"""
++
++import logging
++
++from aiohttp import web
++
++from ledfx.api import RestEndpoint
++from ledfx.nowplaying.providers.android import running_on_android
++
++_LOGGER = logging.getLogger(__name__)
++
++
++def _capture_class():
++    """The Android-only capture class, or None off-Android / off-Android-build."""
++    try:
++        import android_playback_capture
++
++        return android_playback_capture.AndroidPlaybackCapture
++    except Exception:
++        return None
++
++
++class AndroidCaptureEndpoint(RestEndpoint):
++    """REST endpoint for Android Playback Capture (system audio) state.
++
++    GET /api/android/playback_capture
++        Whether a live, still-valid MediaProjection capture is held.
++
++    DELETE /api/android/playback_capture
++        Revoke: ends the real MediaProjection session (not just LedFx's
++        cached reference to it), so the system's own status-bar recording
++        indicator clears as a direct consequence. Resuming afterward needs
++        a fresh consent dialog - unlike switching to a different audio
++        input and back, which reuses the cached session for free.
++    """
++
++    ENDPOINT_PATH = "/api/android/playback_capture"
++
++    async def get(self) -> web.Response:
++        capture = _capture_class()
++        active = bool(capture and running_on_android() and capture.is_active())
++        return await self.bare_request_success({"active": active})
++
++    async def delete(self) -> web.Response:
++        capture = _capture_class()
++        if capture and running_on_android():
++            capture.revoke()
++        return await self.bare_request_success({"active": False})
