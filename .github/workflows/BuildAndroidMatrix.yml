@@ -75,6 +75,7 @@ jobs:
           cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
           cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
           cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
+          cp ./src2/tools/thread_priority_boost.patch ./deps/ledfx/thread_priority_boost.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -145,6 +146,19 @@ jobs:
           git apply android_quiet_logging.patch \
             || git apply --check --reverse android_quiet_logging.patch \
             || { echo "::error::android_quiet_logging.patch did not apply"; exit 1; }
+
+          # Boosts the render thread (virtuals.py), the asyncio event loop
+          # (core.py) and the audio-analysis thread (sounddevice.py, applied
+          # separately in this repo's own src/ - not part of this patch) to
+          # THREAD_PRIORITY_AUDIO, matching what AudioRecord already gets at
+          # the native layer. Without it all three compete for the CPU at
+          # Android's default priority, identical to ordinary background
+          # workers, despite being the real-time halves of an audio-reactive
+          # pipeline - the single biggest measured performance win from the
+          # b38 investigation (see ledfx CLAUDE.md).
+          git apply thread_priority_boost.patch \
+            || git apply --check --reverse thread_priority_boost.patch \
+            || { echo "::error::thread_priority_boost.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -330,6 +344,7 @@ jobs:
           cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
           cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
           cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
+          cp ./src2/tools/thread_priority_boost.patch ./deps/ledfx/thread_priority_boost.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -400,6 +415,19 @@ jobs:
           git apply android_quiet_logging.patch \
             || git apply --check --reverse android_quiet_logging.patch \
             || { echo "::error::android_quiet_logging.patch did not apply"; exit 1; }
+
+          # Boosts the render thread (virtuals.py), the asyncio event loop
+          # (core.py) and the audio-analysis thread (sounddevice.py, applied
+          # separately in this repo's own src/ - not part of this patch) to
+          # THREAD_PRIORITY_AUDIO, matching what AudioRecord already gets at
+          # the native layer. Without it all three compete for the CPU at
+          # Android's default priority, identical to ordinary background
+          # workers, despite being the real-time halves of an audio-reactive
+          # pipeline - the single biggest measured performance win from the
+          # b38 investigation (see ledfx CLAUDE.md).
+          git apply thread_priority_boost.patch \
+            || git apply --check --reverse thread_priority_boost.patch \
+            || { echo "::error::thread_priority_boost.patch did not apply"; exit 1; }
 
           cd ../..
 
