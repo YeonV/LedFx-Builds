@@ -73,6 +73,8 @@ jobs:
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
           cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
+          cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
+          cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -126,6 +128,23 @@ jobs:
           git apply android_capture_control.patch \
             || git apply --check --reverse android_capture_control.patch \
             || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
+
+          # Skips real work in the visualisation pixel pipeline and melbank
+          # graph events when no client has the graph view open - both used
+          # to run unconditionally every frame, competing for the GIL
+          # against audio analysis and rendering for zero benefit. See
+          # ledfx CLAUDE.md.
+          git apply event_listener_gating.patch \
+            || git apply --check --reverse event_listener_gating.patch \
+            || { echo "::error::event_listener_gating.patch did not apply"; exit 1; }
+
+          # Defaults console logging to CRITICAL+1 in production Android
+          # builds - the p4a stdout/stderr -> logcat bridge measured at
+          # ~0.87ms per log call, real and ~1000x a native write. Touch
+          # <config_dir>/.android_dev_logging and restart for full logging.
+          git apply android_quiet_logging.patch \
+            || git apply --check --reverse android_quiet_logging.patch \
+            || { echo "::error::android_quiet_logging.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -309,6 +328,8 @@ jobs:
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
           cp ./src2/tools/android_capture_control.patch ./deps/ledfx/android_capture_control.patch
+          cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
+          cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -362,6 +383,23 @@ jobs:
           git apply android_capture_control.patch \
             || git apply --check --reverse android_capture_control.patch \
             || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
+
+          # Skips real work in the visualisation pixel pipeline and melbank
+          # graph events when no client has the graph view open - both used
+          # to run unconditionally every frame, competing for the GIL
+          # against audio analysis and rendering for zero benefit. See
+          # ledfx CLAUDE.md.
+          git apply event_listener_gating.patch \
+            || git apply --check --reverse event_listener_gating.patch \
+            || { echo "::error::event_listener_gating.patch did not apply"; exit 1; }
+
+          # Defaults console logging to CRITICAL+1 in production Android
+          # builds - the p4a stdout/stderr -> logcat bridge measured at
+          # ~0.87ms per log call, real and ~1000x a native write. Touch
+          # <config_dir>/.android_dev_logging and restart for full logging.
+          git apply android_quiet_logging.patch \
+            || git apply --check --reverse android_quiet_logging.patch \
+            || { echo "::error::android_quiet_logging.patch did not apply"; exit 1; }
 
           cd ../..
 

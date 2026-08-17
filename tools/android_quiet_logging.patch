@@ -1,0 +1,34 @@
+diff --git a/ledfx/__main__.py b/ledfx/__main__.py
+index e6b20e0f..c038336a 100644
+--- a/ledfx/__main__.py
++++ b/ledfx/__main__.py
+@@ -62,6 +62,29 @@ def reset_logging():
+ 
+ def setup_logging(loglevel, config_dir):
+     console_loglevel = loglevel or logging.WARNING
++
++    try:
++        from ledfx.nowplaying.providers.android import running_on_android
++    except ImportError:  # not an Android build - this module doesn't exist
++
++        def running_on_android():
++            return False
++
++    if (
++        loglevel is None
++        and running_on_android()
++        and not os.path.isfile(
++            os.path.join(config_dir, ".android_dev_logging")
++        )
++    ):
++        # Measured on-device: the p4a stdout/stderr -> logcat bridge costs
++        # ~0.87ms per log call, real and ~1000x a native/desktop write - see
++        # ledfx CLAUDE.md. Default to not paying that in production; touch
++        # `<config_dir>/.android_dev_logging` and restart for full logging
++        # during development. Only kicks in when nothing more specific was
++        # asked for (-v/-vv always win).
++        console_loglevel = logging.CRITICAL + 1
++
+     console_logformat = "[%(levelname)-8s] %(name)-30s : %(message)s"
+ 
+     file_loglevel = loglevel or logging.INFO

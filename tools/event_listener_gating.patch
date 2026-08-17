@@ -1,0 +1,65 @@
+diff --git a/ledfx/core.py b/ledfx/core.py
+index 9ecccff7..8d169e9e 100644
+--- a/ledfx/core.py
++++ b/ledfx/core.py
+@@ -353,6 +353,13 @@ class LedFxCore:
+         max_len = self.config["visualisation_maxlen"]
+ 
+         def handle_visualisation_update(event):
++            # Nothing to reshape/resize/boost/serialize for if no client has
++            # the graph view open - this ran unconditionally every frame
++            # before, competing for the GIL against audio analysis and
++            # rendering for zero benefit whenever nobody was watching.
++            if not self.events.has_listeners(Event.VISUALISATION_UPDATE):
++                return
++
+             is_device = event.event_type == Event.DEVICE_UPDATE
+             time_now = time.time()
+ 
+diff --git a/ledfx/effects/melbank.py b/ledfx/effects/melbank.py
+index 121a7c0e..ebb40deb 100644
+--- a/ledfx/effects/melbank.py
++++ b/ledfx/effects/melbank.py
+@@ -13,7 +13,7 @@ import voluptuous as vol
+ import ledfx.effects.mel as mel
+ from ledfx.effects import fast_blur_array
+ from ledfx.effects.math import ExpFilter
+-from ledfx.events import GraphUpdateEvent
++from ledfx.events import Event, GraphUpdateEvent
+ from ledfx.utils import generate_id
+ 
+ # Since fft size and mic rate are tightly linked to melbank resolution,
+@@ -554,6 +554,12 @@ class Melbanks:
+             self.send_melbank_event(len(self.melbank_processors) - 1)
+ 
+     def send_melbank_event(self, i):
++        # GraphUpdateEvent.__init__ does real .tolist() work on both arrays -
++        # skip building it at all when nobody's listening, same reasoning as
++        # the visualisation pixel pipeline. This runs on the audio thread,
++        # up to once per audio callback (~30/s) even with no graph open.
++        if not self._ledfx.events.has_listeners(Event.GRAPH_UPDATE):
++            return
+         self._ledfx.events.fire_event(
+             GraphUpdateEvent(
+                 f"melbank_{i}",
+diff --git a/ledfx/events.py b/ledfx/events.py
+index 6e2ade6e..8917869a 100644
+--- a/ledfx/events.py
++++ b/ledfx/events.py
+@@ -663,6 +663,16 @@ class Events:
+         except (KeyError, ValueError):
+             _LOGGER.warning("Failed to remove event listener %s", listener)
+ 
++    def has_listeners(self, event_type: str) -> bool:
++        """Whether anything is currently subscribed to this event type.
++
++        Lets a producer skip real work (not just the fire_event call) when
++        nobody would ever see the result - e.g. the visualisation pixel
++        pipeline, which used to run unconditionally every frame regardless
++        of whether any client had the graph view open.
++        """
++        return bool(self._listeners.get(event_type))
++
+ 
+ # def get_event_types():
+ #     """Get a list of the types of events available"""
