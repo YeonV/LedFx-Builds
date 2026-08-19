@@ -299,6 +299,7 @@ jobs:
           cp ./src2/tools/sentry.patch ./src/sentry.patch
           cp ./src2/tools/stems.patch ./src/stems.patch
           cp ./src2/tools/nowplaying.patch ./src/nowplaying.patch
+          cp ./src2/tools/event_listener_gating.patch ./src/event_listener_gating.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           # This step runs under `bash -x` rather than the default `bash -e`,
@@ -308,6 +309,14 @@ jobs:
           git apply sentry.patch || { echo "::error::sentry.patch did not apply"; exit 1; }
           git apply stems.patch || { echo "::error::stems.patch did not apply"; exit 1; }
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+          # Despite living in the Android chain, this one is not Android-specific
+          # at all - it contains zero platform checks. It skips the visualisation
+          # pixel pipeline and melbank graph events when no client has the graph
+          # view open, work that otherwise ran every frame on every platform,
+          # competing for the GIL against audio analysis and rendering for no
+          # benefit. Applies last here because its core.py/melbank.py context
+          # sits below stems' insertions.
+          git apply event_listener_gating.patch || { echo "::error::event_listener_gating.patch did not apply"; exit 1; }
           cd ..
 
       - name: Get latest frontend

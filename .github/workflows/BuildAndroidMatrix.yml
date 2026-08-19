@@ -130,10 +130,13 @@ jobs:
             || git apply --check --reverse android_capture_control.patch \
             || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
 
-          # Skips real work in the visualisation pixel pipeline and melbank
-          # graph events when no client has the graph view open - both used
-          # to run unconditionally every frame, competing for the GIL
-          # against audio analysis and rendering for zero benefit. See
+          # NOT Android-specific, despite sitting in this chain - it contains
+          # zero platform checks and is applied by BuildPipelineUV.yml too, so
+          # core/CC binaries get it as well. Skips real work in the
+          # visualisation pixel pipeline and melbank graph events when no
+          # client has the graph view open - both used to run unconditionally
+          # every frame on every platform, competing for the GIL against audio
+          # analysis and rendering for zero benefit. Upstream-able as-is. See
           # ledfx CLAUDE.md.
           git apply event_listener_gating.patch \
             || git apply --check --reverse event_listener_gating.patch \
@@ -399,10 +402,13 @@ jobs:
             || git apply --check --reverse android_capture_control.patch \
             || { echo "::error::android_capture_control.patch did not apply"; exit 1; }
 
-          # Skips real work in the visualisation pixel pipeline and melbank
-          # graph events when no client has the graph view open - both used
-          # to run unconditionally every frame, competing for the GIL
-          # against audio analysis and rendering for zero benefit. See
+          # NOT Android-specific, despite sitting in this chain - it contains
+          # zero platform checks and is applied by BuildPipelineUV.yml too, so
+          # core/CC binaries get it as well. Skips real work in the
+          # visualisation pixel pipeline and melbank graph events when no
+          # client has the graph view open - both used to run unconditionally
+          # every frame on every platform, competing for the GIL against audio
+          # analysis and rendering for zero benefit. Upstream-able as-is. See
           # ledfx CLAUDE.md.
           git apply event_listener_gating.patch \
             || git apply --check --reverse event_listener_gating.patch \
