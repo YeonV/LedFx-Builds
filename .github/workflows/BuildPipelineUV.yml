@@ -304,6 +304,7 @@ jobs:
           cp ./src2/tools/transmission_mode_migration.patch ./src/transmission_mode_migration.patch
           cp ./src2/tools/binary_transmission.patch ./src/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_desktop.patch ./src/melbank_on_demand_desktop.patch
+          cp ./src2/tools/assert_control_flow.patch ./src/assert_control_flow.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           # This step runs under `bash -x` rather than the default `bash -e`,
@@ -335,6 +336,10 @@ jobs:
           # above rewrites the accessor to _melbank_source, so the android
           # variant does not apply here (and is rejected if wired by mistake).
           git apply melbank_on_demand_desktop.patch || { echo "::error::melbank_on_demand_desktop.patch did not apply"; exit 1; }
+          # Version/validation checks written as bare asserts. Harmless here
+          # (PyInstaller does not use -OO) but fatal on Android, where -OO
+          # strips them and every config migration silently became a no-op.
+          git apply assert_control_flow.patch || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
           cd ..
 
       - name: Get latest frontend

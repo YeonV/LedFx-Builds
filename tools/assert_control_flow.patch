@@ -1,0 +1,63 @@
+diff --git a/ledfx/api/config.py b/ledfx/api/config.py
+index 8f77cd64..4797b77c 100644
+--- a/ledfx/api/config.py
++++ b/ledfx/api/config.py
+@@ -118,9 +118,13 @@ class ConfigEndpoint(RestEndpoint):
+             config = await request.json()
+ 
+             try:
+-                assert parse_version(
++                # See ledfx/config.py - assert is stripped under -OO, which
++                # is how the Android bundle is compiled, so an imported old
++                # config was silently accepted unmigrated.
++                if parse_version(
+                     config["configuration_version"]
+-                ) == parse_version(CONFIGURATION_VERSION)
++                ) != parse_version(CONFIGURATION_VERSION):
++                    raise AssertionError("configuration_version mismatch")
+             except (KeyError, AssertionError):
+                 _LOGGER.warning(
+                     "LedFx config version: %s, import config version: %s",
+diff --git a/ledfx/color.py b/ledfx/color.py
+index d861ccf4..64bbdbea 100644
+--- a/ledfx/color.py
++++ b/ledfx/color.py
+@@ -275,7 +275,11 @@ def parse_color(color: (str, list, tuple)) -> RGB:
+         # If it's a list/tuple, interpret it as RGB(A removed)
+         if isinstance(color, (list, tuple)):
+             # assert 3 <= len(color) <= 4
+-            assert len(color) == 3
++            # Raised explicitly rather than asserted: under -OO the assert is
++            # stripped and a wrong-length sequence reached RGB(*color) instead
++            # of the ValueError this function documents.
++            if len(color) != 3:
++                raise ValueError("colour must have 3 components")
+             return RGB(*color)
+         # Otherwise, it needs to be a string to continue
+         if not isinstance(color, str):
+diff --git a/ledfx/config.py b/ledfx/config.py
+index 0e6380ea..f348c608 100644
+--- a/ledfx/config.py
++++ b/ledfx/config.py
+@@ -461,9 +461,19 @@ def load_config(config_dir: str) -> dict:
+                     "LedFx Configuration Version: %s",
+                     config_json["configuration_version"],
+                 )
+-                assert parse_version(
++                # NOT an assert. python -O/-OO strips assert statements out
++                # of the bytecode entirely, and python-for-android compiles
++                # the Android bundle with -OO (its __pycache__ entries are
++                # written .opt-2). As an assert, this check simply did not
++                # exist on Android: the mismatch never raised, the except
++                # branch below never ran, and every config migration ever
++                # written was dead code on that platform - confirmed on a
++                # Nexus 5, where a 2.3.6 config survived a 2.3.7 build with
++                # no backup written and no migration performed.
++                if parse_version(
+                     config_json["configuration_version"]
+-                ) == parse_version(CONFIGURATION_VERSION)
++                ) != parse_version(CONFIGURATION_VERSION):
++                    raise AssertionError("configuration_version mismatch")
+                 return CORE_CONFIG_SCHEMA(config_json)
+             except (KeyError, AssertionError):
+                 create_backup(config_dir, "VERSION")

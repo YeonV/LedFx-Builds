@@ -80,6 +80,7 @@ jobs:
           cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
+          cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -204,6 +205,19 @@ jobs:
           git apply melbank_on_demand_android.patch \
             || git apply --check --reverse melbank_on_demand_android.patch \
             || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
+
+          # Three version/validation checks were written as bare asserts, and
+          # python-for-android compiles this bundle with -OO, which strips
+          # assert statements out of the bytecode entirely. The config-version
+          # check therefore never raised on Android, its except branch never
+          # ran, and EVERY config migration ever written was dead code on this
+          # platform - confirmed on a Nexus 5 where a 2.3.6 config survived a
+          # 2.3.7 build unmigrated, with no backup written. Not Android-only:
+          # the same asserts are wrong everywhere, they just cannot be
+          # observed failing where -OO is not used.
+          git apply assert_control_flow.patch \
+            || git apply --check --reverse assert_control_flow.patch \
+            || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -394,6 +408,7 @@ jobs:
           cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
+          cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -518,6 +533,19 @@ jobs:
           git apply melbank_on_demand_android.patch \
             || git apply --check --reverse melbank_on_demand_android.patch \
             || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
+
+          # Three version/validation checks were written as bare asserts, and
+          # python-for-android compiles this bundle with -OO, which strips
+          # assert statements out of the bytecode entirely. The config-version
+          # check therefore never raised on Android, its except branch never
+          # ran, and EVERY config migration ever written was dead code on this
+          # platform - confirmed on a Nexus 5 where a 2.3.6 config survived a
+          # 2.3.7 build unmigrated, with no backup written. Not Android-only:
+          # the same asserts are wrong everywhere, they just cannot be
+          # observed failing where -OO is not used.
+          git apply assert_control_flow.patch \
+            || git apply --check --reverse assert_control_flow.patch \
+            || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
 
           cd ../..
 
