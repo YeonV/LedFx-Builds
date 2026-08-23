@@ -300,6 +300,10 @@ jobs:
           cp ./src2/tools/stems.patch ./src/stems.patch
           cp ./src2/tools/nowplaying.patch ./src/nowplaying.patch
           cp ./src2/tools/event_listener_gating.patch ./src/event_listener_gating.patch
+          cp ./src2/tools/transmission_mode_no_restart.patch ./src/transmission_mode_no_restart.patch
+          cp ./src2/tools/transmission_mode_migration.patch ./src/transmission_mode_migration.patch
+          cp ./src2/tools/binary_transmission.patch ./src/binary_transmission.patch
+          cp ./src2/tools/melbank_on_demand_desktop.patch ./src/melbank_on_demand_desktop.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           # This step runs under `bash -x` rather than the default `bash -e`,
@@ -317,6 +321,20 @@ jobs:
           # benefit. Applies last here because its core.py/melbank.py context
           # sits below stems' insertions.
           git apply event_listener_gating.patch || { echo "::error::event_listener_gating.patch did not apply"; exit 1; }
+          # transmission_mode is re-read every frame, so it never needed a core
+          # restart - it just predates the no-restart list.
+          git apply transmission_mode_no_restart.patch || { echo "::error::transmission_mode_no_restart.patch did not apply"; exit 1; }
+          # Migrates existing users off base64, and carries the
+          # CONFIG_MICRO_VERSION bump to 7 its own gate depends on.
+          # configuration_version is a separate line from PROJECT_VERSION.
+          git apply transmission_mode_migration.patch || { echo "::error::transmission_mode_migration.patch did not apply"; exit 1; }
+          # Binary pixel frames, binary_rgb as default. Needs a frontend that
+          # can decode it - see the "Get latest frontend" step below.
+          git apply binary_transmission.patch || { echo "::error::binary_transmission.patch did not apply"; exit 1; }
+          # Only computes melbanks something reads. DESKTOP VARIANT - stems.patch
+          # above rewrites the accessor to _melbank_source, so the android
+          # variant does not apply here (and is rejected if wired by mistake).
+          git apply melbank_on_demand_desktop.patch || { echo "::error::melbank_on_demand_desktop.patch did not apply"; exit 1; }
           cd ..
 
       - name: Get latest frontend

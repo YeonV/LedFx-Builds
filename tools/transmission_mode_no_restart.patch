@@ -1,0 +1,17 @@
+diff --git a/ledfx/config.py b/ledfx/config.py
+index a2d6adf9..2b6a2701 100644
+--- a/ledfx/config.py
++++ b/ledfx/config.py
+@@ -45,6 +45,12 @@ CORE_CONFIG_KEYS_NO_RESTART = [
+     "user_presets",
+     "visualisation_maxlen",
+     "visualisation_fps",
++    # Read fresh inside handle_visualisation_update on every frame, never
++    # captured in the setup_visualisation_events closure the way fps/maxlen
++    # are - so it has nothing to re-initialise and never needed a restart.
++    # It predates this list by two months (transmission_mode 2023-12-14,
++    # this mechanism 2024-02-16) and was simply never revisited.
++    "transmission_mode",
+     "flush_on_deactivate",
+     "ui_brightness_boost",
+     "startup_scene_id",

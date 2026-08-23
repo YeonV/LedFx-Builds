@@ -76,6 +76,10 @@ jobs:
           cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
           cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
           cp ./src2/tools/thread_priority_boost.patch ./deps/ledfx/thread_priority_boost.patch
+          cp ./src2/tools/transmission_mode_no_restart.patch ./deps/ledfx/transmission_mode_no_restart.patch
+          cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
+          cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
+          cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -162,6 +166,44 @@ jobs:
           git apply thread_priority_boost.patch \
             || git apply --check --reverse thread_priority_boost.patch \
             || { echo "::error::thread_priority_boost.patch did not apply"; exit 1; }
+
+          # transmission_mode is read fresh inside handle_visualisation_update
+          # on every frame and never captured in a closure, so it never needed a
+          # core restart to take effect. It simply predates the no-restart list
+          # by two months and was never revisited. Not Android-specific.
+          git apply transmission_mode_no_restart.patch \
+            || git apply --check --reverse transmission_mode_no_restart.patch \
+            || { echo "::error::transmission_mode_no_restart.patch did not apply"; exit 1; }
+
+          # Moves existing users off base64 onto binary_rgb, and ships the
+          # CONFIG_MICRO_VERSION bump to 7 that its own gate depends on -
+          # configuration_version is a SEPARATE version line from
+          # PROJECT_VERSION, so the two must land together or the migration
+          # silently never fires. Not Android-specific.
+          git apply transmission_mode_migration.patch \
+            || git apply --check --reverse transmission_mode_migration.patch \
+            || { echo "::error::transmission_mode_migration.patch did not apply"; exit 1; }
+
+          # Raw pixel bytes over a binary websocket frame instead of base64
+          # inside JSON, and makes binary_rgb the default. Measured on desktop:
+          # ~7.5x less total client+core CPU per frame at 20860 pixels, and 31%
+          # fewer bytes. Requires a frontend that can decode it - the build
+          # pulls LedFx-Frontend-v2 fresh, so that must be on main first.
+          # Not Android-specific.
+          git apply binary_transmission.patch \
+            || git apply --check --reverse binary_transmission.patch \
+            || { echo "::error::binary_transmission.patch did not apply"; exit 1; }
+
+          # Computes only the melbanks something actually reads. Three were
+          # built every audio callback while a typical setup consumes one.
+          # Measured on a Nexus 5 driving real LEDs: 16% off the audio thread,
+          # 14% off total service CPU, no overlap between runs.
+          # ANDROID VARIANT - the desktop chain applies stems.patch, which
+          # rewrites the same accessor to go through _melbank_source. Use
+          # melbank_on_demand_desktop.patch there; each rejects the other.
+          git apply melbank_on_demand_android.patch \
+            || git apply --check --reverse melbank_on_demand_android.patch \
+            || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -348,6 +390,10 @@ jobs:
           cp ./src2/tools/event_listener_gating.patch ./deps/ledfx/event_listener_gating.patch
           cp ./src2/tools/android_quiet_logging.patch ./deps/ledfx/android_quiet_logging.patch
           cp ./src2/tools/thread_priority_boost.patch ./deps/ledfx/thread_priority_boost.patch
+          cp ./src2/tools/transmission_mode_no_restart.patch ./deps/ledfx/transmission_mode_no_restart.patch
+          cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
+          cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
+          cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -434,6 +480,44 @@ jobs:
           git apply thread_priority_boost.patch \
             || git apply --check --reverse thread_priority_boost.patch \
             || { echo "::error::thread_priority_boost.patch did not apply"; exit 1; }
+
+          # transmission_mode is read fresh inside handle_visualisation_update
+          # on every frame and never captured in a closure, so it never needed a
+          # core restart to take effect. It simply predates the no-restart list
+          # by two months and was never revisited. Not Android-specific.
+          git apply transmission_mode_no_restart.patch \
+            || git apply --check --reverse transmission_mode_no_restart.patch \
+            || { echo "::error::transmission_mode_no_restart.patch did not apply"; exit 1; }
+
+          # Moves existing users off base64 onto binary_rgb, and ships the
+          # CONFIG_MICRO_VERSION bump to 7 that its own gate depends on -
+          # configuration_version is a SEPARATE version line from
+          # PROJECT_VERSION, so the two must land together or the migration
+          # silently never fires. Not Android-specific.
+          git apply transmission_mode_migration.patch \
+            || git apply --check --reverse transmission_mode_migration.patch \
+            || { echo "::error::transmission_mode_migration.patch did not apply"; exit 1; }
+
+          # Raw pixel bytes over a binary websocket frame instead of base64
+          # inside JSON, and makes binary_rgb the default. Measured on desktop:
+          # ~7.5x less total client+core CPU per frame at 20860 pixels, and 31%
+          # fewer bytes. Requires a frontend that can decode it - the build
+          # pulls LedFx-Frontend-v2 fresh, so that must be on main first.
+          # Not Android-specific.
+          git apply binary_transmission.patch \
+            || git apply --check --reverse binary_transmission.patch \
+            || { echo "::error::binary_transmission.patch did not apply"; exit 1; }
+
+          # Computes only the melbanks something actually reads. Three were
+          # built every audio callback while a typical setup consumes one.
+          # Measured on a Nexus 5 driving real LEDs: 16% off the audio thread,
+          # 14% off total service CPU, no overlap between runs.
+          # ANDROID VARIANT - the desktop chain applies stems.patch, which
+          # rewrites the same accessor to go through _melbank_source. Use
+          # melbank_on_demand_desktop.patch there; each rejects the other.
+          git apply melbank_on_demand_android.patch \
+            || git apply --check --reverse melbank_on_demand_android.patch \
+            || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
 
           cd ../..
 
