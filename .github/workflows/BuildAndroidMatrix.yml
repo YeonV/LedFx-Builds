@@ -82,6 +82,7 @@ jobs:
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
+          cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -230,6 +231,16 @@ jobs:
           git apply freq_power_on_demand.patch \
             || git apply --check --reverse freq_power_on_demand.patch \
             || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
+
+          # Gates the last two standing analysis subscribers nothing was
+          # reading. pitch is consumed only by pitchSpectrum; volume_beat_now
+          # is the sole caller of melbanks.want(0), so while it ran every
+          # frame melbank 0 was computed unconditionally. Measured on a Nexus
+          # 5 with Blade Power+ active: melbank 0 is 15.1% of the audio
+          # callback and aubio pitch a further 4.8%, neither of them read.
+          git apply analysis_on_demand_android.patch \
+            || git apply --check --reverse analysis_on_demand_android.patch \
+            || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -422,6 +433,7 @@ jobs:
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
+          cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -570,6 +582,16 @@ jobs:
           git apply freq_power_on_demand.patch \
             || git apply --check --reverse freq_power_on_demand.patch \
             || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
+
+          # Gates the last two standing analysis subscribers nothing was
+          # reading. pitch is consumed only by pitchSpectrum; volume_beat_now
+          # is the sole caller of melbanks.want(0), so while it ran every
+          # frame melbank 0 was computed unconditionally. Measured on a Nexus
+          # 5 with Blade Power+ active: melbank 0 is 15.1% of the audio
+          # callback and aubio pitch a further 4.8%, neither of them read.
+          git apply analysis_on_demand_android.patch \
+            || git apply --check --reverse analysis_on_demand_android.patch \
+            || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
 
           cd ../..
 

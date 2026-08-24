@@ -1,0 +1,107 @@
+diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
+--- a/ledfx/effects/audio.py
++++ b/ledfx/effects/audio.py
+@@ -1277,10 +1277,10 @@
+ 
+         # Subscribe functions to be run on every frame of audio
+         self.subscribe(self.melbanks)
+-        self.subscribe(self.pitch)
++        self.subscribe(self._pitch_tick)
+         self.subscribe(self.onset)
+         self.subscribe(self.bar_oscillator)
+-        self.subscribe(self.volume_beat_now)
++        self.subscribe(self._volume_beat_tick)
+         self.subscribe(self.freq_power)
+ 
+         # ensure any new analysis callbacks are above this line
+@@ -1321,6 +1321,10 @@
+         # Measured on a Nexus 5: ~11% of the audio callback.
+         self._freq_power_frame = 0
+         self._freq_power_wanted = -(self.FREQ_POWER_TTL_FRAMES + 1)
++        self._pitch_frame = 0
++        self._pitch_wanted = -(self.PITCH_TTL_FRAMES + 1)
++        self._volume_beat_frame = 0
++        self._volume_beat_wanted = -(self.VOLUME_BEAT_TTL_FRAMES + 1)
+         self.freq_power_raw = np.zeros(len(self.freq_max_mels))
+         self.freq_power_filter = ExpFilter(
+             np.zeros(len(self.freq_max_mels)), alpha_decay=0.2, alpha_rise=0.97
+@@ -1377,13 +1381,27 @@
+         super()._invalidate_caches()
+ 
+         self.pitch.cache_clear()
++        self._pitch_compute.cache_clear()
+         self.onset.cache_clear()
+         self.bpm_beat_now.cache_clear()
+         self.volume_beat_now.cache_clear()
++        self._volume_beat_compute.cache_clear()
+         self.bar_oscillator.cache_clear()
+ 
++    # Matches FREQ_POWER_TTL_FRAMES: ~4s at a 60/s callback rate.
++    PITCH_TTL_FRAMES = 240
++
++    def _pitch_tick(self):
++        # Standing subscriber. pitchSpectrum is the only effect that reads
++        # pitch, so outside it this aubio DSP ran for nobody - measured at
++        # 4.8% of the audio callback on a Nexus 5.
++        frame = self._pitch_frame = self._pitch_frame + 1
++        if frame - self._pitch_wanted > self.PITCH_TTL_FRAMES:
++            return
++        self._pitch_compute()
++
+     @lru_cache(maxsize=None)
+-    def pitch(self):
++    def _pitch_compute(self):
+         # If our audio handler is returning null, then we just return 0 for midi_value and wait for the device starts sending audio.
+         try:
+             return self._pitch(self.audio_sample(raw=True))[0]
+@@ -1392,6 +1410,15 @@
+             return 0
+ 
+     @lru_cache(maxsize=None)
++    def pitch(self):
++        # Sole read path, so registering demand here keeps _pitch_tick feeding
++        # aubio for as long as anything is actually reading pitch. aubio's
++        # analysis window is 8 hops wide, so a read after the gate has been
++        # shut is accurate again within ~8 frames.
++        self._pitch_wanted = self._pitch_frame
++        return self._pitch_compute()
++
++    @lru_cache(maxsize=None)
+     def onset(self):
+         try:
+             return bool(self._onset(self.audio_sample(raw=True))[0])
+@@ -1410,8 +1437,34 @@
+             _LOGGER.warning("%s", e)
+             return False
+ 
++    # Matches FREQ_POWER_TTL_FRAMES: ~4s at a 60/s callback rate.
++    VOLUME_BEAT_TTL_FRAMES = 240
++
++    def _volume_beat_tick(self):
++        # Standing subscriber, and the only caller of melbanks.want(0) in the
++        # codebase - so while it ran unconditionally, melbank 0 was computed
++        # every frame no matter what. Measured on a Nexus 5: melbank 0 alone
++        # is 15.1% of the audio callback, and with an effect like Blade
++        # Power+ (whose band powers all come from melbank 2) nothing read it.
++        frame = self._volume_beat_frame = self._volume_beat_frame + 1
++        if frame - self._volume_beat_wanted > self.VOLUME_BEAT_TTL_FRAMES:
++            return
++        self._volume_beat_compute()
++
+     @lru_cache(maxsize=None)
+     def volume_beat_now(self):
++        # Sole read path. beat_power_history is a 12-frame (200ms) rolling
++        # window; after the gate has been shut it holds pre-gap audio, whose
++        # ratios would be meaningless, so it is dropped rather than compared
++        # against.
++        frame = self._volume_beat_frame
++        if frame - self._volume_beat_wanted > self.VOLUME_BEAT_TTL_FRAMES:
++            self.beat_power_history.clear()
++        self._volume_beat_wanted = frame
++        return self._volume_beat_compute()
++
++    @lru_cache(maxsize=None)
++    def _volume_beat_compute(self):
+         """
+         Returns True if a beat is expected now based on volume of the beat freq region
+         This algorithm is a bit weird, but works quite nicely.
