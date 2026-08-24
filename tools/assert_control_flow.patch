@@ -61,3 +61,25 @@ index 0e6380ea..f348c608 100644
                  return CORE_CONFIG_SCHEMA(config_json)
              except (KeyError, AssertionError):
                  create_backup(config_dir, "VERSION")
+diff --git a/ledfx/utils.py b/ledfx/utils.py
+index aba1f39..fdba878 100644
+--- a/ledfx/utils.py
++++ b/ledfx/utils.py
+@@ -581,7 +581,16 @@ class WLED:
+         """
+         mode = mode.upper()
+ 
+-        assert mode in WLED.SYNC_MODES.keys()
++        # NOT an assert. python-for-android compiles the Android bundle
++        # with -OO, which strips asserts from the bytecode entirely. Without
++        # this check an unknown mode fell through to WLED.SYNC_MODES[mode]
++        # below and raised KeyError three lines later, naming neither the
++        # offending mode nor the modes that are actually accepted.
++        if mode not in WLED.SYNC_MODES:
++            raise ValueError(
++                f"Invalid WLED sync mode '{mode}', expected one of "
++                f"{sorted(WLED.SYNC_MODES)}"
++            )
+ 
+         if mode == "udp":
+             # if realtime udp is already enabled, we're good to go
