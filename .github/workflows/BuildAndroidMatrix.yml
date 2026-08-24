@@ -81,6 +81,7 @@ jobs:
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
+          cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -218,6 +219,17 @@ jobs:
           git apply assert_control_flow.patch \
             || git apply --check --reverse assert_control_flow.patch \
             || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
+
+          # freq_power was a standing per-frame subscriber: it computed four
+          # band averages on every audio callback whether or not anything read
+          # them, and its first act was melbanks.want(2), forcing a melbank
+          # nobody needed. Measured on a Nexus 5 at ~11% of the audio callback.
+          # Now registers demand in get_freq_power, the sole read path for
+          # beat/bass/lows/mids/high. Never costs more than before. One patch
+          # for both chains - this region is identical pre- and post-stems.
+          git apply freq_power_on_demand.patch \
+            || git apply --check --reverse freq_power_on_demand.patch \
+            || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -409,6 +421,7 @@ jobs:
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
+          cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -546,6 +559,17 @@ jobs:
           git apply assert_control_flow.patch \
             || git apply --check --reverse assert_control_flow.patch \
             || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
+
+          # freq_power was a standing per-frame subscriber: it computed four
+          # band averages on every audio callback whether or not anything read
+          # them, and its first act was melbanks.want(2), forcing a melbank
+          # nobody needed. Measured on a Nexus 5 at ~11% of the audio callback.
+          # Now registers demand in get_freq_power, the sole read path for
+          # beat/bass/lows/mids/high. Never costs more than before. One patch
+          # for both chains - this region is identical pre- and post-stems.
+          git apply freq_power_on_demand.patch \
+            || git apply --check --reverse freq_power_on_demand.patch \
+            || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
 
           cd ../..
 

@@ -305,6 +305,7 @@ jobs:
           cp ./src2/tools/binary_transmission.patch ./src/binary_transmission.patch
           cp ./src2/tools/melbank_on_demand_desktop.patch ./src/melbank_on_demand_desktop.patch
           cp ./src2/tools/assert_control_flow.patch ./src/assert_control_flow.patch
+          cp ./src2/tools/freq_power_on_demand.patch ./src/freq_power_on_demand.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           # This step runs under `bash -x` rather than the default `bash -e`,
@@ -340,6 +341,9 @@ jobs:
           # (PyInstaller does not use -OO) but fatal on Android, where -OO
           # strips them and every config migration silently became a no-op.
           git apply assert_control_flow.patch || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
+          # freq_power ran as a standing per-frame subscriber; now demand-driven
+          # via get_freq_power. Same patch for both chains.
+          git apply freq_power_on_demand.patch || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
           cd ..
 
       - name: Get latest frontend
