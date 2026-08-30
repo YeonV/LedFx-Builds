@@ -86,3 +86,23 @@ index bfbf0f62..a16caa30 100644
          self._ledfx.events.fire_event(
              GraphUpdateEvent(
                  f"melbank_{i}",
+diff --git a/ledfx/effects/stems.py b/ledfx/effects/stems.py
+index de56a33d..837070f0 100644
+--- a/ledfx/effects/stems.py
++++ b/ledfx/effects/stems.py
+@@ -603,6 +603,7 @@ class StemAnalysisChain:
+ 
+     def freq_power(self):
+         """Recompute this selection's band powers. Mirrors AudioAnalysisSource."""
++        self.melbanks.want(2)
+         melbank = self.melbanks.melbanks[2]
+         indexes = self._source.freq_mel_indexes
+ 
+@@ -692,6 +693,7 @@ class StemAnalysisChain:
+ 
+     def _compute_volume_beat(self):
+         time_now = time.time()
++        self.melbanks.want(0)
+         melbank = self.melbanks.melbanks[0][: self._source.beat_max_mel_index]
+         beat_power = np.sum(melbank)
+         melbank_max = np.max(melbank) if len(melbank) else 0
