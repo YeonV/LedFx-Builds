@@ -83,6 +83,7 @@ jobs:
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
           cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
+          cp ./src2/tools/config_module_logger.patch ./deps/ledfx/config_module_logger.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -241,6 +242,16 @@ jobs:
           git apply analysis_on_demand_android.patch \
             || git apply --check --reverse analysis_on_demand_android.patch \
             || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
+
+          # config.py's _LOGGER was only created by load_logger(), which only
+          # __main__ calls, so migrate_config, load_config and create_backup
+          # raised NameError from every other entry point (tests, tools/,
+          # direct imports). Now defined at module level, and the partial
+          # NameError guard in save_config is gone. Not Android-specific; one
+          # patch for both chains.
+          git apply config_module_logger.patch \
+            || git apply --check --reverse config_module_logger.patch \
+            || { echo "::error::config_module_logger.patch did not apply"; exit 1; }
 
           cd ../..
 
@@ -434,6 +445,7 @@ jobs:
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
           cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
+          cp ./src2/tools/config_module_logger.patch ./deps/ledfx/config_module_logger.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -592,6 +604,16 @@ jobs:
           git apply analysis_on_demand_android.patch \
             || git apply --check --reverse analysis_on_demand_android.patch \
             || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
+
+          # config.py's _LOGGER was only created by load_logger(), which only
+          # __main__ calls, so migrate_config, load_config and create_backup
+          # raised NameError from every other entry point (tests, tools/,
+          # direct imports). Now defined at module level, and the partial
+          # NameError guard in save_config is gone. Not Android-specific; one
+          # patch for both chains.
+          git apply config_module_logger.patch \
+            || git apply --check --reverse config_module_logger.patch \
+            || { echo "::error::config_module_logger.patch did not apply"; exit 1; }
 
           cd ../..
 

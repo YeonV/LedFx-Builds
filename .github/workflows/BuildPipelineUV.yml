@@ -307,6 +307,7 @@ jobs:
           cp ./src2/tools/assert_control_flow.patch ./src/assert_control_flow.patch
           cp ./src2/tools/freq_power_on_demand.patch ./src/freq_power_on_demand.patch
           cp ./src2/tools/analysis_on_demand_desktop.patch ./src/analysis_on_demand_desktop.patch
+          cp ./src2/tools/config_module_logger.patch ./src/config_module_logger.patch
           cd src
           git rev-parse HEAD >> ledfx/git_version
           # This step runs under `bash -x` rather than the default `bash -e`,
@@ -348,6 +349,10 @@ jobs:
           # Gates pitch (read only by pitchSpectrum) and volume_beat_now (sole
           # caller of melbanks.want(0), which pinned melbank 0 every frame).
           git apply analysis_on_demand_desktop.patch || { echo "::error::analysis_on_demand_desktop.patch did not apply"; exit 1; }
+          # config.py's _LOGGER only existed once __main__ called load_logger(),
+          # so migrate_config/load_config crashed with NameError from any other
+          # entry point. Defined at module level instead. Same patch for both chains.
+          git apply config_module_logger.patch || { echo "::error::config_module_logger.patch did not apply"; exit 1; }
           cd ..
 
       - name: Get latest frontend

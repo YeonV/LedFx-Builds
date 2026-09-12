@@ -1,0 +1,26 @@
+diff --git a/ledfx/config.py b/ledfx/config.py
+index 7ef6b8b..d5a248a 100644
+--- a/ledfx/config.py
++++ b/ledfx/config.py
+@@ -12,6 +12,8 @@ from packaging.version import parse as parse_version
+ 
+ from ledfx.consts import CONFIGURATION_VERSION
+ 
++_LOGGER = logging.getLogger(__name__)
++
+ CONFIG_DIRECTORY = ".ledfx"
+ CONFIG_FILE_NAME = "config.json"
+ PRESETS_FILE_NAME = "presets.json"
+@@ -1000,12 +1002,6 @@ def save_config(config: dict, config_dir: str) -> None:
+         None
+     """
+     config_file = ensure_config_file(config_dir)
+-    # Ensure logger is initialized (tests may call save_config without module init)
+-    try:
+-        _LOGGER
+-    except NameError:
+-        load_logger()
+-
+     _LOGGER.info("Saving configuration file to %s", config_dir)
+     config["configuration_version"] = CONFIGURATION_VERSION
+     config_view = dict(config)
