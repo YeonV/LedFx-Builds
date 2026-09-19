@@ -30,6 +30,11 @@ on:
         default: true
         required: false
         type: boolean
+      ubuntuaarch64:
+        description   : 'Ubuntu Aarch64'
+        default: true
+        required: false
+        type: boolean
       windows:
         description: 'Windows'
         default: true
@@ -52,6 +57,7 @@ jobs:
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
+      BUILD_LINUX_ARM64: ${{ github.event.inputs.ubuntuaarch64 == 'true' && 'true' || 'false' }}
       action_state: "2.1"  # Default value
       BACKEND_BRANCH: ${{ github.event.inputs.backend_branch || 'main' }}
 
@@ -225,6 +231,7 @@ jobs:
         run: |
           echo windows: ${{ env.BUILD_WIN  == 'true' }}
           echo ubuntu: ${{ env.BUILD_LINUX  == 'true' }}
+          echo ubuntu-arm64: ${{ env.BUILD_LINUX_ARM64  == 'true' }}
           echo macos: ${{ env.BUILD_OSX_X64  == 'true' }}
 
           os_list=()
@@ -233,6 +240,9 @@ jobs:
           fi
           if [ "${{ env.BUILD_LINUX == 'true' }}" = "true" ]; then
             os_list+=('ubuntu-latest')
+          fi
+          if [ "${{ env.BUILD_LINUX_ARM64 == 'true' }}" = "true" ]; then
+            os_list+=('ubuntu-24.04-arm')
           fi
           if [ "${{ env.BUILD_OSX_X64 == 'true' }}" = "true" ]; then
             os_list+=('macos-15-intel')
@@ -261,10 +271,16 @@ jobs:
       IS_OSX_X64: ${{ startsWith(matrix.OS, 'macos-15-intel') }}
       IS_WIN: ${{ startsWith(matrix.OS, 'windows') }}
       IS_LINUX: ${{ startsWith(matrix.OS, 'ubuntu') }}
+      IS_LINUX_X64: ${{ matrix.os == 'ubuntu-latest' }}
+      IS_LINUX_ARM64: ${{ matrix.os == 'ubuntu-24.04-arm' }}
+      LINUX_ARCH: ${{ matrix.os == 'ubuntu-24.04-arm' && 'arm64' || 'x64' }}
+      # electron-builder names its Linux client assets the Debian way
+      LINUX_CC_ARCH: ${{ matrix.os == 'ubuntu-24.04-arm' && 'arm64' || 'amd64' }}
       BUILD_OSX_ARM64: ${{ github.event.inputs.osxarm64 == 'true' && 'true' || 'false' }}
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
+      BUILD_LINUX_ARM64: ${{ github.event.inputs.ubuntuaarch64 == 'true' && 'true' || 'false' }}
       BINARY_NAME: "LedFx"  # Default value
       action_state: "2.1"  # Default value
     defaults:
@@ -801,7 +817,7 @@ jobs:
           uv run pyinstaller linux.spec
           cd dist && mkdir LedFx-linux && mv ./LedFx ./LedFx-linux/LedFx && cd ..
           cd ..
-          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz ./LedFx-linux
+          cd src/dist && ls && tar -czf LedFx_core-v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.tar.gz ./LedFx-linux
 
 
 
@@ -929,23 +945,23 @@ jobs:
           mv dist/LedFx.exe dist/$BINARY_NAME-v$action_state--win-portable.exe
 
       - name: Upload Core Linux To Release
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_RELEASE == 'true' && ((env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true')) }}
         continue-on-error: true
         uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
-          asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
-          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
+          asset_path: src/dist/LedFx_core-v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.tar.gz
+          asset_name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.tar.gz
           asset_content_type: application/gzip
 
-      - name: Upload Core Linux To Worflow      
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+      - name: Upload Core Linux To Worflow
+        if: ${{ env.IS_RELEASE == 'false' && ((env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true')) }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-x64.tar.gz
-          path: src/dist/LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz
+          name: ${{ env.BINARY_NAME }}v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.tar.gz
+          path: src/dist/LedFx_core-v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.tar.gz
 
       - name: Upload Core Win Portable To Release
         if: ${{ env.IS_WIN == 'true' && env.IS_RELEASE == 'true' && env.BUILD_WIN == 'true' }}
@@ -1073,7 +1089,7 @@ jobs:
           echo "✅ Core copied to extraResources"
 
       - name: Move Core Linux
-        if: ${{ env.IS_LINUX == 'true' && env.BUILD_LINUX == 'true' }}
+        if: ${{ (env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true') }}
         continue-on-error: true
         run: |
           mkdir -p ./frontend/extraResources
@@ -1162,9 +1178,21 @@ jobs:
       - name: Download latest audio-visualiser module
         run: |
           mkdir -p frontend/public/modules
-          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/mattallmighty/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
+          curl -L -o frontend/public/modules/yz-audio-visualiser.js "https://github.com/YeonV/audio-visualiser/releases/latest/download/yz-audio-visualiser.js"
           echo "Audio-visualiser module updated to latest release"
       
+      # Default Linux targets are AppImage + snap. electron-builder only uses its
+      # prebuilt snap template app on x64 and armv7l (snap.js: isUseTemplateApp);
+      # on arm64 it falls through to snapcraft, which the runner image does not
+      # ship. That failure would take the AppImage down with it, since both come
+      # out of the same distcc run.
+      - name: Restrict Linux client targets on arm64
+        if: ${{ env.IS_LINUX_ARM64 == 'true' }}
+        run: |
+          cd frontend
+          node -e "const p=require('./package.json'); p.build.linux.target=['AppImage']; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2));"
+          node -e "console.log(require('./package.json').build.linux)"
+
       - name: Building Clients
         run: |
           unset APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY_PATH
@@ -1396,7 +1424,7 @@ jobs:
 
       - name: Upload Linux CC snap to Release
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX_X64 == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
         uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1408,7 +1436,7 @@ jobs:
 
       - name: Upload Linux CC snap to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_LINUX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
@@ -1416,22 +1444,22 @@ jobs:
 
       - name: Upload Linux CC AppImage to Release
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'true' && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_RELEASE == 'true' && ((env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true')) }}
         uses: YeonV/upload-release-asset@v1.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
-          asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+          asset_name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_CC_ARCH }}.AppImage
           asset_content_type: application/octet-stream
 
       - name: Upload Linux CC AppImage to Workflow
         continue-on-error: true
-        if: ${{ env.IS_LINUX == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
+        if: ${{ env.IS_RELEASE == 'false' && ((env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true')) }}
         uses: actions/upload-artifact@v4
         with:
-          name: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage
+          name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_CC_ARCH }}.AppImage
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
       # - name: Upload OSX-x64-Client dmg to Release
