@@ -274,8 +274,6 @@ jobs:
       IS_LINUX_X64: ${{ matrix.os == 'ubuntu-latest' }}
       IS_LINUX_ARM64: ${{ matrix.os == 'ubuntu-24.04-arm' }}
       LINUX_ARCH: ${{ matrix.os == 'ubuntu-24.04-arm' && 'arm64' || 'x64' }}
-      # electron-builder names its Linux client assets the Debian way
-      LINUX_CC_ARCH: ${{ matrix.os == 'ubuntu-24.04-arm' && 'arm64' || 'amd64' }}
       BUILD_OSX_ARM64: ${{ github.event.inputs.osxarm64 == 'true' && 'true' || 'false' }}
       BUILD_OSX_X64: ${{ github.event.inputs.macos == 'true' && 'true' || 'false' }}
       BUILD_WIN: ${{ github.event.inputs.windows == 'true' && 'true' || 'false' }}
@@ -1431,7 +1429,7 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
-          asset_name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
+          asset_name: LedFx_CC-v${{ env.action_state }}--linux-x64.snap
           asset_content_type: application/octet-stream
 
       - name: Upload Linux CC snap to Workflow
@@ -1439,7 +1437,7 @@ jobs:
         if: ${{ env.IS_LINUX_X64 == 'true' && env.IS_RELEASE == 'false' && env.BUILD_LINUX == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap
+          name: LedFx_CC-v${{ env.action_state }}--linux-x64.snap
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.snap
 
       - name: Upload Linux CC AppImage to Release
@@ -1451,7 +1449,7 @@ jobs:
         with:
           upload_url: ${{ steps.get_release_info.outputs.upload_url }}
           asset_path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
-          asset_name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_CC_ARCH }}.AppImage
+          asset_name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.AppImage
           asset_content_type: application/octet-stream
 
       - name: Upload Linux CC AppImage to Workflow
@@ -1459,7 +1457,7 @@ jobs:
         if: ${{ env.IS_RELEASE == 'false' && ((env.IS_LINUX_X64 == 'true' && env.BUILD_LINUX == 'true') || (env.IS_LINUX_ARM64 == 'true' && env.BUILD_LINUX_ARM64 == 'true')) }}
         uses: actions/upload-artifact@v4
         with:
-          name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_CC_ARCH }}.AppImage
+          name: LedFx_CC-v${{ env.action_state }}--linux-${{ env.LINUX_ARCH }}.AppImage
           path: ./frontend/dist/LedFx_CC-v${{ env.action_state }}--linux.AppImage
 
       # - name: Upload OSX-x64-Client dmg to Release
