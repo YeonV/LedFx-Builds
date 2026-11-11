@@ -1,8 +1,9 @@
 diff --git a/ledfx/mdns_manager.py b/ledfx/mdns_manager.py
-index 5a62e666..fac7629c 100644
+index 898599e..9ae4bcd 100644
 --- a/ledfx/mdns_manager.py
 +++ b/ledfx/mdns_manager.py
-@@ -1,6 +1,6 @@
+@@ -1,7 +1,7 @@
+ import asyncio
  import logging
  
 -from zeroconf import ServiceStateChange, Zeroconf
@@ -10,17 +11,15 @@ index 5a62e666..fac7629c 100644
  from zeroconf.asyncio import (
      AsyncServiceBrowser,
      AsyncServiceInfo,
-@@ -114,10 +114,18 @@ class ZeroConfRunner:
+@@ -118,10 +118,16 @@ class ZeroConfRunner:
          await info.async_request(zeroconf, 3000)
-         if info:
+         if info.server:
              hostname = str(info.server).rstrip(".")
 -            _LOGGER.info("Found WLED device: %s", hostname)
-+
-+            # Use the address the mDNS reply already carried, rather than
-+            # resolving the .local hostname again. That second lookup needs an
-+            # mDNS-aware system resolver: Windows and Linux have one, Android
-+            # does not, so there it times out and the device is discarded even
-+            # though its address arrived with the service record.
++            # Prefer the address the mDNS reply already carried over resolving
++            # the .local hostname again: that needs an mDNS-aware system
++            # resolver, which Windows and Linux have and Android does not, so
++            # there the lookup times out and the device is discarded.
 +            addresses = info.parsed_addresses(IPVersion.V4Only)
 +            destination = addresses[0] if addresses else hostname
 +            _LOGGER.info("Found WLED device: %s (%s)", hostname, destination)
@@ -31,3 +30,43 @@ index 5a62e666..fac7629c 100644
  
              def handle_exception(future):
                  # Ignore exceptions, these will be raised when a device is found that already exists
+diff --git a/tests/test_mdns_wled_address.py b/tests/test_mdns_wled_address.py
+new file mode 100644
+index 0000000..377dbd4
+--- /dev/null
++++ b/tests/test_mdns_wled_address.py
+@@ -0,0 +1,34 @@
++"""WLED discovery uses the address the mDNS reply carried (Android has no
++mDNS-aware resolver for the .local hostname)."""
++
++from unittest.mock import AsyncMock, MagicMock, patch
++
++from zeroconf import IPVersion
++
++from ledfx.mdns_manager import ZeroConfRunner
++
++
++async def _discover(addresses):
++    ledfx = MagicMock()
++    runner = ZeroConfRunner(ledfx)
++    with (
++        patch("ledfx.mdns_manager.AsyncServiceInfo") as info,
++        patch("ledfx.mdns_manager.async_fire_and_forget"),
++    ):
++        info.return_value.async_request = AsyncMock(return_value=True)
++        info.return_value.server = "wled-kitchen.local."
++        info.return_value.parsed_addresses.return_value = addresses
++        await runner.add_wled_device(MagicMock(), "_wled._tcp.local.", "x")
++        info.return_value.parsed_addresses.assert_called_once_with(IPVersion.V4Only)
++    return ledfx.devices.add_new_device.call_args.args
++
++
++async def test_the_reply_address_is_used():
++    assert await _discover(["192.168.1.40", "192.168.1.41"]) == (
++        "wled",
++        {"ip_address": "192.168.1.40"},
++    )
++
++
++async def test_hostname_when_the_reply_carried_no_address():
++    assert await _discover([]) == ("wled", {"ip_address": "wled-kitchen.local"})

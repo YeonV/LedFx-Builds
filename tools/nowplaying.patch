@@ -1,32 +1,20 @@
-diff --git a/ledfx/api/config.py b/ledfx/api/config.py
-index 8f77cd64..002bcd65 100644
---- a/ledfx/api/config.py
-+++ b/ledfx/api/config.py
-@@ -291,6 +291,11 @@ class ConfigEndpoint(RestEndpoint):
-                 self._ledfx.config["melbanks"]
-             )
- 
-+        if "now_playing_enabled" in config and hasattr(
-+            self._ledfx, "reconcile_now_playing_runtime"
-+        ):
-+            self._ledfx.reconcile_now_playing_runtime("config_updated")
-+
-         self._ledfx.events.fire_event(BaseConfigUpdateEvent(config))
- 
-     def check_need_restart(self, config):
 diff --git a/ledfx/api/info.py b/ledfx/api/info.py
-index be0fd5d4..ce8ff02b 100644
+index a27c6ee..4691209 100644
 --- a/ledfx/api/info.py
 +++ b/ledfx/api/info.py
-@@ -1,5 +1,6 @@
+@@ -1,12 +1,21 @@
  import logging
  import os
 +import sys
  
  from aiohttp import web
  
-@@ -7,6 +8,10 @@ from ledfx.api import RestEndpoint
+ from ledfx.api import RestEndpoint
  from ledfx.consts import PROJECT_VERSION
++from ledfx.nowplaying.providers.android import (
++    notification_access_granted,
++    running_on_android,
++)
  from ledfx.sendspin import SENDSPIN_AVAILABLE
  
 +# Platforms with a Now Playing provider. Elsewhere the switch would be an
@@ -36,82 +24,111 @@ index be0fd5d4..ce8ff02b 100644
  _LOGGER = logging.getLogger(__name__)
  
  
-@@ -29,6 +34,13 @@ class InfoEndpoint(RestEndpoint):
-             "developer_mode": self._ledfx.config["dev_mode"],
+@@ -31,6 +40,17 @@ class InfoEndpoint(RestEndpoint):
+             "config_error": self._ledfx.config_store.error,
              "features": {
                  "sendspin": SENDSPIN_AVAILABLE,
-+                # Supported here, and opted into. Both matter: the switch is
-+                # only worth showing on a platform that has a provider, and
-+                # clients must not assume the feature is running.
++                # Supported here, and opted into: the switch is only worth
++                # showing where a provider exists, and clients must not assume
++                # the feature is running.
 +                "now_playing": sys.platform in _NOW_PLAYING_PLATFORMS,
-+                "now_playing_enabled": bool(
-+                    self._ledfx.config.get("now_playing_enabled", False)
-+                ),
++                "now_playing_enabled": self._ledfx.now_playing.enabled,
++                # Android reads the media session through a notification
++                # listener, a special access the user grants in Settings.
++                # Reported so a client can tell "nothing is playing" apart
++                # from "LedFx is not allowed to look".
++                "now_playing_needs_access": running_on_android()
++                and not notification_access_granted(),
              },
-         }
-         return await self.bare_request_success(response)
+             "silence_scene": silence_scene.status()
+             if silence_scene is not None
 diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
-index 86017b1f..87d61dee 100644
+index 855d999..c666aef 100644
 --- a/ledfx/api/utils.py
 +++ b/ledfx/api/utils.py
-@@ -60,6 +60,7 @@ PERMITTED_KEYS = {
+@@ -45,6 +45,7 @@ PERMITTED_KEYS = {
          "lifx_broadcast_address",
          "lifx_discovery_timeout",
          "sendspin_always_on",
 +        "now_playing_enabled",
-     ),
- }
+         "allowed_origins",
+         "allowed_hosts",
+         "allow_null_origin",
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index c4ce5ca..3ee8003 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -518,14 +518,14 @@ class NowPlayingGradient(LedFxModel):
  
-diff --git a/ledfx/config.py b/ledfx/config.py
-index 0e6380ea..0e55b193 100644
---- a/ledfx/config.py
-+++ b/ledfx/config.py
-@@ -52,6 +52,7 @@ CORE_CONFIG_KEYS_NO_RESTART = [
-     "lifx_broadcast_address",
-     "lifx_discovery_timeout",
-     "sendspin_always_on",
-+    "now_playing_enabled",
-     "now_playing",
- ]
- # Collection of keys that are used for visualisation configuration - used to check if we need to restart the visualisation event listeners
-@@ -194,6 +195,12 @@ CORE_CONFIG_SCHEMA = vol.Schema(
-         vol.Optional("instance_id", default=""): str,
-         vol.Optional("sendspin_servers", default={}): dict,
-         vol.Optional("sendspin_always_on", default=True): bool,
-+        # Opt-in, and deliberately default False. Enabling it lets LedFx read
-+        # the OS media session: the track title can end up rendered on a
-+        # matrix, the artist and title are sent to MusicBrainz to look up
-+        # cover art, and that art is cached to disk. None of that should
-+        # happen to somebody who never asked for it.
-+        vol.Optional("now_playing_enabled", default=False): bool,
-         vol.Optional("now_playing", default={}): dict,
-     },
-     extra=vol.ALLOW_EXTRA,
+ 
+ class NowPlayingTrackText(LedFxModel):
+-    enabled: bool = True
++    enabled: bool = False
+     duration: CoercedInt = Field(60, ge=0, le=60)
+     virtual_ids: list[VirtualId] = []
+     preset: str = ""
+ 
+ 
+ class NowPlayingAlbumArt(LedFxModel):
+-    enabled: bool = True
++    enabled: bool = False
+     duration: CoercedInt = Field(10, ge=0, le=60)
+     virtual_ids: list[VirtualId] = []
+ 
+@@ -620,6 +620,9 @@ class LedFxConfig(LedFxModel):
+         json_schema_extra=_legacy_type("dict", {}),
+     )
+     sendspin_always_on: bool = True
++    # Opt-in. Enabled, LedFx reads the OS media session, sends artist and title
++    # to MusicBrainz for cover art and caches that art to disk.
++    now_playing_enabled: bool = False
+     now_playing: NowPlayingConfig = Field(
+         NowPlayingConfig(), json_schema_extra=_legacy_type("dict", {})
+     )
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 9ecccff7..9a1c0742 100644
+index 93259b3..27726ca 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -180,6 +180,54 @@ class LedFxCore:
+@@ -35,6 +35,7 @@ from ledfx.http_manager import HttpServer
+ from ledfx.integrations import Integrations
+ from ledfx.mdns_manager import ZeroConfRunner
+ from ledfx.nowplaying import NowPlayingService
++from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
+ from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
+ from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
+ from ledfx.playlists import PlaylistManager
+@@ -118,6 +119,7 @@ class LedFxCore:
+         self.audio_device_monitor = None
+         self._mpris_now_playing = None
+         self._smtc_now_playing = None
++        self._android_now_playing = None
+ 
+         if self.config.debug_asyncio:
+             self.loop.set_debug(True)
+@@ -162,6 +164,53 @@ class LedFxCore:
          if "sendspin_always_on" in event.config:
              self.reconcile_sendspin_always_on_runtime("base_config_update")
  
++        if "now_playing_enabled" in event.config:
++            self.reconcile_now_playing_runtime("base_config_update")
++
 +    def reconcile_now_playing_runtime(self, trigger: str):
 +        """Start or stop the Now Playing providers from current config.
 +
-+        Opt-in: with ``now_playing_enabled`` false nothing is started, so no OS
++        Opt-in: with ``now_playing_enabled`` off nothing is started, so no OS
 +        media session is read, no cover-art lookup leaves the machine and no
-+        artwork is written to disk. Turning it off again stops the providers
-+        and clears what was already gathered, including the cached artwork -
-+        switching a privacy feature off should not leave the last thumbnail
-+        sitting on disk.
++        artwork is written to disk. Switching it off stops the providers and
++        purges what was gathered, cached artwork included.
 +
 +        Same shape as the sendspin reconcile: callers only signal *when* to
 +        re-check, never *what* to do.
 +        """
-+        enabled = self.config.get("now_playing_enabled", False)
-+        providers = (self._smtc_now_playing, self._mpris_now_playing)
-+
-+        for provider in providers:
++        enabled = self.config.now_playing_enabled
++        for provider in (
++            self._smtc_now_playing,
++            self._mpris_now_playing,
++            self._android_now_playing,
++        ):
 +            if provider is None:
 +                continue
 +            try:
@@ -119,7 +136,7 @@ index 9ecccff7..9a1c0742 100644
 +                    provider.start()
 +                else:
 +                    provider.stop()
-+            except Exception as exc:
++            except Exception as exc:  # noqa: BLE001
 +                _LOGGER.warning(
 +                    "now_playing reconcile (%s) failed for %s: %s",
 +                    trigger,
@@ -130,63 +147,72 @@ index 9ecccff7..9a1c0742 100644
 +        if not enabled and getattr(self, "now_playing", None) is not None:
 +            try:
 +                self.now_playing.purge()
-+            except Exception as exc:
++            except Exception as exc:  # noqa: BLE001
 +                _LOGGER.warning(
-+                    "now_playing reconcile (%s): purge failed: %s",
-+                    trigger,
-+                    exc,
++                    "now_playing reconcile (%s): purge failed: %s", trigger, exc
 +                )
 +
 +        _LOGGER.info(
-+            "Now Playing %s (%s)",
-+            "enabled" if enabled else "disabled",
-+            trigger,
++            "Now Playing %s (%s)", "enabled" if enabled else "disabled", trigger
 +        )
 +
      def reconcile_sendspin_always_on_runtime(self, trigger: str):
          """Reconcile runtime Sendspin always-on behavior from current config.
  
-@@ -528,16 +576,14 @@ class LedFxCore:
-             max_items=cache_config.get("max_items", 500),
-         )
- 
--        # Initialize Now Playing Service
-+        # Initialize Now Playing Service. The service itself is cheap and stays
-+        # up so its REST endpoint can answer - including to turn the feature on.
-+        # The *providers* are what read the OS media session, and they only run
-+        # when the user has opted in.
+@@ -466,15 +515,13 @@ class LedFxCore:
+         # Now Playing drives virtuals through the manager, so it starts once
+         # virtuals, effects and gradients exist (Sendspin may push metadata
+         # while virtuals load, below).
++        # The service stays up so its REST endpoint can answer; the providers,
++        # which read the OS media session, only run once the user opts in.
          self.now_playing = NowPlayingService(self)
 -
 -        # Start SMTC Now Playing provider (Windows-only; no-op elsewhere)
-         self._smtc_now_playing = SMTCNowPlayingProvider(self)
+-        self._smtc_now_playing = SMTCNowPlayingProvider(self)
 -        self._smtc_now_playing.start()
 -
 -        # Start MPRIS Now Playing provider (Linux-only; no-op elsewhere)
-         self._mpris_now_playing = MPRISNowPlayingProvider(self)
+-        self._mpris_now_playing = MPRISNowPlayingProvider(self)
 -        self._mpris_now_playing.start()
++        self._smtc_now_playing = SMTCNowPlayingProvider(self)  # Windows
++        self._mpris_now_playing = MPRISNowPlayingProvider(self)  # Linux
++        self._android_now_playing = AndroidNowPlayingProvider(self)  # Android
 +        self.reconcile_now_playing_runtime("startup")
  
-         self.devices = Devices(self)
-         self.effects = Effects(self)
+         # TODO: Deferr
+         self.devices.create_from_config(self.config.devices)
+@@ -608,6 +655,12 @@ class LedFxCore:
+                     except Exception as e:  # noqa: BLE001
+                         _LOGGER.warning("Error stopping MPRIS provider: %s", e)
+ 
++                if self._android_now_playing is not None:
++                    try:
++                        self._android_now_playing.stop()
++                    except Exception as e:  # noqa: BLE001
++                        _LOGGER.warning("Error stopping Android provider: %s", e)
++
+                 _LOGGER.info("Stopping HTTP Server...")
+                 await self.http.stop()
+ 
 diff --git a/ledfx/nowplaying/models.py b/ledfx/nowplaying/models.py
-index 0a27360e..ec31c35d 100644
+index 6ca54f3..49a9060 100644
 --- a/ledfx/nowplaying/models.py
 +++ b/ledfx/nowplaying/models.py
-@@ -19,6 +19,13 @@ class TrackMetadata:
-     artwork_url: Optional[str] = None
-     artwork_hash: Optional[str] = None
+@@ -18,6 +18,13 @@ class TrackMetadata:
+     artwork_url: str | None = None
+     artwork_hash: str | None = None
  
-+    # Playback timing, best-effort: filled only when a provider already has the
-+    # values in hand. Nothing polls for them, so they are a snapshot taken when
-+    # the metadata event fired and may be absent entirely.
-+    position: Optional[float] = None
-+    duration: Optional[float] = None
-+    playing: Optional[bool] = None
++    # Playback timing, best-effort: set only when a provider already has the
++    # values in hand. Nothing polls for them, so they are a snapshot of the
++    # moment the provider's event fired, and may be absent.
++    position: float | None = None
++    duration: float | None = None
++    playing: bool | None = None
 +
-     updated_at: Optional[float] = None
+     updated_at: float | None = None
  
      def track_identity(self) -> tuple:
-@@ -38,6 +45,9 @@ class TrackMetadata:
+@@ -37,6 +44,9 @@ class TrackMetadata:
              "track_id": self.track_id,
              "artwork_url": self.artwork_url,
              "artwork_hash": self.artwork_hash,
@@ -196,944 +222,23 @@ index 0a27360e..ec31c35d 100644
              "updated_at": self.updated_at,
          }
  
-diff --git a/ledfx/nowplaying/providers/mpris.py b/ledfx/nowplaying/providers/mpris.py
-index 2211cfa4..285e4b39 100644
---- a/ledfx/nowplaying/providers/mpris.py
-+++ b/ledfx/nowplaying/providers/mpris.py
-@@ -400,6 +400,14 @@ class MPRISNowPlayingProvider:
-             now_playing.clear(SOURCE_ID)
-             return
- 
-+        # Free timing: both already arrived in the reply above. Duration comes
-+        # as microseconds. Position is deliberately NOT read - it needs its own
-+        # Get('Position') call, and nothing here polls.
-+        duration = None
-+        length_us = self._variant_value(metadata.get("mpris:length"))
-+        if isinstance(length_us, (int, float)) and length_us > 0:
-+            duration = length_us / 1_000_000
-+
-         now_playing.set_metadata(
-             SOURCE_ID,
-             TrackMetadata(
-@@ -408,6 +416,8 @@ class MPRISNowPlayingProvider:
-                 artist=artist,
-                 album=album,
-                 track_id=track_id,
-+                duration=duration,
-+                playing=(status == "Playing") if status is not None else None,
-             ),
-         )
- 
-diff --git a/ledfx/nowplaying/providers/smtc.py b/ledfx/nowplaying/providers/smtc.py
-index aea683c8..d58f5c02 100644
---- a/ledfx/nowplaying/providers/smtc.py
-+++ b/ledfx/nowplaying/providers/smtc.py
-@@ -15,6 +15,22 @@ _LOGGER = logging.getLogger(__name__)
- 
- SOURCE_ID = "smtc"
- 
-+# Bounds for WinRT calls that can stall in ways asyncio alone cannot interrupt.
-+# Generous rather than tight: blowing one of these costs a bonus (artwork,
-+# timing) or one selection attempt, never the track metadata itself, so the
-+# cost of being too patient is far lower than the cost of giving up early on a
-+# slower machine than the one this was written on.
-+_PROPS_READ_TIMEOUT = 2.0
-+_TIMING_READ_TIMEOUT = 3.0
-+_ARTWORK_READ_TIMEOUT = 6.0
-+
-+# Retry schedule, in seconds, for finding a music session after startup.
-+# Media apps register their session asynchronously and Windows only notifies us
-+# when the *current* app changes - a player already running before LedFx
-+# started therefore never wakes us. Backing off is recovery, not polling: it
-+# gives up after the last entry rather than looping forever.
-+_RESELECT_DELAYS = (2, 3, 5, 10, 15)
-+
- 
- class SMTCNowPlayingProvider:
-     def __init__(self, ledfx):
-@@ -25,6 +41,7 @@ class SMTCNowPlayingProvider:
-         self._session = None
-         self._session_tokens = []
-         self._init_task = None
-+        self._reselect_task = None
-         self._last_title = None
-         self._last_artist = None
-         self._last_album = None
-@@ -37,11 +54,30 @@ class SMTCNowPlayingProvider:
-         if sys.platform != "win32":
-             return
-         if self._init_task is not None:
-+            _LOGGER.debug("SMTC: start() called again, already initialising")
-+            return
-+        try:
-+            self._loop = asyncio.get_running_loop()
-+        except RuntimeError:
-+            _LOGGER.error("SMTC: start() called without a running loop")
-             return
--        self._loop = asyncio.get_running_loop()
-+        _LOGGER.debug("SMTC: starting Now Playing provider")
-         self._init_task = asyncio.ensure_future(self._initialize())
-+        # ensure_future swallows exceptions unless someone looks at the task.
-+        self._init_task.add_done_callback(self._log_init_result)
-+
-+    @staticmethod
-+    def _log_init_result(task):
-+        if task.cancelled():
-+            return
-+        exc = task.exception()
-+        if exc is not None:
-+            _LOGGER.error("SMTC: initialisation failed", exc_info=exc)
- 
-     def stop(self):
-+        if self._reselect_task is not None:
-+            self._reselect_task.cancel()
-+            self._reselect_task = None
-         if self._init_task is not None:
-             self._init_task.cancel()
-             self._init_task = None
-@@ -78,6 +114,10 @@ class SMTCNowPlayingProvider:
-                 GlobalSystemMediaTransportControlsSessionManager as MediaManager,
-             )
-         except ImportError:
-+            _LOGGER.warning(
-+                "SMTC: winrt media control projection missing, "
-+                "Now Playing disabled on this install"
-+            )
-             return
- 
-         try:
-@@ -86,11 +126,149 @@ class SMTCNowPlayingProvider:
-             _LOGGER.exception("SMTC: failed to acquire MediaManager")
-             return
- 
-+        _LOGGER.debug("SMTC: MediaManager acquired")
-+
-         self._manager = manager
-         self._manager_token = manager.add_current_session_changed(
-             self._on_session_changed
-         )
--        await self._attach_to_session(manager.get_current_session())
-+        await self._select_and_attach()
-+
-+    # ------------------------------------------------------------------
-+    # Session selection
-+    # ------------------------------------------------------------------
-+
-+    async def _select_and_attach(self):
-+        """Choose the most music-like session and attach to it."""
-+        session = await self._select_best_session()
-+
-+        # Windows hands "current" to whatever last touched the media controls,
-+        # so merely opening a launcher can take it away from a player that is
-+        # still going. Dropping the track we already have would blank
-+        # now-playing while the music keeps playing, so keep the existing
-+        # session as long as it still qualifies. If it has gone away - the app
-+        # closed - it fails the same test and we fall through and clear.
-+        if session is None and self._session is not None:
-+            if await self._looks_like_music(self._session, "<attached>"):
-+                _LOGGER.debug(
-+                    "SMTC: current session is not music, staying attached"
-+                )
-+                return
-+
-+        await self._attach_to_session(session)
-+        if session is None:
-+            self._schedule_reselect()
-+
-+    def _schedule_reselect(self):
-+        """Retry briefly when nothing musical was available yet.
-+
-+        Media apps register their session asynchronously, so at startup the
-+        only one present can be a launcher. Windows fires
-+        current_session_changed only when the *current* app changes - a player
-+        that was already current before LedFx started therefore never wakes us
-+        up, and we would sit attached to nothing indefinitely.
-+
-+        Bounded retries, only while idle: this is recovery, not polling.
-+        """
-+        if self._reselect_task is not None and not self._reselect_task.done():
-+            return
-+        self._reselect_task = asyncio.ensure_future(self._reselect_loop())
-+
-+    async def _reselect_loop(self):
-+        for delay in _RESELECT_DELAYS:
-+            await asyncio.sleep(delay)
-+            try:
-+                session = await self._select_best_session()
-+            except Exception:
-+                _LOGGER.debug("SMTC: reselect failed", exc_info=True)
-+                continue
-+            if session is not None:
-+                _LOGGER.debug("SMTC: music session appeared, attaching")
-+                await self._attach_to_session(session)
-+                return
-+
-+    async def _select_best_session(self):
-+        """Take the session Windows reports as current, unless it is not music.
-+
-+        Windows gives "current" to whichever app most recently touched the
-+        media controls, so a game launcher or an idle browser tab can win it -
-+        and then now-playing reports that launcher's title while the album-art
-+        lookup invents a cover for it.
-+
-+        Judged on what the session reports rather than on which app it is: a
-+        name-based denylist only ever covers the offenders one developer
-+        happened to have installed. Returning None is fine - reporting nothing
-+        beats reporting a launcher, and the retry ladder tries again.
-+        """
-+        manager = self._manager
-+        if manager is None:
-+            return None
-+
-+        # Deliberately NOT enumerating with get_sessions(): it stalls silently
-+        # on LedFx's running loop - not even an asyncio timeout fires - leaving
-+        # now-playing empty forever. The current session is safe to ask for.
-+        try:
-+            current = manager.get_current_session()
-+        except Exception:
-+            _LOGGER.debug("SMTC: no current session", exc_info=True)
-+            return None
-+
-+        if current is None:
-+            return None
-+
-+        try:
-+            app_id = current.source_app_user_model_id or "<unknown>"
-+        except Exception:
-+            app_id = "<unknown>"
-+
-+        if not await self._looks_like_music(current, app_id):
-+            return None
-+
-+        _LOGGER.info("SMTC: using media session %s", app_id)
-+        return current
-+
-+    async def _looks_like_music(self, session, app_id):
-+        """Whether a session carries enough to be a track worth reporting.
-+
-+        Deliberately generous: a session qualifies on an artist *or* a real
-+        duration. Requiring both would drop live streams (no duration) and
-+        untagged local media (no artist), and requiring "currently playing"
-+        would drop a paused track we still want on screen. What this rejects is
-+        the session carrying neither - launchers and notification-only apps,
-+        which is the whole class of false positives.
-+        """
-+        try:
-+            props = await asyncio.wait_for(
-+                session.try_get_media_properties_async(),
-+                timeout=_PROPS_READ_TIMEOUT,
-+            )
-+        except asyncio.TimeoutError:
-+            _LOGGER.warning("SMTC: timed out reading properties of %s", app_id)
-+            return False
-+        except Exception:
-+            _LOGGER.debug(
-+                "SMTC: could not read properties of %s", app_id, exc_info=True
-+            )
-+            return False
-+
-+        if props is None:
-+            return False
-+
-+        has_artist = bool((getattr(props, "artist", None) or "").strip())
-+
-+        # Threaded: these are synchronous WinRT calls on a session we have not
-+        # attached to yet, and selection must not be what stalls the loop.
-+        _, duration, _ = await self._read_timing(session)
-+
-+        if has_artist or duration:
-+            return True
-+
-+        _LOGGER.debug(
-+            "SMTC: session %s reports neither artist nor duration, "
-+            "not treating it as music",
-+            app_id,
-+        )
-+        return False
- 
-     # ------------------------------------------------------------------
-     # WinRT event callbacks (called from WinRT thread pool)
-@@ -100,10 +278,22 @@ class SMTCNowPlayingProvider:
-         """Fires when the active media session changes."""
-         if self._loop is None:
-             return
--        session = manager.get_current_session()
--        asyncio.run_coroutine_threadsafe(
--            self._attach_to_session(session), self._loop
--        )
-+        # Re-run selection rather than taking the new "current" session:
-+        # whatever just grabbed the controls is not necessarily the music.
-+        asyncio.run_coroutine_threadsafe(self._select_and_attach(), self._loop)
-+
-+    def _on_timeline_changed(self, session, args):
-+        """Fires as position advances and on seek."""
-+        self._schedule_timing_push()
-+
-+    def _on_playback_info_changed(self, session, args):
-+        """Fires on play / pause / stop."""
-+        self._schedule_timing_push()
-+
-+    def _schedule_timing_push(self):
-+        if self._loop is None:
-+            return
-+        asyncio.run_coroutine_threadsafe(self._push_timing(), self._loop)
- 
-     def _on_media_properties_changed(self, session, args):
-         """Fires when track title/artist/album changes."""
-@@ -123,10 +313,37 @@ class SMTCNowPlayingProvider:
-             self._maybe_clear()
-             return
-         self._session = session
-+
-+        tokens = []
-         tok = session.add_media_properties_changed(
-             self._on_media_properties_changed
-         )
--        self._session_tokens = [(session.remove_media_properties_changed, tok)]
-+        tokens.append((session.remove_media_properties_changed, tok))
-+
-+        # Timeline and playback-state events are what keep position honest
-+        # across seeks and pauses - the two moments a client extrapolating
-+        # from an old anchor is guaranteed to be wrong. Event-driven, so no
-+        # polling. Optional: an older projection may not expose them.
-+        for add_name, remove_name, handler in (
-+            (
-+                "add_timeline_properties_changed",
-+                "remove_timeline_properties_changed",
-+                self._on_timeline_changed,
-+            ),
-+            (
-+                "add_playback_info_changed",
-+                "remove_playback_info_changed",
-+                self._on_playback_info_changed,
-+            ),
-+        ):
-+            try:
-+                add = getattr(session, add_name)
-+                remove = getattr(session, remove_name)
-+                tokens.append((remove, add(handler)))
-+            except Exception:
-+                _LOGGER.debug("SMTC: %s unavailable", add_name, exc_info=True)
-+
-+        self._session_tokens = tokens
-         await self._fetch_and_push_metadata()
- 
-     def _detach_session_events(self):
-@@ -167,6 +384,16 @@ class SMTCNowPlayingProvider:
-         if now_playing is None:
-             return
- 
-+        position, duration, playing = await self._read_timing()
-+
-+        # Read the player's own embedded art first. It has to happen before
-+        # set_metadata so the service knows whether to fall back to a
-+        # MusicBrainz lookup for this track.
-+        # Metadata goes out FIRST and unconditionally. Reading the embedded
-+        # artwork stream can stall in a way asyncio cannot interrupt, and
-+        # awaiting it here previously took the whole track push down with it.
-+        # has_own_artwork=True suppresses the MusicBrainz lookup: SMTC players
-+        # carry real cover art, and a wrong guess is worse than a late image.
-         now_playing.set_metadata(
-             SOURCE_ID,
-             TrackMetadata(
-@@ -174,9 +401,202 @@ class SMTCNowPlayingProvider:
-                 title=title,
-                 artist=artist,
-                 album=album,
-+                position=position,
-+                duration=duration,
-+                playing=playing,
-+            ),
-+            has_own_artwork=True,
-+        )
-+        _LOGGER.debug("SMTC: metadata pushed for %s", title)
-+
-+        # Fire-and-forget: artwork arrives when it arrives.
-+        asyncio.ensure_future(self._push_artwork(props))
-+
-+    async def _push_artwork(self, props):
-+        """Read and publish embedded artwork without blocking the track push."""
-+        art_bytes, art_content_type = await self._read_thumbnail(props)
-+        if not art_bytes:
-+            return
-+        now_playing = getattr(self._ledfx, "now_playing", None)
-+        if now_playing is None:
-+            return
-+        now_playing.set_artwork_bytes(SOURCE_ID, art_bytes, art_content_type)
-+        _LOGGER.debug(
-+            "SMTC: embedded artwork applied (%d bytes)", len(art_bytes)
-+        )
-+
-+    async def _read_thumbnail(self, props):
-+        """Read embedded album art, bounded so it can never strand metadata.
-+
-+        The WinRT stream calls are awaited on LedFx's loop from a WinRT
-+        callback thread, and a stall there would block the whole metadata push
-+        - which is exactly how this provider went silent once already. Cap it:
-+        artwork is a bonus, track info is not.
-+        """
-+        try:
-+            # Run in a worker thread with its own event loop. Awaiting the
-+            # WinRT stream calls directly on LedFx's running loop stalls
-+            # indefinitely - not even asyncio.wait_for can interrupt it - while
-+            # the identical code completes instantly under a fresh asyncio.run.
-+            return await asyncio.wait_for(
-+                asyncio.to_thread(self._read_thumbnail_blocking, props),
-+                timeout=_ARTWORK_READ_TIMEOUT,
-+            )
-+        except asyncio.TimeoutError:
-+            _LOGGER.warning(
-+                "SMTC: timed out reading embedded artwork; "
-+                "falling back to album-art lookup"
-+            )
-+            return None, None
-+        except Exception:
-+            _LOGGER.warning(
-+                "SMTC: embedded artwork unavailable; "
-+                "falling back to album-art lookup",
-+                exc_info=True,
-+            )
-+            return None, None
-+
-+    def _read_thumbnail_blocking(self, props):
-+        """Bridge into a private event loop on a worker thread."""
-+        return asyncio.run(self._read_thumbnail_inner(props))
-+
-+    async def _read_thumbnail_inner(self, props):
-+        """Actual embedded-artwork read. See :meth:`_read_thumbnail`."""
-+        stream = None
-+        reader = None
-+        try:
-+            # Import first, and keep the .thumbnail access inside this try:
-+            # reading that property makes winrt lazily import the projection
-+            # package for its stream-reference type, and if
-+            # winrt-Windows.Storage.Streams is not installed that raises
-+            # ModuleNotFoundError - which getattr's default does NOT swallow.
-+            # Outside the try it takes the whole metadata push down with it.
-+            from winrt.windows.storage.streams import DataReader
-+
-+            ref = getattr(props, "thumbnail", None)
-+            if ref is None:
-+                return None, None
-+
-+            stream = await ref.open_read_async()
-+            size = getattr(stream, "size", 0) if stream is not None else 0
-+            if not size:
-+                return None, None
-+
-+            content_type = (
-+                getattr(stream, "content_type", None) or "image/jpeg"
-+            )
-+            reader = DataReader(stream)
-+            await reader.load_async(size)
-+            data = bytes(bytearray(reader.read_buffer(size)))
-+            return (data, content_type) if data else (None, None)
-+        finally:
-+            for closeable in (reader, stream):
-+                try:
-+                    if closeable is not None:
-+                        closeable.close()
-+                except Exception:
-+                    pass
-+
-+    async def _push_timing(self):
-+        """Re-publish the current track with a fresh timing anchor.
-+
-+        Same track identity, so the service treats it as a timing refresh: no
-+        artwork re-read, no album-art lookup. It decides whether this is worth
-+        forwarding by checking whether a client extrapolating from the last
-+        anchor would now be wrong.
-+        """
-+        if self._session is None or self._last_title is None:
-+            return
-+
-+        now_playing = getattr(self._ledfx, "now_playing", None)
-+        if now_playing is None:
-+            return
-+
-+        position, duration, playing = await self._read_timing()
-+        if position is None and playing is None:
-+            return
-+
-+        now_playing.set_metadata(
-+            SOURCE_ID,
-+            TrackMetadata(
-+                source_id=SOURCE_ID,
-+                title=self._last_title,
-+                artist=self._last_artist,
-+                album=self._last_album,
-+                position=position,
-+                duration=duration,
-+                playing=playing,
-             ),
-+            has_own_artwork=True,
-         )
- 
-+    async def _read_timing(self, session=None):
-+        """Playback timing, read off the loop.
-+
-+        The WinRT calls are synchronous; running them on LedFx's event loop
-+        would risk stalling the loop itself, which is strictly worse than the
-+        artwork stall we already hit. Bounded and threaded for that reason.
-+
-+        ``session`` defaults to the attached one; selection passes a candidate
-+        it has not attached to yet.
-+        """
-+        try:
-+            return await asyncio.wait_for(
-+                asyncio.to_thread(self._read_timing_blocking, session),
-+                timeout=_TIMING_READ_TIMEOUT,
-+            )
-+        except asyncio.TimeoutError:
-+            _LOGGER.warning("SMTC: timed out reading playback timing")
-+            return None, None, None
-+        except Exception:
-+            _LOGGER.debug("SMTC: timing unavailable", exc_info=True)
-+            return None, None, None
-+
-+    def _read_timing_blocking(self, session=None):
-+        """Best-effort playback timing from the session we already hold.
-+
-+        Deliberately opportunistic: read once, here, off the session object this
-+        handler already has. Nothing polls, so these are a snapshot taken when
-+        the metadata event fired - good enough for a client that extrapolates
-+        from a timestamp, and stale after a seek or pause until the next event.
-+
-+        Any failure yields None rather than raising: timing is a bonus, and it
-+        must never cost us the track metadata itself.
-+        """
-+        position = duration = playing = None
-+        session = session if session is not None else self._session
-+        if session is None:
-+            return position, duration, playing
-+
-+        try:
-+            timeline = session.get_timeline_properties()
-+            if timeline is not None:
-+                if timeline.position is not None:
-+                    position = timeline.position.total_seconds()
-+                if timeline.end_time is not None:
-+                    end = timeline.end_time.total_seconds()
-+                    # Sessions with no real media report a zero-length timeline.
-+                    if end > 0:
-+                        duration = end
-+        except Exception:
-+            _LOGGER.debug(
-+                "SMTC: timeline properties unavailable", exc_info=True
-+            )
-+
-+        try:
-+            info = session.get_playback_info()
-+            if info is not None and info.playback_status is not None:
-+                # Compare by name so this does not depend on the enum's
-+                # numeric layout in whichever winsdk build is installed.
-+                status = getattr(
-+                    info.playback_status, "name", str(info.playback_status)
-+                )
-+                playing = str(status).upper().endswith("PLAYING")
-+        except Exception:
-+            _LOGGER.debug("SMTC: playback info unavailable", exc_info=True)
-+
-+        return position, duration, playing
-+
-     def _maybe_clear(self):
-         if (
-             self._last_title is None
-diff --git a/ledfx/nowplaying/service.py b/ledfx/nowplaying/service.py
-index 647c22f5..405316c1 100644
---- a/ledfx/nowplaying/service.py
-+++ b/ledfx/nowplaying/service.py
-@@ -8,6 +8,7 @@ source of truth for the rest of LedFx.
- import hashlib
- import io
- import logging
-+import os
- import time
- import urllib.parse
- import urllib.request
-@@ -28,6 +29,7 @@ from ledfx.events import (
-     NowPlayingGradientChangedEvent,
-     NowPlayingMetadataChangedEvent,
-     NowPlayingTrackChangedEvent,
-+    SongDetectedEvent,
- )
- from ledfx.nowplaying.album_art.musicbrainz import MusicBrainzArtProvider
- from ledfx.nowplaying.album_art.resolver import AlbumArtResolver
-@@ -101,7 +103,9 @@ NOW_PLAYING_CONFIG_SCHEMA = vol.Schema(
-         ),
-         vol.Optional("track_text", default={}): vol.Schema(
-             {
--                vol.Optional("enabled", default=True): bool,
-+                # Off by default, like every section: enabling Now Playing
-+                # should not immediately start pushing to virtuals.
-+                vol.Optional("enabled", default=False): bool,
-                 vol.Optional("duration", default=60): vol.All(
-                     vol.Coerce(int), vol.Range(min=0, max=60)
-                 ),
-@@ -111,7 +115,7 @@ NOW_PLAYING_CONFIG_SCHEMA = vol.Schema(
-         ),
-         vol.Optional("album_art", default={}): vol.Schema(
-             {
--                vol.Optional("enabled", default=True): bool,
-+                vol.Optional("enabled", default=False): bool,
-                 vol.Optional("duration", default=10): vol.All(
-                     vol.Coerce(int), vol.Range(min=0, max=60)
-                 ),
-@@ -136,6 +140,15 @@ _NOW_PLAYING_ASSET_DIR = "now_playing"
- # Fixed base filename for the single artwork file
- _ARTWORK_FILENAME = "now_playing"
- 
-+# How far a client's own extrapolation may drift, in seconds, before it is sent
-+# a fresh anchor. While playing, some drift is expected and harmless - the
-+# threshold only needs to catch a seek, not track the position exactly. While
-+# paused the position should not move at all, so a smaller change already means
-+# the user scrubbed. Both are deliberately loose: a tighter bound would emit on
-+# ordinary jitter and turn an event-driven feed into a de facto poll.
-+_POSITION_DRIFT_PLAYING = 2.0
-+_POSITION_DRIFT_PAUSED = 1.0
-+
- 
- class NowPlayingService:
-     """Provider-neutral Now Playing state manager.
-@@ -149,6 +162,12 @@ class NowPlayingService:
-         self._ledfx = ledfx
-         self._state = NowPlayingState()
- 
-+        # Last timing anchor handed to clients, so we can tell whether one
-+        # extrapolating from it would still be right. See _timing_diverged.
-+        self._emitted_position: float | None = None
-+        self._emitted_timestamp: float | None = None
-+        self._emitted_playing: bool | None = None
-+
-         # Load persisted configuration
-         raw_config = getattr(ledfx, "config", {}).get("now_playing", {})
-         self._config = NOW_PLAYING_CONFIG_SCHEMA(raw_config)
-@@ -171,12 +190,22 @@ class NowPlayingService:
-     # Public API
-     # ------------------------------------------------------------------
- 
--    def set_metadata(self, source_id: str, metadata: TrackMetadata) -> bool:
-+    def set_metadata(
-+        self,
-+        source_id: str,
-+        metadata: TrackMetadata,
-+        has_own_artwork: bool = False,
-+    ) -> bool:
-         """Update current track metadata from a provider.
- 
-         Args:
-             source_id: Provider identifier (e.g. "sendspin").
-             metadata: Normalized track metadata.
-+            has_own_artwork: True when the provider is about to supply artwork
-+                for this track itself. Suppresses the MusicBrainz lookup, which
-+                is a *fallback* - embedded art from the player is always more
-+                accurate than a lookup, especially for remixes, live takes and
-+                deluxe editions where the release match is a guess.
- 
-         Returns:
-             True if a track change was detected, False otherwise.
-@@ -243,11 +272,49 @@ class NowPlayingService:
-                 )
-             )
-             self._apply_track_text_to_virtuals()
--            if source_id not in _SOURCES_WITH_OWN_ARTWORK:
-+            self._emit_song_detected()
-+            if (
-+                not has_own_artwork
-+                and source_id not in _SOURCES_WITH_OWN_ARTWORK
-+            ):
-                 self._art_resolver.on_track_changed(metadata)
-+        elif self._timing_diverged(metadata):
-+            # Same track, but a client extrapolating from the last anchor would
-+            # now be wrong - a seek, a pause, or a resume. Send a correction.
-+            self._emit_song_detected()
- 
-         return track_changed
- 
-+    def _timing_diverged(self, metadata: TrackMetadata) -> bool:
-+        """Whether clients need a fresh timing anchor for the current track.
-+
-+        Clients advance position themselves from ``(position, timestamp)``, so
-+        a track playing straight through needs no updates at all - their own
-+        arithmetic stays correct. Only report divergence, which makes the
-+        traffic proportional to how wrong they are rather than to song length.
-+        """
-+        if metadata.position is None:
-+            return False
-+
-+        # First anchor, or playback state flipped (play/pause/stop).
-+        if self._emitted_position is None or self._emitted_timestamp is None:
-+            return True
-+        if bool(metadata.playing) != bool(self._emitted_playing):
-+            return True
-+
-+        if not metadata.playing:
-+            # Paused: the client's position is frozen, so any real movement
-+            # is a seek.
-+            return (
-+                abs(metadata.position - self._emitted_position)
-+                > _POSITION_DRIFT_PAUSED
-+            )
-+
-+        predicted = self._emitted_position + (
-+            time.time() - self._emitted_timestamp
-+        )
-+        return abs(metadata.position - predicted) > _POSITION_DRIFT_PLAYING
-+
-     def set_artwork_url(
-         self,
-         source_id: str,
-@@ -316,6 +383,9 @@ class NowPlayingService:
-         self._state.updated_at = time.time()
-         self._update_current_gradient()
-         self._apply_album_art_to_virtuals()
-+        # Artwork often resolves after the track event (MusicBrainz lookup), so
-+        # re-emit to deliver the thumbnail the first event could not carry.
-+        self._emit_song_detected()
- 
-         _LOGGER.info("Artwork URL updated from %s", source_id)
-         self._fire_event(
-@@ -375,6 +445,9 @@ class NowPlayingService:
-         self._state.updated_at = time.time()
-         self._update_current_gradient()
-         self._apply_album_art_to_virtuals()
-+        # Artwork often resolves after the track event (MusicBrainz lookup), so
-+        # re-emit to deliver the thumbnail the first event could not carry.
-+        self._emit_song_detected()
- 
-         _LOGGER.info(
-             "Artwork bytes updated from %s (hash: %s)", source_id, artwork_hash
-@@ -436,6 +509,9 @@ class NowPlayingService:
-         self._state.updated_at = time.time()
-         self._update_current_gradient()
-         self._apply_album_art_to_virtuals()
-+        # Artwork often resolves after the track event (MusicBrainz lookup), so
-+        # re-emit to deliver the thumbnail the first event could not carry.
-+        self._emit_song_detected()
- 
-         _LOGGER.info("Resolved artwork applied (hash: %s)", artwork_hash)
-         self._fire_event(
-@@ -488,6 +564,38 @@ class NowPlayingService:
-                 self._state.active_source_id,
-             )
- 
-+    def purge(self) -> None:
-+        """Drop everything gathered so far, including artwork on disk.
-+
-+        Called when the feature is switched off. Clearing the in-memory state
-+        is not enough: the cached cover of whatever was last playing would stay
-+        in ``.ledfx/assets/now_playing/``, which is precisely what somebody
-+        turning a privacy switch off does not expect.
-+        """
-+        self._art_resolver.cancel_pending()
-+        prev_variant = self._state.selected_gradient_variant
-+        self._state = NowPlayingState(selected_gradient_variant=prev_variant)
-+        self._emitted_position = None
-+        self._emitted_timestamp = None
-+        self._emitted_playing = None
-+
-+        config_dir = getattr(self._ledfx, "config_dir", None)
-+        if not config_dir:
-+            return
-+
-+        art_dir = os.path.join(config_dir, "assets", _NOW_PLAYING_ASSET_DIR)
-+        if not os.path.isdir(art_dir):
-+            return
-+        for name in os.listdir(art_dir):
-+            if not name.startswith(_ARTWORK_FILENAME):
-+                continue
-+            try:
-+                os.remove(os.path.join(art_dir, name))
-+            except OSError as exc:
-+                _LOGGER.warning(
-+                    "Could not remove cached artwork %s: %s", name, exc
-+                )
-+
-     def get_current(self) -> NowPlayingState:
-         """Return the current Now Playing state.
- 
-@@ -882,6 +990,70 @@ class NowPlayingService:
-         if hasattr(self._ledfx, "events"):
-             self._ledfx.events.fire_event(event)
- 
-+    def _emit_song_detected(self) -> None:
-+        """Re-publish current track info as a SongDetectedEvent.
-+
-+        The frontend has a long-standing consumer chain hanging off
-+        ``song_detected`` (currentTrack, album art, the texter/gradient/image
-+        auto-apply hooks). Emitting it here lets the Now Playing providers feed
-+        that chain directly, instead of it only ever being driven by the
-+        external song-detector process.
-+
-+        Playback timing is best-effort and passed straight through from whatever
-+        the provider already had: nothing polls for it. ``timestamp`` is the
-+        moment this snapshot was taken, which is what the frontend extrapolates
-+        position from - so a single accurate sample per track carries it until
-+        the next event, and goes stale after a seek or pause.
-+
-+        When a provider supplies nothing, the fields stay ``None`` and the
-+        frontend simply never calls ``setPositionData``, leaving
-+        position-dependent features inactive rather than driven by fiction.
-+        """
-+        metadata = self._state.metadata
-+        if not metadata or not metadata.title:
-+            return
-+
-+        # cache_key is an absolute filesystem path, but the frontend resolves
-+        # thumbnails through /api/assets/download, which is relative to
-+        # .ledfx/assets. Send the assets-relative path instead - the artwork
-+        # lives in a subdirectory, so a bare filename would not resolve.
-+        artwork = self._state.artwork
-+        thumbnail = None
-+        if artwork and artwork.cache_key:
-+            filename = artwork.cache_key.replace("\\", "/").rsplit("/", 1)[-1]
-+            thumbnail = f"{_NOW_PLAYING_ASSET_DIR}/{filename}"
-+
-+        # Only anchor a timestamp when there is actually timing to anchor -
-+        # the frontend keys its interpolation off position + timestamp, and a
-+        # timestamp without a position anchors nothing.
-+        timestamp = time.time() if metadata.position is not None else None
-+
-+        # Remember what clients were told, so _timing_diverged can judge
-+        # whether their extrapolation from it has gone stale.
-+        self._emitted_position = metadata.position
-+        self._emitted_timestamp = timestamp
-+        self._emitted_playing = bool(metadata.playing)
-+
-+        _LOGGER.debug(
-+            "song_detected: %s pos=%s playing=%s art=%s",
-+            metadata.title,
-+            None if metadata.position is None else round(metadata.position, 1),
-+            metadata.playing,
-+            bool(thumbnail),
-+        )
-+        self._fire_event(
-+            SongDetectedEvent(
-+                title=metadata.title,
-+                artist=metadata.artist or "",
-+                album=metadata.album or "",
-+                thumbnail=thumbnail,
-+                position=metadata.position,
-+                duration=metadata.duration,
-+                playing=bool(metadata.playing),
-+                timestamp=timestamp,
-+            )
-+        )
-+
-     # ------------------------------------------------------------------
-     # Artwork storage helpers
-     # ------------------------------------------------------------------
-diff --git a/pyproject.toml b/pyproject.toml
-index 1c8b1c55..a7e79f49 100644
---- a/pyproject.toml
-+++ b/pyproject.toml
-@@ -46,6 +46,7 @@ dependencies = [
-     "pyflac>=2.2.0; python_version >= '3.12'",
-     "winrt-Windows.Foundation>=2.0.0; sys_platform == \"win32\"",
-     "winrt-Windows.Media.Control>=2.0.0; sys_platform == \"win32\"",
-+    "winrt-Windows.Storage.Streams>=2.0.0; sys_platform == \"win32\"",
-     "dbus-fast>=5.0.22,<6.0.0; sys_platform == \"linux\"",
- ]
- name = "LedFx"
-diff --git a/ledfx/api/info.py b/ledfx/api/info.py
-index ce8ff02..3de8221 100644
---- a/ledfx/api/info.py
-+++ b/ledfx/api/info.py
-@@ -6,6 +6,10 @@ from aiohttp import web
- 
- from ledfx.api import RestEndpoint
- from ledfx.consts import PROJECT_VERSION
-+from ledfx.nowplaying.providers.android import (
-+    notification_access_granted,
-+    running_on_android,
-+)
- from ledfx.sendspin import SENDSPIN_AVAILABLE
- 
- # Platforms with a Now Playing provider. Elsewhere the switch would be an
-@@ -41,6 +45,12 @@ class InfoEndpoint(RestEndpoint):
-                 "now_playing_enabled": bool(
-                     self._ledfx.config.get("now_playing_enabled", False)
-                 ),
-+                # Android reads the media session through a notification
-+                # listener, which is a special access the user grants in
-+                # Settings. Reported so a client can tell "nothing is playing"
-+                # apart from "LedFx is not allowed to look".
-+                "now_playing_needs_access": running_on_android()
-+                and not notification_access_granted(),
-             },
-         }
-         return await self.bare_request_success(response)
-diff --git a/ledfx/core.py b/ledfx/core.py
-index 9a1c074..9b1e226 100644
---- a/ledfx/core.py
-+++ b/ledfx/core.py
-@@ -43,6 +43,7 @@ from ledfx.http_manager import HttpServer
- from ledfx.integrations import Integrations
- from ledfx.mdns_manager import ZeroConfRunner
- from ledfx.nowplaying import NowPlayingService
-+from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
- from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
- from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
- from ledfx.playlists import PlaylistManager
-@@ -141,6 +142,7 @@ class LedFxCore:
-         self.audio_device_monitor = None
-         self._mpris_now_playing = None
-         self._smtc_now_playing = None
-+        self._android_now_playing = None
- 
-         if self.config.get("debug_asyncio", False):
-             self.loop.set_debug(True)
-@@ -194,7 +196,11 @@ class LedFxCore:
-         re-check, never *what* to do.
-         """
-         enabled = self.config.get("now_playing_enabled", False)
--        providers = (self._smtc_now_playing, self._mpris_now_playing)
-+        providers = (
-+            self._smtc_now_playing,
-+            self._mpris_now_playing,
-+            self._android_now_playing,
-+        )
- 
-         for provider in providers:
-             if provider is None:
-@@ -583,6 +589,7 @@ class LedFxCore:
-         self.now_playing = NowPlayingService(self)
-         self._smtc_now_playing = SMTCNowPlayingProvider(self)
-         self._mpris_now_playing = MPRISNowPlayingProvider(self)
-+        self._android_now_playing = AndroidNowPlayingProvider(self)
-         self.reconcile_now_playing_runtime("startup")
- 
-         self.devices = Devices(self)
-@@ -756,6 +763,12 @@ class LedFxCore:
-                 except Exception as e:
-                     _LOGGER.warning("Error stopping MPRIS provider: %s", e)
- 
-+            if self._android_now_playing is not None:
-+                try:
-+                    self._android_now_playing.stop()
-+                except Exception as e:
-+                    _LOGGER.warning("Error stopping Android provider: %s", e)
-+
-             _LOGGER.info("Stopping HTTP Server...")
-             await self.http.stop()
- 
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
 new file mode 100644
-index 0000000..2d1b919
+index 0000000..f4d758d
 --- /dev/null
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -0,0 +1,320 @@
+@@ -0,0 +1,403 @@
 +"""Android Now Playing provider.
 +
 +Reads the phone's own media sessions (Spotify, YouTube Music, anything that
-+publishes a MediaSession) through MediaSessionManager via pyjnius. Track
-+metadata is forwarded to NowPlayingService; artwork is left to the album-art
-+resolver, exactly as the SMTC and MPRIS providers do.
++publishes a MediaSession) through MediaSessionManager via pyjnius, and reacts
++to their events: the bootstrap's org.kivy.android.MediaSessionWatcher calls
++back whenever the session list, a track or the playback state changes.
 +
-+Android gates ``getActiveSessions`` behind notification access, which is a
-+*special access* rather than a runtime permission: there is no in-app dialog
-+that can request it, the user has to grant it once in Settings. Until then the
-+call raises SecurityException and this provider stays quiet.
++Android gates ``getActiveSessions`` behind notification access, a *special
++access* rather than a runtime permission: no in-app dialog can request it, the
++user grants it once in Settings. Until then the watcher cannot start and this
++provider stays quiet.
 +"""
 +
 +import asyncio
@@ -1149,12 +254,15 @@ index 0000000..2d1b919
 +# getActiveSessions only accepts a listener component the user has granted
 +# access to, and Android checks that it belongs to the calling package.
 +LISTENER_CLASS = "org.kivy.android.PythonNotificationListenerService"
++WATCHER_CLASS = "org.kivy.android.MediaSessionWatcher"
++WATCHER_LISTENER = "org/kivy/android/MediaSessionWatcherListener"
 +
 +# MediaMetadata keys, used as literals so no extra JNI lookups are needed.
 +_KEY_TITLE = "android.media.metadata.TITLE"
 +_KEY_ARTIST = "android.media.metadata.ARTIST"
 +_KEY_ALBUM_ARTIST = "android.media.metadata.ALBUM_ARTIST"
 +_KEY_ALBUM = "android.media.metadata.ALBUM"
++_KEY_DURATION = "android.media.metadata.DURATION"
 +
 +# Artwork the player already holds. ALBUM_ART is what the big players publish;
 +# ART and DISPLAY_ICON are checked too because the key is the app's choice.
@@ -1165,12 +273,7 @@ index 0000000..2d1b919
 +)
 +
 +_STATE_PLAYING = 3  # PlaybackState.STATE_PLAYING
-+
-+# MediaSession has no "metadata changed" callback that pyjnius can implement -
-+# MediaController.Callback is an abstract class, not an interface - so the
-+# session list is polled instead. Two seconds is below what anyone notices on
-+# a virtual and costs nothing measurable.
-+_POLL_INTERVAL = 2.0
++_UNKNOWN_POSITION = -1  # PlaybackState.PLAYBACK_POSITION_UNKNOWN
 +
 +_context = None
 +_context_checked = False
@@ -1189,7 +292,7 @@ index 0000000..2d1b919
 +
 +    try:
 +        from jnius import autoclass
-+    except Exception:
++    except Exception:  # noqa: BLE001
 +        return None
 +
 +    # The core runs in the service process, so mService is the context that
@@ -1200,7 +303,7 @@ index 0000000..2d1b919
 +    ):
 +        try:
 +            obj = getattr(autoclass(class_name), attr, None)
-+        except Exception:
++        except Exception:  # noqa: BLE001, S112
 +            continue
 +        if obj is not None:
 +            _context = obj
@@ -1230,24 +333,46 @@ index 0000000..2d1b919
 +    try:
 +        from jnius import autoclass
 +
-+        Secure = autoclass("android.provider.Settings$Secure")
-+        enabled = Secure.getString(
++        secure = autoclass("android.provider.Settings$Secure")
++        enabled = secure.getString(
 +            context.getContentResolver(), "enabled_notification_listeners"
 +        )
-+    except Exception:
++    except Exception:  # noqa: BLE001
 +        return False
 +    if not enabled:
 +        return False
 +    return f"{context.getPackageName()}/{LISTENER_CLASS}" in enabled
 +
 +
++def _watcher_listener(on_change):
++    """A pyjnius implementation of MediaSessionWatcherListener.
++
++    Built lazily: jnius only exists on Android.
++    """
++    from jnius import PythonJavaClass, java_method
++
++    class _Listener(PythonJavaClass):
++        __javainterfaces__ = (WATCHER_LISTENER,)
++        __javacontext__ = "app"
++
++        @java_method("()V")
++        def onMediaChanged(self):
++            on_change()
++
++    return _Listener()
++
++
 +class AndroidNowPlayingProvider:
 +    def __init__(self, ledfx):
 +        self._ledfx = ledfx
-+        self._task = None
++        self._loop = None
 +        self._context = None
 +        self._manager = None
 +        self._component = None
++        # Both must stay referenced: pyjnius does not keep a Python
++        # implementation alive for Java, so a collected listener ends the events.
++        self._watcher = None
++        self._listener = None
 +        self._access_warned = False
 +        self._last_identity = None
 +
@@ -1256,17 +381,46 @@ index 0000000..2d1b919
 +    # ------------------------------------------------------------------
 +
 +    def start(self):
-+        if self._task is not None:
++        if self._watcher is not None:
 +            return
 +        self._context = android_context()
 +        if self._context is None:
 +            return
-+        self._task = asyncio.ensure_future(self._run())
++        try:
++            self._loop = asyncio.get_running_loop()
++        except RuntimeError:
++            _LOGGER.error("Android: start() called without a running loop")
++            return
++        try:
++            from jnius import autoclass
++
++            watcher_cls = autoclass(WATCHER_CLASS)
++        except Exception:  # noqa: BLE001
++            _LOGGER.warning(
++                "Android: %s missing from this APK, Now Playing unavailable",
++                WATCHER_CLASS,
++            )
++            return
++
++        self._listener = _watcher_listener(self._on_media_changed)
++        watcher = watcher_cls(self._context, LISTENER_CLASS, self._listener)
++        try:
++            watcher.start()
++        except Exception as exc:  # noqa: BLE001
++            self._listener = None
++            self._warn_missing_access(exc)
++            return
++        self._watcher = watcher
++        self._refresh()
 +
 +    def stop(self):
-+        if self._task is not None:
-+            self._task.cancel()
-+            self._task = None
++        if self._watcher is not None:
++            try:
++                self._watcher.stop()
++            except Exception:
++                _LOGGER.debug("Android: watcher stop failed", exc_info=True)
++        self._watcher = None
++        self._listener = None
 +        self._manager = None
 +        self._component = None
 +        self._access_warned = False
@@ -1280,20 +434,24 @@ index 0000000..2d1b919
 +            now_playing.clear(SOURCE_ID)
 +
 +    # ------------------------------------------------------------------
-+    # Polling
++    # Events
 +    # ------------------------------------------------------------------
 +
-+    async def _run(self):
-+        while True:
-+            try:
-+                self._poll()
-+            except asyncio.CancelledError:
-+                raise
-+            except Exception:
-+                _LOGGER.exception("Android: Now Playing poll failed")
-+            await asyncio.sleep(_POLL_INTERVAL)
++    def _on_media_changed(self):
++        """Called by MediaSessionWatcher on Android's main thread."""
++        loop = self._loop
++        if loop is not None and not loop.is_closed():
++            loop.call_soon_threadsafe(self._refresh)
 +
-+    def _poll(self):
++    def _refresh(self):
++        if self._watcher is None:
++            return
++        try:
++            self._read_and_push()
++        except Exception:
++            _LOGGER.exception("Android: Now Playing update failed")
++
++    def _read_and_push(self):
 +        controller = self._active_controller()
 +        if controller is None:
 +            self._maybe_clear()
@@ -1316,34 +474,65 @@ index 0000000..2d1b919
 +            self._maybe_clear()
 +            return
 +
-+        identity = (title, artist, album)
-+        if identity == self._last_identity:
-+            return
-+        self._last_identity = identity
-+
 +        now_playing = getattr(self._ledfx, "now_playing", None)
 +        if now_playing is None:
 +            return
 +
-+        # The player is already holding the cover for this exact track, so a
-+        # MusicBrainz lookup would be both slower and a worse match. Fetched
-+        # before set_metadata so the service is told up front whether artwork
-+        # is coming, and only falls back when it is not.
-+        artwork = self._artwork(metadata)
-+
-+        now_playing.set_metadata(
-+            SOURCE_ID,
-+            TrackMetadata(
-+                source_id=SOURCE_ID,
-+                title=title,
-+                artist=artist,
-+                album=album,
-+            ),
-+            has_own_artwork=artwork is not None,
++        position, playing = self._timing(controller.getPlaybackState())
++        duration_ms = metadata.getLong(_KEY_DURATION)
++        track = TrackMetadata(
++            source_id=SOURCE_ID,
++            title=title,
++            artist=artist,
++            album=album,
++            position=position,
++            duration=duration_ms / 1000 if duration_ms > 0 else None,
++            playing=playing,
 +        )
 +
++        identity = (title, artist, album)
++        if identity == self._last_identity:
++            # Same track: a playback-state event. The service decides whether
++            # the new timing anchor is worth forwarding.
++            now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=True)
++            return
++        self._last_identity = identity
++
++        # The player is already holding the cover for this exact track, so a
++        # MusicBrainz lookup would be both slower and a worse match. Read
++        # before set_metadata so the service knows up front whether artwork
++        # is coming, and only falls back when it is not.
++        artwork = self._artwork(metadata)
++        now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=artwork is not None)
 +        if artwork is not None:
 +            now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
++
++    @staticmethod
++    def _timing(state):
++        """(position in seconds, playing) from a PlaybackState, None if unknown.
++
++        PlaybackState stores the position at its last update; while playing it
++        has advanced by the elapsed time times the speed since then.
++        """
++        if state is None:
++            return None, None
++        try:
++            playing = state.getState() == _STATE_PLAYING
++            position_ms = state.getPosition()
++            if position_ms == _UNKNOWN_POSITION:
++                return None, playing
++            # getLastPositionUpdateTime is elapsed real time, 0 if never set.
++            updated = state.getLastPositionUpdateTime()
++            if playing and updated > 0:
++                from jnius import autoclass
++
++                clock = autoclass("android.os.SystemClock")
++                elapsed = clock.elapsedRealtime() - updated
++                position_ms += elapsed * state.getPlaybackSpeed()
++            return max(position_ms, 0) / 1000, playing
++        except Exception:
++            _LOGGER.debug("Android: playback state unreadable", exc_info=True)
++            return None, None
 +
 +    def _artwork(self, metadata):
 +        """PNG bytes of the track's embedded cover, or None.
@@ -1357,15 +546,15 @@ index 0000000..2d1b919
 +        for key in _ART_KEYS:
 +            try:
 +                bitmap = metadata.getBitmap(key)
-+            except Exception:
++            except Exception:  # noqa: BLE001, S112
 +                continue
 +            if bitmap is None:
 +                continue
 +            try:
-+                ByteArrayOutputStream = autoclass("java.io.ByteArrayOutputStream")
-+                CompressFormat = autoclass("android.graphics.Bitmap$CompressFormat")
-+                stream = ByteArrayOutputStream()
-+                bitmap.compress(CompressFormat.PNG, 100, stream)
++                byte_stream = autoclass("java.io.ByteArrayOutputStream")
++                compress_format = autoclass("android.graphics.Bitmap$CompressFormat")
++                stream = byte_stream()
++                bitmap.compress(compress_format.PNG, 100, stream)
 +                raw = stream.toByteArray()
 +                if isinstance(raw, (bytes, bytearray)):
 +                    return bytes(raw)
@@ -1403,27 +592,26 @@ index 0000000..2d1b919
 +        from jnius import autoclass, cast
 +
 +        if self._manager is None:
-+            Context = autoclass("android.content.Context")
-+            ComponentName = autoclass("android.content.ComponentName")
++            context_cls = autoclass("android.content.Context")
++            component_cls = autoclass("android.content.ComponentName")
 +            self._manager = cast(
 +                "android.media.session.MediaSessionManager",
-+                self._context.getSystemService(Context.MEDIA_SESSION_SERVICE),
++                self._context.getSystemService(context_cls.MEDIA_SESSION_SERVICE),
 +            )
-+            self._component = ComponentName(
++            self._component = component_cls(
 +                self._context.getPackageName(), LISTENER_CLASS
 +            )
 +
 +        try:
 +            return self._manager.getActiveSessions(self._component)
-+        except Exception as exc:
++        except Exception as exc:  # noqa: BLE001
 +            self._warn_missing_access(exc)
 +            return None
 +
 +    def _warn_missing_access(self, exc):
 +        """Say it once, and say what fixes it.
 +
-+        Repeating this every two seconds would bury the rest of the log, and
-+        the situation only changes when the user acts in Settings.
++        The situation only changes when the user acts in Settings.
 +        """
 +        if self._access_warned:
 +            return
@@ -1444,10 +632,10 @@ index 0000000..2d1b919
 +        if now_playing is not None:
 +            now_playing.clear(SOURCE_ID)
 diff --git a/ledfx/nowplaying/providers/mpris.py b/ledfx/nowplaying/providers/mpris.py
-index 285e4b3..6763035 100644
+index b7733b9..294b837 100644
 --- a/ledfx/nowplaying/providers/mpris.py
 +++ b/ledfx/nowplaying/providers/mpris.py
-@@ -20,6 +20,7 @@ except (
+@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover - exercised on non-linux/no-dbus-fast en
      Message = None
  
  from ledfx.nowplaying.models import TrackMetadata
@@ -1455,7 +643,7 @@ index 285e4b3..6763035 100644
  
  _LOGGER = logging.getLogger(__name__)
  
-@@ -59,6 +60,10 @@ class MPRISNowPlayingProvider:
+@@ -57,6 +58,10 @@ class MPRISNowPlayingProvider:
          """Start provider initialization on Linux."""
          if sys.platform != "linux":
              return
@@ -1466,3 +654,1685 @@ index 285e4b3..6763035 100644
          if self._init_task is not None:
              return
  
+@@ -390,6 +395,14 @@ class MPRISNowPlayingProvider:
+             now_playing.clear(SOURCE_ID)
+             return
+ 
++        # Free timing: both arrived in the reply above; length is microseconds.
++        # Position is deliberately not read - it needs its own Get('Position')
++        # call, and nothing here polls.
++        duration = None
++        length_us = self._variant_value(metadata.get("mpris:length"))
++        if isinstance(length_us, (int, float)) and length_us > 0:
++            duration = length_us / 1_000_000
++
+         now_playing.set_metadata(
+             SOURCE_ID,
+             TrackMetadata(
+@@ -398,6 +411,8 @@ class MPRISNowPlayingProvider:
+                 artist=artist,
+                 album=album,
+                 track_id=track_id,
++                duration=duration,
++                playing=(status == "Playing") if status is not None else None,
+             ),
+         )
+ 
+diff --git a/ledfx/nowplaying/providers/smtc.py b/ledfx/nowplaying/providers/smtc.py
+index c12d11f..ab3cbb5 100644
+--- a/ledfx/nowplaying/providers/smtc.py
++++ b/ledfx/nowplaying/providers/smtc.py
+@@ -1,8 +1,9 @@
+ """SMTC (System Media Transport Controls) Now Playing provider.
+ 
+ Windows-only. Uses WinRT events to react to media session changes.
+-Track metadata (title, artist, album) is forwarded to NowPlayingService.
+-Artwork is NOT fetched here; that is handled by the album-art resolver.
++Track metadata (title, artist, album) and playback timing are forwarded to
++NowPlayingService, and so is the player's embedded artwork when it has some;
++only without it does the album-art resolver look the cover up.
+ """
+ 
+ import asyncio
+@@ -15,15 +16,26 @@ _LOGGER = logging.getLogger(__name__)
+ 
+ SOURCE_ID = "smtc"
+ 
++# Bounds for WinRT calls that can stall in ways asyncio alone cannot interrupt.
++# Generous rather than tight: blowing one costs a bonus (artwork, timing) or one
++# selection attempt, never the track metadata itself.
++_PROPS_READ_TIMEOUT = 2.0
++_TIMING_READ_TIMEOUT = 3.0
++_ARTWORK_READ_TIMEOUT = 6.0
++
+ 
+ class SMTCNowPlayingProvider:
+     def __init__(self, ledfx):
+         self._ledfx = ledfx
+         self._loop = None
+         self._manager = None
+-        self._manager_token = None
++        self._manager_tokens = []
+         self._session = None
+         self._session_tokens = []
++        # The current session while it does not qualify as music yet; its own
++        # property events tell us when it does.
++        self._candidate = None
++        self._candidate_tokens = []
+         self._init_task = None
+         self._last_title = None
+         self._last_artist = None
+@@ -37,21 +49,37 @@ class SMTCNowPlayingProvider:
+         if sys.platform != "win32":
+             return
+         if self._init_task is not None:
++            _LOGGER.debug("SMTC: start() called again, already initialising")
++            return
++        try:
++            self._loop = asyncio.get_running_loop()
++        except RuntimeError:
++            _LOGGER.error("SMTC: start() called without a running loop")
+             return
+-        self._loop = asyncio.get_running_loop()
+         self._init_task = asyncio.ensure_future(self._initialize())
++        # ensure_future swallows exceptions unless someone looks at the task.
++        self._init_task.add_done_callback(self._log_init_result)
++
++    @staticmethod
++    def _log_init_result(task):
++        if task.cancelled():
++            return
++        exc = task.exception()
++        if exc is not None:
++            _LOGGER.error("SMTC: initialisation failed", exc_info=exc)
+ 
+     def stop(self):
+         if self._init_task is not None:
+             self._init_task.cancel()
+             self._init_task = None
+-        if self._manager is not None and self._manager_token is not None:
++        for remove_fn, token in self._manager_tokens:
+             try:
+-                self._manager.remove_current_session_changed(self._manager_token)
++                remove_fn(token)
+             except Exception:  # noqa: BLE001, S110
+                 pass
+-        self._manager_token = None
++        self._manager_tokens = []
+         self._manager = None
++        self._detach_candidate()
+         self._detach_session_events()
+         self._last_title = None
+         self._last_artist = None
+@@ -76,6 +104,10 @@ class SMTCNowPlayingProvider:
+                 GlobalSystemMediaTransportControlsSessionManager as MediaManager,
+             )
+         except ImportError:
++            _LOGGER.warning(
++                "SMTC: winrt media control projection missing, "
++                "Now Playing disabled on this install"
++            )
+             return
+ 
+         try:
+@@ -85,40 +117,207 @@ class SMTCNowPlayingProvider:
+             return
+ 
+         self._manager = manager
+-        self._manager_token = manager.add_current_session_changed(
+-            self._on_session_changed
++        # sessions_changed covers a player that registers after we started:
++        # Windows only moves "current" to it once it touches the media
++        # controls, but the session list changes as soon as it appears.
++        tokens = []
++        for event in ("current_session_changed", "sessions_changed"):
++            try:
++                add = getattr(manager, f"add_{event}")
++                tokens.append(
++                    (getattr(manager, f"remove_{event}"), add(self._on_session_changed))
++                )
++            except Exception:
++                _LOGGER.debug("SMTC: %s unavailable", event, exc_info=True)
++        self._manager_tokens = tokens
++        await self._select_and_attach()
++
++    # ------------------------------------------------------------------
++    # Session selection
++    # ------------------------------------------------------------------
++
++    async def _select_and_attach(self):
++        """Choose the current session if it is music, and attach to it."""
++        current = self._current_session()
++        session = await self._qualify(current)
++
++        # Windows hands "current" to whatever last touched the media controls,
++        # so opening a launcher can take it from a player that is still going.
++        # Keep the attached session while it still qualifies; once its app is
++        # gone it fails the same test and we fall through and clear.
++        if (
++            session is None
++            and self._session is not None
++            and await self._looks_like_music(self._session, "<attached>")
++        ):
++            self._watch_candidate(current)
++            _LOGGER.debug("SMTC: current session is not music, staying attached")
++            return
++
++        await self._attach_to_session(session)
++        if session is None:
++            # A player registers its session before it publishes a track. Its
++            # own property events say when it has one, so wait on those rather
++            # than retrying on a timer.
++            self._watch_candidate(current)
++        else:
++            self._detach_candidate()
++
++    def _current_session(self):
++        # Deliberately NOT enumerating with get_sessions(): it stalls silently on
++        # LedFx's running loop - not even an asyncio timeout fires. The current
++        # session is safe to ask for.
++        if self._manager is None:
++            return None
++        try:
++            return self._manager.get_current_session()
++        except Exception:
++            _LOGGER.debug("SMTC: no current session", exc_info=True)
++            return None
++
++    async def _qualify(self, session):
++        """The session if it looks like music, else None.
++
++        Windows gives "current" to whichever app most recently touched the media
++        controls, so a game launcher or an idle browser tab can win it - and
++        then the album-art lookup invents a cover for that launcher's title.
++        Judged on what the session reports rather than on which app it is: a
++        name denylist only ever covers the offenders one developer had
++        installed.
++        """
++        if session is None:
++            return None
++        try:
++            app_id = session.source_app_user_model_id or "<unknown>"
++        except Exception:  # noqa: BLE001
++            app_id = "<unknown>"
++        if not await self._looks_like_music(session, app_id):
++            return None
++        _LOGGER.info("SMTC: using media session %s", app_id)
++        return session
++
++    async def _looks_like_music(self, session, app_id):
++        """Whether a session carries enough to be a track worth reporting.
++
++        Deliberately generous: an artist *or* a real duration qualifies.
++        Requiring both would drop live streams (no duration) and untagged local
++        media (no artist); requiring "playing" would drop a paused track that
++        should stay on screen. What this rejects is a session with neither -
++        launchers and notification-only apps.
++        """
++        try:
++            props = await asyncio.wait_for(
++                session.try_get_media_properties_async(),
++                timeout=_PROPS_READ_TIMEOUT,
++            )
++        except TimeoutError:
++            _LOGGER.warning("SMTC: timed out reading properties of %s", app_id)
++            return False
++        except Exception:
++            _LOGGER.debug(
++                "SMTC: could not read properties of %s", app_id, exc_info=True
++            )
++            return False
++
++        if props is None:
++            return False
++        if (getattr(props, "artist", None) or "").strip():
++            return True
++        _, duration, _ = await self._read_timing(session)
++        if duration:
++            return True
++        _LOGGER.debug(
++            "SMTC: session %s reports neither artist nor duration, "
++            "not treating it as music",
++            app_id,
+         )
+-        await self._attach_to_session(manager.get_current_session())
++        return False
++
++    def _watch_candidate(self, session):
++        """Re-run selection when a not-yet-musical current session changes."""
++        if session is self._candidate:
++            return
++        self._detach_candidate()
++        if session is None or session is self._session:
++            return
++        self._candidate = session
++        try:
++            token = session.add_media_properties_changed(self._on_candidate_changed)
++            self._candidate_tokens = [(session.remove_media_properties_changed, token)]
++        except Exception:
++            _LOGGER.debug("SMTC: cannot watch candidate session", exc_info=True)
++
++    def _detach_candidate(self):
++        for remove_fn, token in self._candidate_tokens:
++            try:
++                remove_fn(token)
++            except Exception:  # noqa: BLE001, S110
++                pass
++        self._candidate_tokens = []
++        self._candidate = None
+ 
+     # ------------------------------------------------------------------
+     # WinRT event callbacks (called from WinRT thread pool)
+     # ------------------------------------------------------------------
+ 
+     def _on_session_changed(self, manager, args):
+-        """Fires when the active media session changes."""
+-        if self._loop is None:
+-            return
+-        session = manager.get_current_session()
+-        asyncio.run_coroutine_threadsafe(self._attach_to_session(session), self._loop)
++        """Fires when the current session or the session list changes."""
++        # Re-run selection rather than taking the new "current" session:
++        # whatever just grabbed the controls is not necessarily the music.
++        self._schedule(self._select_and_attach())
++
++    def _on_candidate_changed(self, session, args):
++        """Fires when the watched, not-yet-musical session publishes a track."""
++        self._schedule(self._select_and_attach())
+ 
+     def _on_media_properties_changed(self, session, args):
+         """Fires when track title/artist/album changes."""
++        self._schedule(self._fetch_and_push_metadata())
++
++    def _on_timing_changed(self, session, args):
++        """Fires as position advances, on seek, and on play / pause / stop."""
++        self._schedule(self._push_timing())
++
++    def _schedule(self, coro):
+         if self._loop is None:
++            coro.close()
+             return
+-        asyncio.run_coroutine_threadsafe(self._fetch_and_push_metadata(), self._loop)
++        asyncio.run_coroutine_threadsafe(coro, self._loop)
+ 
+     # ------------------------------------------------------------------
+     # Session management
+     # ------------------------------------------------------------------
+ 
+     async def _attach_to_session(self, session):
++        if session is not None and session is self._session:
++            return
+         self._detach_session_events()
+         if session is None:
+             self._maybe_clear()
+             return
+         self._session = session
+-        tok = session.add_media_properties_changed(self._on_media_properties_changed)
+-        self._session_tokens = [(session.remove_media_properties_changed, tok)]
++
++        tokens = [
++            (
++                session.remove_media_properties_changed,
++                session.add_media_properties_changed(self._on_media_properties_changed),
++            )
++        ]
++        # Timeline and playback events keep position honest across seeks and
++        # pauses - the two moments a client extrapolating from an old anchor is
++        # sure to be wrong. Optional: an older projection may not expose them.
++        for add_name, remove_name in (
++            ("add_timeline_properties_changed", "remove_timeline_properties_changed"),
++            ("add_playback_info_changed", "remove_playback_info_changed"),
++        ):
++            try:
++                add = getattr(session, add_name)
++                tokens.append(
++                    (getattr(session, remove_name), add(self._on_timing_changed))
++                )
++            except Exception:
++                _LOGGER.debug("SMTC: %s unavailable", add_name, exc_info=True)
++        self._session_tokens = tokens
+         await self._fetch_and_push_metadata()
+ 
+     def _detach_session_events(self):
+@@ -138,7 +337,10 @@ class SMTCNowPlayingProvider:
+         if self._session is None:
+             return
+         try:
+-            props = await self._session.try_get_media_properties_async()
++            props = await asyncio.wait_for(
++                self._session.try_get_media_properties_async(),
++                timeout=_PROPS_READ_TIMEOUT,
++            )
+         except Exception:  # noqa: BLE001
+             _LOGGER.warning("SMTC: failed to fetch media properties")
+             return
+@@ -159,6 +361,12 @@ class SMTCNowPlayingProvider:
+         if now_playing is None:
+             return
+ 
++        position, duration, playing = await self._read_timing()
++
++        # Metadata goes out first and unconditionally: reading the embedded
++        # artwork can stall in a way asyncio cannot interrupt. has_own_artwork
++        # suppresses the MusicBrainz lookup - SMTC players carry real covers,
++        # and a wrong guess is worse than a late image.
+         now_playing.set_metadata(
+             SOURCE_ID,
+             TrackMetadata(
+@@ -166,8 +374,155 @@ class SMTCNowPlayingProvider:
+                 title=title,
+                 artist=artist,
+                 album=album,
++                position=position,
++                duration=duration,
++                playing=playing,
+             ),
++            has_own_artwork=True,
+         )
++        asyncio.ensure_future(self._push_artwork(props))
++
++    async def _push_artwork(self, props):
++        """Read and publish embedded artwork without blocking the track push."""
++        art_bytes, art_content_type = await self._read_thumbnail(props)
++        if not art_bytes:
++            return
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is None:
++            return
++        now_playing.set_artwork_bytes(SOURCE_ID, art_bytes, art_content_type)
++
++    async def _read_thumbnail(self, props):
++        """Embedded album art, bounded so it can never strand the metadata.
++
++        Runs in a worker thread with its own event loop: awaiting the WinRT
++        stream calls on LedFx's running loop stalls indefinitely - not even
++        asyncio.wait_for interrupts it - while the same code completes at once
++        under a fresh asyncio.run.
++        """
++        try:
++            return await asyncio.wait_for(
++                asyncio.to_thread(self._read_thumbnail_blocking, props),
++                timeout=_ARTWORK_READ_TIMEOUT,
++            )
++        except TimeoutError:
++            _LOGGER.warning("SMTC: timed out reading embedded artwork")
++            return None, None
++        except Exception:
++            _LOGGER.warning("SMTC: embedded artwork unavailable", exc_info=True)
++            return None, None
++
++    def _read_thumbnail_blocking(self, props):
++        """Bridge into a private event loop on a worker thread."""
++        return asyncio.run(self._read_thumbnail_inner(props))
++
++    async def _read_thumbnail_inner(self, props):
++        stream = None
++        reader = None
++        try:
++            # Imported, and .thumbnail read, inside the try: reading that
++            # property makes winrt lazily import the stream projection, and if
++            # winrt-Windows.Storage.Streams is missing that ModuleNotFoundError
++            # would otherwise escape.
++            from winrt.windows.storage.streams import DataReader
++
++            ref = getattr(props, "thumbnail", None)
++            if ref is None:
++                return None, None
++            stream = await ref.open_read_async()
++            size = getattr(stream, "size", 0) if stream is not None else 0
++            if not size:
++                return None, None
++            content_type = getattr(stream, "content_type", None) or "image/jpeg"
++            reader = DataReader(stream)
++            await reader.load_async(size)
++            data = bytes(bytearray(reader.read_buffer(size)))
++            return (data, content_type) if data else (None, None)
++        finally:
++            for closeable in (reader, stream):
++                try:
++                    if closeable is not None:
++                        closeable.close()
++                except Exception:  # noqa: BLE001, S110
++                    pass
++
++    async def _push_timing(self):
++        """Re-publish the current track with a fresh timing anchor.
++
++        Same track identity, so the service treats it as a timing refresh (no
++        artwork re-read, no lookup) and forwards it only if a client
++        extrapolating from the last anchor would now be wrong.
++        """
++        if self._session is None or self._last_title is None:
++            return
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is None:
++            return
++        position, duration, playing = await self._read_timing()
++        if position is None and playing is None:
++            return
++        now_playing.set_metadata(
++            SOURCE_ID,
++            TrackMetadata(
++                source_id=SOURCE_ID,
++                title=self._last_title,
++                artist=self._last_artist,
++                album=self._last_album,
++                position=position,
++                duration=duration,
++                playing=playing,
++            ),
++            has_own_artwork=True,
++        )
++
++    async def _read_timing(self, session=None):
++        """Playback timing, read off the loop.
++
++        The WinRT calls are synchronous; on LedFx's loop they could stall the
++        loop itself. ``session`` defaults to the attached one; selection passes
++        a candidate it has not attached to yet.
++        """
++        try:
++            return await asyncio.wait_for(
++                asyncio.to_thread(self._read_timing_blocking, session),
++                timeout=_TIMING_READ_TIMEOUT,
++            )
++        except TimeoutError:
++            _LOGGER.warning("SMTC: timed out reading playback timing")
++        except Exception:
++            _LOGGER.debug("SMTC: timing unavailable", exc_info=True)
++        return None, None, None
++
++    def _read_timing_blocking(self, session=None):
++        """Best-effort (position, duration, playing); None where unavailable."""
++        position = duration = playing = None
++        session = session if session is not None else self._session
++        if session is None:
++            return position, duration, playing
++        try:
++            timeline = session.get_timeline_properties()
++            if timeline is not None:
++                if timeline.position is not None:
++                    position = timeline.position.total_seconds()
++                if timeline.end_time is not None:
++                    end = timeline.end_time.total_seconds()
++                    # Sessions with no real media report a zero-length timeline.
++                    if end > 0:
++                        duration = end
++        except Exception:
++            _LOGGER.debug("SMTC: timeline properties unavailable", exc_info=True)
++        try:
++            info = session.get_playback_info()
++            if info is not None and info.playback_status is not None:
++                # By name, so this does not depend on the enum's numeric layout
++                # in whichever winrt build is installed.
++                status = getattr(
++                    info.playback_status, "name", str(info.playback_status)
++                )
++                playing = str(status).upper().endswith("PLAYING")
++        except Exception:
++            _LOGGER.debug("SMTC: playback info unavailable", exc_info=True)
++        return position, duration, playing
+ 
+     def _maybe_clear(self):
+         if (
+diff --git a/ledfx/nowplaying/service.py b/ledfx/nowplaying/service.py
+index c01aec8..9595a21 100644
+--- a/ledfx/nowplaying/service.py
++++ b/ledfx/nowplaying/service.py
+@@ -8,6 +8,7 @@ source of truth for the rest of LedFx.
+ import hashlib
+ import io
+ import logging
++import os
+ import time
+ import urllib.parse
+ import urllib.request
+@@ -16,6 +17,8 @@ from PIL import Image
+ from pydantic import ValidationError
+ 
+ from ledfx.assets import (
++    delete_asset,
++    get_assets_directory,
+     save_asset,
+ )
+ from ledfx.configuration.fields import VirtualIdStr
+@@ -27,6 +30,7 @@ from ledfx.events import (
+     NowPlayingGradientChangedEvent,
+     NowPlayingMetadataChangedEvent,
+     NowPlayingTrackChangedEvent,
++    SongDetectedEvent,
+ )
+ from ledfx.nowplaying.album_art.musicbrainz import MusicBrainzArtProvider
+ from ledfx.nowplaying.album_art.resolver import AlbumArtResolver
+@@ -99,6 +103,14 @@ _NOW_PLAYING_ASSET_DIR = "now_playing"
+ # Fixed base filename for the single artwork file
+ _ARTWORK_FILENAME = "now_playing"
+ 
++# How far a client's own extrapolation may drift, in seconds, before it is sent
++# a fresh anchor. While playing some drift is harmless - the threshold only has
++# to catch a seek. While paused the position should not move at all, so less
++# movement already means the user scrubbed. Deliberately loose: a tighter bound
++# would emit on ordinary jitter and turn an event-driven feed into a de facto poll.
++_POSITION_DRIFT_PLAYING = 2.0
++_POSITION_DRIFT_PAUSED = 1.0
++
+ 
+ class NowPlayingService:
+     """Provider-neutral Now Playing state manager.
+@@ -112,6 +124,12 @@ class NowPlayingService:
+         self._ledfx = ledfx
+         self._state = NowPlayingState()
+ 
++        # Last timing anchor handed to clients, so we can tell whether one
++        # extrapolating from it would still be right. See _timing_diverged.
++        self._emitted_position: float | None = None
++        self._emitted_timestamp: float | None = None
++        self._emitted_playing: bool | None = None
++
+         # Load persisted configuration
+         self._config = ledfx.config.now_playing.model_dump()
+ 
+@@ -133,12 +151,21 @@ class NowPlayingService:
+     # Public API
+     # ------------------------------------------------------------------
+ 
+-    def set_metadata(self, source_id: str, metadata: TrackMetadata) -> bool:
++    def set_metadata(
++        self,
++        source_id: str,
++        metadata: TrackMetadata,
++        has_own_artwork: bool = False,
++    ) -> bool:
+         """Update current track metadata from a provider.
+ 
+         Args:
+             source_id: Provider identifier (e.g. "sendspin").
+             metadata: Normalized track metadata.
++            has_own_artwork: True when the provider supplies artwork for this
++                track itself. Suppresses the MusicBrainz lookup, which is a
++                fallback: the player's embedded art is always the better match,
++                especially for remixes, live takes and deluxe editions.
+ 
+         Returns:
+             True if a track change was detected, False otherwise.
+@@ -203,11 +230,39 @@ class NowPlayingService:
+                 )
+             )
+             self._apply_track_text_to_virtuals()
+-            if source_id not in _SOURCES_WITH_OWN_ARTWORK:
++            self._emit_song_detected()
++            if not has_own_artwork and source_id not in _SOURCES_WITH_OWN_ARTWORK:
+                 self._art_resolver.on_track_changed(metadata)
++        elif self._timing_diverged(metadata):
++            # Same track, but a client extrapolating from the last anchor would
++            # now be wrong - a seek, a pause or a resume. Send a correction.
++            self._emit_song_detected()
+ 
+         return track_changed
+ 
++    def _timing_diverged(self, metadata: TrackMetadata) -> bool:
++        """Whether clients need a fresh timing anchor for the current track.
++
++        Clients advance position themselves from ``(position, timestamp)``, so a
++        track playing straight through needs no updates at all. Only divergence
++        is reported, which keeps traffic proportional to how wrong clients are
++        rather than to song length.
++        """
++        if metadata.position is None:
++            return False
++        # First anchor, or playback state flipped (play/pause/stop).
++        if self._emitted_position is None or self._emitted_timestamp is None:
++            return True
++        if bool(metadata.playing) != bool(self._emitted_playing):
++            return True
++        if not metadata.playing:
++            # Paused: the client's position is frozen, so real movement is a seek.
++            return (
++                abs(metadata.position - self._emitted_position) > _POSITION_DRIFT_PAUSED
++            )
++        predicted = self._emitted_position + (time.time() - self._emitted_timestamp)
++        return abs(metadata.position - predicted) > _POSITION_DRIFT_PLAYING
++
+     def set_artwork_url(
+         self,
+         source_id: str,
+@@ -272,6 +327,9 @@ class NowPlayingService:
+         self._state.updated_at = time.time()
+         self._update_current_gradient()
+         self._apply_album_art_to_virtuals()
++        # Artwork usually resolves after the track event: re-emit so clients
++        # get the thumbnail the first song_detected could not carry.
++        self._emit_song_detected()
+ 
+         _LOGGER.info("Artwork URL updated from %s", source_id)
+         self._fire_event(
+@@ -327,6 +385,9 @@ class NowPlayingService:
+         self._state.updated_at = time.time()
+         self._update_current_gradient()
+         self._apply_album_art_to_virtuals()
++        # Artwork usually resolves after the track event: re-emit so clients
++        # get the thumbnail the first song_detected could not carry.
++        self._emit_song_detected()
+ 
+         _LOGGER.info(
+             "Artwork bytes updated from %s (hash: %s)", source_id, artwork_hash
+@@ -384,6 +445,9 @@ class NowPlayingService:
+         self._state.updated_at = time.time()
+         self._update_current_gradient()
+         self._apply_album_art_to_virtuals()
++        # Artwork usually resolves after the track event: re-emit so clients
++        # get the thumbnail the first song_detected could not carry.
++        self._emit_song_detected()
+ 
+         _LOGGER.info("Resolved artwork applied (hash: %s)", artwork_hash)
+         self._fire_event(
+@@ -430,6 +494,42 @@ class NowPlayingService:
+                 self._state.active_source_id,
+             )
+ 
++    def purge(self) -> None:
++        """Drop everything gathered so far, including the artwork on disk.
++
++        Called when the feature is switched off. Clearing memory alone would
++        leave the cover of whatever played last in the assets directory, which
++        is not what somebody turning a privacy switch off expects.
++        """
++        self._art_resolver.cancel_pending()
++        had_source = self._state.active_source_id
++        prev_variant = self._state.selected_gradient_variant
++        self._state = NowPlayingState(selected_gradient_variant=prev_variant)
++        self._emitted_position = None
++        self._emitted_timestamp = None
++        self._emitted_playing = None
++        if had_source is not None:
++            self._fire_event(NowPlayingClearedEvent(had_source))
++
++        config_dir = getattr(self._ledfx, "config_dir", None)
++        if not config_dir:
++            return
++        assets = get_assets_directory(config_dir)
++        for extension in {*_EXTENSION_MAP.values(), ".jpg"}:
++            relative = f"{_NOW_PLAYING_ASSET_DIR}/{_ARTWORK_FILENAME}{extension}"
++            if not os.path.isfile(os.path.join(assets, relative)):
++                continue
++            deleted, error = delete_asset(config_dir, relative)
++            if not deleted:
++                _LOGGER.warning(
++                    "Could not remove cached artwork %s: %s", relative, error
++                )
++
++    @property
++    def enabled(self) -> bool:
++        """Whether the user opted into Now Playing (``now_playing_enabled``)."""
++        return self._ledfx.config.now_playing_enabled
++
+     def get_current(self) -> NowPlayingState:
+         """Return the current Now Playing state.
+ 
+@@ -777,6 +877,52 @@ class NowPlayingService:
+         if hasattr(self._ledfx, "events"):
+             self._ledfx.events.fire_event(event)
+ 
++    def _emit_song_detected(self) -> None:
++        """Re-publish the current track as a SongDetectedEvent.
++
++        The frontend hangs its track consumers (current track, album art, the
++        texter/gradient/image auto-apply hooks) off ``song_detected``. Emitting
++        it here lets the Now Playing providers feed that chain directly, rather
++        than only the external song-detector process.
++
++        Timing is passed through from whatever the provider already had.
++        ``timestamp`` is when this snapshot was taken, which is what clients
++        extrapolate position from; without a position there is nothing to
++        anchor, so it stays None and position-dependent features stay off.
++        """
++        metadata = self._state.metadata
++        if not metadata or not metadata.title:
++            return
++
++        # The frontend resolves thumbnails through /api/assets/download, which
++        # is relative to the assets directory, not an absolute cache path.
++        thumbnail = None
++        artwork = self._state.artwork
++        config_dir = getattr(self._ledfx, "config_dir", None)
++        if artwork and artwork.cache_key and config_dir:
++            relative = os.path.relpath(
++                artwork.cache_key, get_assets_directory(config_dir)
++            )
++            thumbnail = relative.replace(os.sep, "/")
++
++        timestamp = time.time() if metadata.position is not None else None
++        self._emitted_position = metadata.position
++        self._emitted_timestamp = timestamp
++        self._emitted_playing = bool(metadata.playing)
++
++        self._fire_event(
++            SongDetectedEvent(
++                title=metadata.title,
++                artist=metadata.artist or "",
++                album=metadata.album or "",
++                thumbnail=thumbnail,
++                position=metadata.position,
++                duration=metadata.duration,
++                playing=bool(metadata.playing),
++                timestamp=timestamp,
++            )
++        )
++
+     # ------------------------------------------------------------------
+     # Artwork storage helpers
+     # ------------------------------------------------------------------
+diff --git a/pyproject.toml b/pyproject.toml
+index 69ee739..f2f4946 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -41,6 +41,7 @@ dependencies = [
+     "pyflac>=2.2.0; python_version >= '3.12'",
+     "winrt-Windows.Foundation>=2.0.0; sys_platform == \"win32\"",
+     "winrt-Windows.Media.Control>=2.0.0; sys_platform == \"win32\"",
++    "winrt-Windows.Storage.Streams>=2.0.0; sys_platform == \"win32\"",
+     "dbus-fast>=5.0.22,<6.0.0; sys_platform == \"linux\"",
+ ]
+ name = "LedFx"
+diff --git a/tests/configuration/test_store_wiring.py b/tests/configuration/test_store_wiring.py
+index b325584..003fde0 100644
+--- a/tests/configuration/test_store_wiring.py
++++ b/tests/configuration/test_store_wiring.py
+@@ -80,6 +80,7 @@ async def test_shutdown_flush_survives_stop_failure() -> None:
+     core.audio_device_monitor = None
+     core._smtc_now_playing = None
+     core._mpris_now_playing = None
++    core._android_now_playing = None
+     core.http = MagicMock(stop=AsyncMock(side_effect=RuntimeError("boom")))
+     core.devices = MagicMock(async_shutdown_devices=AsyncMock())
+     core.thread_executor = MagicMock()
+@@ -103,6 +104,7 @@ async def test_shutdown_completes_when_flush_raises() -> None:
+     core.audio_device_monitor = None
+     core._smtc_now_playing = None
+     core._mpris_now_playing = None
++    core._android_now_playing = None
+     core.http = MagicMock(stop=AsyncMock())
+     core.devices = MagicMock(async_shutdown_devices=AsyncMock())
+     core.thread_executor = MagicMock()
+diff --git a/tests/test_hue_native_lifecycle.py b/tests/test_hue_native_lifecycle.py
+index 5e2ff16..f33c93f 100644
+--- a/tests/test_hue_native_lifecycle.py
++++ b/tests/test_hue_native_lifecycle.py
+@@ -366,6 +366,7 @@ async def test_core_drains_hue_before_global_cancellation(
+     core.events = MagicMock()
+     core.audio_device_monitor = None
+     core._smtc_now_playing = core._mpris_now_playing = None
++    core._android_now_playing = None
+     core.http = MagicMock(stop=AsyncMock())
+     core.devices = MagicMock(
+         async_shutdown_devices=lambda: Devices.async_shutdown_devices(registry)
+@@ -879,6 +880,7 @@ async def test_core_drains_owned_hue_work_after_earlier_shutdown_failure(
+     core.events = MagicMock()
+     core.audio_device_monitor = None
+     core._smtc_now_playing = core._mpris_now_playing = None
++    core._android_now_playing = None
+     core.http = MagicMock(stop=AsyncMock())
+     core.devices = MagicMock(
+         async_shutdown_devices=AsyncMock(side_effect=drain_devices)
+diff --git a/tests/test_now_playing_android.py b/tests/test_now_playing_android.py
+new file mode 100644
+index 0000000..09b1d46
+--- /dev/null
++++ b/tests/test_now_playing_android.py
+@@ -0,0 +1,355 @@
++"""Android Now Playing provider, driven by a fake jnius."""
++
++import asyncio
++import logging
++import sys
++from types import ModuleType, SimpleNamespace
++from typing import ClassVar
++from unittest.mock import MagicMock
++
++import pytest
++
++from ledfx.nowplaying.providers import android
++
++PACKAGE = "com.ledfx.ledfx"
++
++
++class FakeMetadata:
++    def __init__(
++        self, title="Song", artist="Artist", album="Album", duration_ms=0, art=None
++    ):
++        self._strings = {
++            android._KEY_TITLE: title,
++            android._KEY_ARTIST: artist,
++            android._KEY_ALBUM: album,
++        }
++        self._duration = duration_ms
++        self._art = art
++
++    def getString(self, key):
++        return self._strings.get(key)
++
++    def getLong(self, key):
++        return self._duration if key == android._KEY_DURATION else 0
++
++    def getBitmap(self, key):
++        return self._art if key == android._ART_KEYS[0] else None
++
++
++class FakeState:
++    def __init__(self, state=3, position=10_000, updated=1_000, speed=1.0):
++        self._state, self._position, self._updated, self._speed = (
++            state,
++            position,
++            updated,
++            speed,
++        )
++
++    def getState(self):
++        return self._state
++
++    def getPosition(self):
++        return self._position
++
++    def getLastPositionUpdateTime(self):
++        return self._updated
++
++    def getPlaybackSpeed(self):
++        return self._speed
++
++
++class FakeController:
++    def __init__(self, metadata=None, state=None):
++        self.metadata, self.state = metadata, state
++
++    def getMetadata(self):
++        return self.metadata
++
++    def getPlaybackState(self):
++        return self.state
++
++
++class FakeSessions:
++    def __init__(self, controllers):
++        self.controllers = controllers
++
++    def size(self):
++        return len(self.controllers)
++
++    def get(self, index):
++        return self.controllers[index]
++
++
++class FakeManager:
++    def __init__(self):
++        self.controllers = []
++        self.denied = False
++
++    def getActiveSessions(self, component):
++        if self.denied:
++            raise RuntimeError("java.lang.SecurityException: Missing permission")
++        assert component == (PACKAGE, android.LISTENER_CLASS)
++        return FakeSessions(self.controllers)
++
++
++class FakeBitmap:
++    def compress(self, fmt, quality, stream):
++        stream.data = b"\x89PNG-fake"
++
++
++class FakeStream:
++    def __init__(self):
++        self.data = b""
++
++    def toByteArray(self):
++        return self.data
++
++
++class FakeWatcher:
++    instances: ClassVar[list] = []
++    fail_start = False
++
++    def __init__(self, context, listener_class, listener):
++        self.context, self.listener_class, self.listener = (
++            context,
++            listener_class,
++            listener,
++        )
++        self.started = self.stopped = False
++        FakeWatcher.instances.append(self)
++
++    def start(self):
++        if FakeWatcher.fail_start:
++            raise RuntimeError("java.lang.SecurityException: no notification access")
++        self.started = True
++
++    def stop(self):
++        self.stopped = True
++
++
++@pytest.fixture
++def droid(monkeypatch):
++    """A fake Android: context, session manager and the bootstrap watcher."""
++    manager = FakeManager()
++    context = MagicMock()
++    context.getSystemService.return_value = manager
++    context.getPackageName.return_value = PACKAGE
++    clock = SimpleNamespace(now=3_000)
++    secure = SimpleNamespace(listeners="")
++    FakeWatcher.instances = []
++    FakeWatcher.fail_start = False
++    missing = set()
++
++    classes = {
++        "org.kivy.android.PythonService": SimpleNamespace(mService=context),
++        "android.content.Context": SimpleNamespace(
++            MEDIA_SESSION_SERVICE="media_session"
++        ),
++        "android.content.ComponentName": lambda pkg, cls: (pkg, cls),
++        "android.os.SystemClock": SimpleNamespace(elapsedRealtime=lambda: clock.now),
++        "android.provider.Settings$Secure": SimpleNamespace(
++            getString=lambda resolver, key: secure.listeners
++        ),
++        "java.io.ByteArrayOutputStream": FakeStream,
++        "android.graphics.Bitmap$CompressFormat": SimpleNamespace(PNG="PNG"),
++        android.WATCHER_CLASS: FakeWatcher,
++    }
++
++    def autoclass(name):
++        if name in missing:
++            raise Exception(f"Class not found {name}")  # noqa: TRY002
++        return classes[name]
++
++    class PythonJavaClass:
++        pass
++
++    jnius = ModuleType("jnius")
++    jnius.autoclass = autoclass
++    jnius.cast = lambda name, obj: obj
++    jnius.PythonJavaClass = PythonJavaClass
++    jnius.java_method = lambda signature: lambda fn: fn
++    monkeypatch.setitem(sys.modules, "jnius", jnius)
++    monkeypatch.setattr(android, "_context", None)
++    monkeypatch.setattr(android, "_context_checked", False)
++    return SimpleNamespace(
++        manager=manager, context=context, clock=clock, secure=secure, missing=missing
++    )
++
++
++@pytest.fixture
++def ledfx():
++    return SimpleNamespace(now_playing=MagicMock())
++
++
++async def _settle():
++    for _ in range(3):
++        await asyncio.sleep(0)
++
++
++def test_not_android_without_jnius(monkeypatch):
++    monkeypatch.setitem(sys.modules, "jnius", None)
++    monkeypatch.setattr(android, "_context", None)
++    monkeypatch.setattr(android, "_context_checked", False)
++    assert android.running_on_android() is False
++    assert android.notification_access_granted() is False
++
++
++def test_start_is_a_noop_off_android(monkeypatch, ledfx):
++    monkeypatch.setitem(sys.modules, "jnius", None)
++    monkeypatch.setattr(android, "_context", None)
++    monkeypatch.setattr(android, "_context_checked", False)
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    assert provider._watcher is None
++    ledfx.now_playing.set_metadata.assert_not_called()
++
++
++def test_access_check_reads_the_enabled_listener_list(droid):
++    assert android.notification_access_granted() is False
++    droid.secure.listeners = f"other/x:{PACKAGE}/{android.LISTENER_CLASS}"
++    assert android.notification_access_granted() is True
++
++
++async def test_start_watches_and_pushes_the_current_track(droid, ledfx):
++    droid.manager.controllers = [
++        FakeController(FakeMetadata(duration_ms=200_000), FakeState())
++    ]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++
++    (watcher,) = FakeWatcher.instances
++    assert watcher.started and watcher.listener_class == android.LISTENER_CLASS
++    source, track = ledfx.now_playing.set_metadata.call_args.args
++    assert source == android.SOURCE_ID
++    assert (track.title, track.artist, track.album) == ("Song", "Artist", "Album")
++    assert track.duration == 200.0
++    assert track.playing is True
++    assert track.position == pytest.approx(12.0), "10s + 2s elapsed at speed 1"
++
++
++async def test_an_event_refreshes_on_the_loop(droid, ledfx):
++    controller = FakeController(FakeMetadata(title="First"), FakeState())
++    droid.manager.controllers = [controller]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++
++    controller.metadata = FakeMetadata(title="Second")
++    FakeWatcher.instances[0].listener.onMediaChanged()
++    assert ledfx.now_playing.set_metadata.call_count == 1, "must hop to the loop"
++    await _settle()
++    assert ledfx.now_playing.set_metadata.call_args.args[1].title == "Second"
++
++
++async def test_same_track_event_forwards_timing_only(droid, ledfx):
++    controller = FakeController(FakeMetadata(art=FakeBitmap()), FakeState())
++    droid.manager.controllers = [controller]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    assert ledfx.now_playing.set_artwork_bytes.call_count == 1
++
++    controller.state = FakeState(state=2, position=30_000)
++    provider._on_media_changed()
++    await _settle()
++
++    track = ledfx.now_playing.set_metadata.call_args.args[1]
++    assert track.playing is False and track.position == 30.0, "paused: no extrapolation"
++    assert ledfx.now_playing.set_artwork_bytes.call_count == 1, "no artwork re-read"
++
++
++async def test_embedded_artwork_suppresses_the_lookup(droid, ledfx):
++    droid.manager.controllers = [
++        FakeController(FakeMetadata(art=FakeBitmap()), FakeState())
++    ]
++    android.AndroidNowPlayingProvider(ledfx).start()
++    assert ledfx.now_playing.set_metadata.call_args.kwargs["has_own_artwork"] is True
++    ledfx.now_playing.set_artwork_bytes.assert_called_once_with(
++        android.SOURCE_ID, b"\x89PNG-fake", "image/png"
++    )
++
++
++async def test_without_artwork_the_lookup_may_run(droid, ledfx):
++    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
++    android.AndroidNowPlayingProvider(ledfx).start()
++    assert ledfx.now_playing.set_metadata.call_args.kwargs["has_own_artwork"] is False
++
++
++async def test_the_playing_session_wins(droid, ledfx):
++    droid.manager.controllers = [
++        FakeController(FakeMetadata(title="Paused"), FakeState(state=2)),
++        FakeController(FakeMetadata(title="Playing"), FakeState(state=3)),
++    ]
++    android.AndroidNowPlayingProvider(ledfx).start()
++    assert ledfx.now_playing.set_metadata.call_args.args[1].title == "Playing"
++
++
++async def test_unknown_position_and_unset_update_time(droid, ledfx):
++    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState(position=-1))]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    assert ledfx.now_playing.set_metadata.call_args.args[1].position is None
++
++    assert provider._timing(FakeState(position=5_000, updated=0)) == (5.0, True)
++
++
++async def test_session_gone_clears(droid, ledfx):
++    controller = FakeController(FakeMetadata(), FakeState())
++    droid.manager.controllers = [controller]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++
++    droid.manager.controllers = []
++    provider._on_media_changed()
++    await _settle()
++    ledfx.now_playing.clear.assert_called_once_with(android.SOURCE_ID)
++
++
++async def test_missing_access_warns_once_and_stays_quiet(droid, ledfx, caplog):
++    FakeWatcher.fail_start = True
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    with caplog.at_level(logging.WARNING):
++        provider.start()
++        provider.start()
++    assert provider._watcher is None
++    assert sum("notification access" in r.message for r in caplog.records) == 1
++    ledfx.now_playing.set_metadata.assert_not_called()
++
++
++async def test_apk_without_the_bridge_degrades(droid, ledfx, caplog):
++    droid.missing.add(android.WATCHER_CLASS)
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    with caplog.at_level(logging.WARNING):
++        provider.start()
++    assert provider._watcher is None
++    assert any("missing from this APK" in r.message for r in caplog.records)
++
++
++async def test_stop_releases_the_watcher(droid, ledfx):
++    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    watcher = FakeWatcher.instances[0]
++    provider.stop()
++    assert watcher.stopped
++    assert provider._watcher is None and provider._listener is None
++
++    provider._on_media_changed()
++    await _settle()
++    assert ledfx.now_playing.set_metadata.call_count == 1, "no updates after stop"
++
++
++async def test_restart_after_stop_watches_again(droid, ledfx):
++    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    provider.stop()
++    provider.start()
++    assert len(FakeWatcher.instances) == 2 and FakeWatcher.instances[1].started
++
++
++def test_mpris_stands_down_on_android(droid, monkeypatch):
++    from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
++
++    monkeypatch.setattr(sys, "platform", "linux")
++    provider = MPRISNowPlayingProvider(SimpleNamespace())
++    provider.start()
++    assert provider._init_task is None
+diff --git a/tests/test_now_playing_opt_in.py b/tests/test_now_playing_opt_in.py
+new file mode 100644
+index 0000000..3be26f1
+--- /dev/null
++++ b/tests/test_now_playing_opt_in.py
+@@ -0,0 +1,264 @@
++"""Now Playing is opt-in, purges on opt-out, and feeds song_detected."""
++
++import io
++import os
++import time
++from types import SimpleNamespace
++from unittest.mock import MagicMock
++
++import pytest
++from PIL import Image
++
++from ledfx.configuration.models import LedFxConfig
++from ledfx.core import LedFxCore
++from ledfx.events import Event
++from ledfx.nowplaying.models import TrackMetadata
++from ledfx.nowplaying.service import NowPlayingService
++from tests.test_utilities.fake_ledfx import fake_ledfx
++
++
++class _Events:
++    def __init__(self):
++        self.fired = []
++
++    def fire_event(self, event):
++        self.fired.append(event)
++
++    def of(self, event_type):
++        return [e for e in self.fired if e.event_type == event_type]
++
++
++class _Ledfx:
++    def __init__(self, config_dir=None):
++        fake = fake_ledfx()
++        self.config = fake.config
++        self.config_store = fake.config_store
++        self.events = _Events()
++        self.config_dir = config_dir
++
++
++def _png():
++    buf = io.BytesIO()
++    Image.new("RGB", (4, 4), color=(0, 128, 255)).save(buf, format="PNG")
++    return buf.getvalue()
++
++
++@pytest.fixture
++def ledfx(tmp_path):
++    return _Ledfx(config_dir=str(tmp_path))
++
++
++@pytest.fixture
++def service(ledfx):
++    svc = NowPlayingService(ledfx)
++    svc._art_resolver = MagicMock()
++    return svc
++
++
++def _track(position=None, playing=None, title="Song"):
++    return TrackMetadata(
++        source_id="smtc",
++        title=title,
++        artist="Artist",
++        album="Album",
++        position=position,
++        duration=200.0,
++        playing=playing,
++    )
++
++
++# ------------------------------------------------------------------
++# Opt-in switch
++# ------------------------------------------------------------------
++
++
++def test_now_playing_is_off_by_default():
++    config = LedFxConfig()
++    assert config.now_playing_enabled is False
++    assert config.now_playing.track_text.enabled is False
++    assert config.now_playing.album_art.enabled is False
++
++
++def test_opt_in_key_is_accepted_by_rest_and_needs_no_restart():
++    from ledfx.api.utils import PERMITTED_KEYS
++    from ledfx.configuration.models import RESTART_FIELDS
++
++    assert "now_playing_enabled" in PERMITTED_KEYS["core"]
++    assert "now_playing_enabled" not in RESTART_FIELDS
++
++
++def _core(enabled):
++    providers = [MagicMock(), MagicMock(), MagicMock()]
++    core = SimpleNamespace(
++        config=LedFxConfig(now_playing_enabled=enabled),
++        _smtc_now_playing=providers[0],
++        _mpris_now_playing=providers[1],
++        _android_now_playing=providers[2],
++        now_playing=MagicMock(),
++    )
++    return core, providers
++
++
++def test_reconcile_starts_providers_only_when_enabled():
++    core, providers = _core(enabled=False)
++    LedFxCore.reconcile_now_playing_runtime(core, "startup")
++    for provider in providers:
++        provider.start.assert_not_called()
++        provider.stop.assert_called_once()
++    core.now_playing.purge.assert_called_once()
++
++    core, providers = _core(enabled=True)
++    LedFxCore.reconcile_now_playing_runtime(core, "startup")
++    for provider in providers:
++        provider.start.assert_called_once()
++    core.now_playing.purge.assert_not_called()
++
++
++def test_a_failing_provider_does_not_stop_the_others():
++    core, providers = _core(enabled=True)
++    providers[0].start.side_effect = RuntimeError("winrt exploded")
++    LedFxCore.reconcile_now_playing_runtime(core, "startup")
++    providers[1].start.assert_called_once()
++
++
++def test_base_config_update_reconciles():
++    core = SimpleNamespace(reconcile_now_playing_runtime=MagicMock())
++    core.setup_visualisation_events = MagicMock()
++    core.reconcile_sendspin_always_on_runtime = MagicMock()
++    LedFxCore.handle_base_configuration_update(
++        core, SimpleNamespace(config={"now_playing_enabled": True})
++    )
++    core.reconcile_now_playing_runtime.assert_called_once_with("base_config_update")
++
++
++async def test_info_reports_support_and_opt_in():
++    import sys
++
++    from ledfx.api.info import InfoEndpoint
++
++    endpoint = InfoEndpoint.__new__(InfoEndpoint)
++    endpoint._ledfx = SimpleNamespace(
++        http=SimpleNamespace(base_url="http://x"),
++        config=LedFxConfig(),
++        config_store=SimpleNamespace(error=None),
++        silence_scene=None,
++        now_playing=SimpleNamespace(enabled=True),
++    )
++    captured = {}
++
++    async def bare(payload):
++        captured.update(payload)
++
++    endpoint.bare_request_success = bare
++    await endpoint.get()
++    features = captured["features"]
++    assert features["now_playing_enabled"] is True
++    assert features["now_playing"] is (sys.platform in ("win32", "linux"))
++
++
++# ------------------------------------------------------------------
++# Purge
++# ------------------------------------------------------------------
++
++
++def test_purge_removes_cached_artwork_and_state(service, ledfx):
++    service.set_metadata("smtc", _track(), has_own_artwork=True)
++    service.set_artwork_bytes("smtc", _png(), "image/png")
++    artwork = service.get_current().artwork.cache_key
++    assert os.path.isfile(artwork)
++
++    service.purge()
++
++    assert not os.path.exists(artwork), "privacy switch must not leave the cover"
++    assert service.get_current().metadata is None
++    assert ledfx.events.of(Event.NOW_PLAYING_CLEARED), "clients must hear it"
++
++
++def test_service_reports_the_opt_in(service, ledfx):
++    assert service.enabled is False
++    ledfx.config.now_playing_enabled = True
++    assert service.enabled is True
++
++
++def test_purge_with_nothing_gathered_is_quiet(service, ledfx):
++    service.purge()
++    assert ledfx.events.fired == []
++
++
++def test_purge_keeps_the_gradient_variant(service):
++    service._state.selected_gradient_variant = "led_max"
++    service.purge()
++    assert service.get_current().selected_gradient_variant == "led_max"
++
++
++# ------------------------------------------------------------------
++# song_detected
++# ------------------------------------------------------------------
++
++
++def test_track_change_emits_song_detected(service, ledfx):
++    service.set_metadata("smtc", _track(position=12.0, playing=True))
++    (event,) = ledfx.events.of(Event.SONG_DETECTED)
++    assert (event.title, event.artist, event.album) == ("Song", "Artist", "Album")
++    assert event.position == 12.0 and event.duration == 200.0 and event.playing
++    assert event.timestamp is not None
++
++
++def test_no_timestamp_without_a_position(service, ledfx):
++    service.set_metadata("smtc", _track())
++    (event,) = ledfx.events.of(Event.SONG_DETECTED)
++    assert event.position is None and event.timestamp is None
++
++
++def test_steady_playback_sends_no_corrections(service, ledfx):
++    service.set_metadata("smtc", _track(position=10.0, playing=True))
++    anchor = service._emitted_timestamp
++    service._emitted_timestamp = anchor - 5
++    service.set_metadata("smtc", _track(position=15.0, playing=True))
++    assert len(ledfx.events.of(Event.SONG_DETECTED)) == 1
++
++
++def test_seek_sends_a_correction(service, ledfx):
++    service.set_metadata("smtc", _track(position=10.0, playing=True))
++    service.set_metadata("smtc", _track(position=90.0, playing=True))
++    assert len(ledfx.events.of(Event.SONG_DETECTED)) == 2
++
++
++def test_pause_sends_a_correction(service, ledfx):
++    service.set_metadata("smtc", _track(position=10.0, playing=True))
++    service.set_metadata("smtc", _track(position=10.1, playing=False))
++    assert ledfx.events.of(Event.SONG_DETECTED)[-1].playing is False
++
++
++def test_artwork_arrival_reemits_with_an_assets_relative_thumbnail(service, ledfx):
++    service.set_metadata("smtc", _track(), has_own_artwork=True)
++    service.set_artwork_bytes("smtc", _png(), "image/png")
++    event = ledfx.events.of(Event.SONG_DETECTED)[-1]
++    assert event.thumbnail == "now_playing/now_playing.png"
++
++
++# ------------------------------------------------------------------
++# Artwork source
++# ------------------------------------------------------------------
++
++
++def test_own_artwork_suppresses_the_lookup(service):
++    service.set_metadata("smtc", _track(), has_own_artwork=True)
++    service._art_resolver.on_track_changed.assert_not_called()
++
++
++def test_without_own_artwork_the_lookup_runs(service):
++    service.set_metadata("mpris", _track())
++    service._art_resolver.on_track_changed.assert_called_once()
++
++
++def test_timing_is_serialised(service):
++    service.set_metadata("smtc", _track(position=3.0, playing=True))
++    data = service.get_current().to_dict()["metadata"]
++    assert (data["position"], data["duration"], data["playing"]) == (3.0, 200.0, True)
++
++
++def test_emitted_anchor_tracks_wall_clock(service):
++    before = time.time()
++    service.set_metadata("smtc", _track(position=1.0, playing=True))
++    assert before <= service._emitted_timestamp <= time.time()
+diff --git a/tests/test_now_playing_service.py b/tests/test_now_playing_service.py
+index 57351bf..1eaf496 100644
+--- a/tests/test_now_playing_service.py
++++ b/tests/test_now_playing_service.py
+@@ -849,11 +849,11 @@ class TestNowPlayingConfigSchema:
+         assert result["gradient"]["enabled"] is False
+         assert result["gradient"]["variant"] == "led_punchy"
+         assert result["gradient"]["virtual_ids"] == []
+-        assert result["track_text"]["enabled"] is True
++        assert result["track_text"]["enabled"] is False
+         assert result["track_text"]["duration"] == 60
+         assert result["track_text"]["virtual_ids"] == []
+         assert result["track_text"]["preset"] == ""
+-        assert result["album_art"]["enabled"] is True
++        assert result["album_art"]["enabled"] is False
+         assert result["album_art"]["duration"] == 10
+         assert result["album_art"]["virtual_ids"] == []
+ 
+@@ -913,8 +913,8 @@ class TestServiceConfigFromInit:
+         assert cfg["gradient"]["enabled"] is False
+         assert cfg["gradient"]["variant"] == "led_punchy"
+         assert cfg["gradient"]["virtual_ids"] == []
+-        assert cfg["track_text"]["enabled"] is True
+-        assert cfg["album_art"]["enabled"] is True
++        assert cfg["track_text"]["enabled"] is False
++        assert cfg["album_art"]["enabled"] is False
+ 
+     def test_persisted_config_loaded(self, tmp_path):
+         ldfx = _DummyLedFx(config_dir=str(tmp_path))
+@@ -944,7 +944,7 @@ class TestServiceConfigFromInit:
+         assert svc.config["track_text"]["duration"] == 5
+         assert svc.config["track_text"]["virtual_ids"] == ["matrix1"]
+         # album_art should be defaults since not specified
+-        assert svc.config["album_art"]["enabled"] is True
++        assert svc.config["album_art"]["enabled"] is False
+ 
+     def test_variant_applied_to_state(self, tmp_path):
+         ldfx = _DummyLedFx(config_dir=str(tmp_path))
+diff --git a/tests/test_now_playing_smtc.py b/tests/test_now_playing_smtc.py
+index a943216..c41b076 100644
+--- a/tests/test_now_playing_smtc.py
++++ b/tests/test_now_playing_smtc.py
+@@ -49,15 +49,25 @@ class _FakeSession:
+ class _FakeManager:
+     def __init__(self, session=None):
+         self._session = session
++        self.callbacks = {}
++        self.removed = []
+ 
+     def get_current_session(self):
+         return self._session
+ 
+     def add_current_session_changed(self, cb):
++        self.callbacks["current_session_changed"] = cb
+         return _FakeToken()
+ 
+     def remove_current_session_changed(self, tok):
+-        pass
++        self.removed.append("current_session_changed")
++
++    def add_sessions_changed(self, cb):
++        self.callbacks["sessions_changed"] = cb
++        return _FakeToken()
++
++    def remove_sessions_changed(self, tok):
++        self.removed.append("sessions_changed")
+ 
+ 
+ def _inject_winrt_modules(monkeypatch, manager=None, fail_request=False):
+@@ -123,7 +133,7 @@ class TestSMTCProviderLifecycle:
+     def test_init_state(self, ledfx):
+         p = SMTCNowPlayingProvider(ledfx)
+         assert p._manager is None
+-        assert p._manager_token is None
++        assert p._manager_tokens == []
+         assert p._session is None
+         assert p._session_tokens == []
+         assert p._init_task is None
+@@ -206,7 +216,8 @@ class TestSMTCInitialize:
+         _inject_winrt_modules(monkeypatch, manager=manager)
+         await provider._initialize()
+         assert provider._manager is manager
+-        assert provider._manager_token is not None
++        assert len(provider._manager_tokens) == 2
++        assert set(manager.callbacks) == {"current_session_changed", "sessions_changed"}
+ 
+     async def test_attaches_to_existing_session(self, provider, monkeypatch, ledfx):
+         """If a session is already active, initial metadata is fetched."""
+@@ -413,3 +424,142 @@ class TestStateMethods:
+         """clear() does not raise if now_playing is absent."""
+         del provider._ledfx.now_playing
+         provider.clear()  # should not raise
++
++
++# ------------------------------------------------------------------
++# Event-driven session selection (no retry timer)
++# ------------------------------------------------------------------
++
++
++class _WatchableSession(_FakeSession):
++    """A session whose property events can be fired by the test."""
++
++    def __init__(self, props=None, app_id="app"):
++        super().__init__(props=props)
++        self.source_app_user_model_id = app_id
++        self.callbacks = []
++        self.removed = 0
++
++    def add_media_properties_changed(self, cb):
++        self.callbacks.append(cb)
++        return _FakeToken()
++
++    def remove_media_properties_changed(self, tok):
++        self.removed += 1
++
++    def fire_properties_changed(self):
++        for cb in list(self.callbacks):
++            cb(self, None)
++
++
++class TestSMTCEventDrivenSelection:
++    @pytest.fixture
++    def scheduled(self, provider):
++        """Collect what WinRT callbacks schedule, instead of a real loop."""
++        coros = []
++        provider._loop = object()
++        provider._schedule = coros.append
++        return coros
++
++    async def _drain(self, coros):
++        while coros:
++            await coros.pop(0)
++
++    async def test_launcher_session_is_not_attached(self, provider, monkeypatch, ledfx):
++        launcher = _WatchableSession(_FakeProps(title="Game Launcher"), "launcher")
++        _inject_winrt_modules(monkeypatch, manager=_FakeManager(session=launcher))
++        await provider._initialize()
++        assert provider._session is None
++        assert provider._candidate is launcher, "must wait on its own events"
++        assert ledfx.now_playing.get_current().metadata is None
++
++    async def test_candidate_attaches_once_it_publishes_a_track(
++        self, provider, monkeypatch, ledfx, scheduled
++    ):
++        player = _WatchableSession(_FakeProps(), "player")
++        _inject_winrt_modules(monkeypatch, manager=_FakeManager(session=player))
++        await provider._initialize()
++        assert provider._session is None
++
++        player._props = _FakeProps(title="Song", artist="Artist", album="Album")
++        player.fire_properties_changed()
++        await self._drain(scheduled)
++
++        assert provider._session is player
++        assert provider._candidate is None
++        assert ledfx.now_playing.get_current().metadata.title == "Song"
++
++    async def test_sessions_changed_reselects(
++        self, provider, monkeypatch, ledfx, scheduled
++    ):
++        manager = _FakeManager(session=None)
++        _inject_winrt_modules(monkeypatch, manager=manager)
++        await provider._initialize()
++
++        manager._session = _WatchableSession(_FakeProps(title="Song", artist="Artist"))
++        manager.callbacks["sessions_changed"](manager, None)
++        await self._drain(scheduled)
++
++        assert provider._session is manager._session
++        assert ledfx.now_playing.get_current().metadata.artist == "Artist"
++
++    async def test_music_survives_a_launcher_taking_current(
++        self, provider, monkeypatch, ledfx, scheduled
++    ):
++        music = _WatchableSession(_FakeProps(title="Song", artist="Artist"), "player")
++        manager = _FakeManager(session=music)
++        _inject_winrt_modules(monkeypatch, manager=manager)
++        await provider._initialize()
++        assert provider._session is music
++
++        launcher = _WatchableSession(_FakeProps(title="Launcher"), "launcher")
++        manager._session = launcher
++        manager.callbacks["current_session_changed"](manager, None)
++        await self._drain(scheduled)
++
++        assert provider._session is music, "playing track must not be dropped"
++        assert provider._candidate is launcher
++        assert ledfx.now_playing.get_current().metadata.title == "Song"
++
++    async def test_stop_removes_every_subscription(self, provider, monkeypatch):
++        launcher = _WatchableSession(_FakeProps(title="Launcher"), "launcher")
++        manager = _FakeManager(session=launcher)
++        _inject_winrt_modules(monkeypatch, manager=manager)
++        await provider._initialize()
++
++        provider.stop()
++
++        assert sorted(manager.removed) == [
++            "current_session_changed",
++            "sessions_changed",
++        ]
++        assert launcher.removed == 1, "candidate watch must be released"
++        assert provider._candidate is None and provider._manager is None
++
++    async def test_manager_without_sessions_changed_still_works(
++        self, provider, monkeypatch, ledfx
++    ):
++        class _OldManager:
++            def __init__(self, session):
++                self._session = session
++
++            def get_current_session(self):
++                return self._session
++
++            def add_current_session_changed(self, cb):
++                return _FakeToken()
++
++            def remove_current_session_changed(self, tok):
++                pass
++
++        session = _WatchableSession(_FakeProps(title="Song", artist="Artist"))
++        _inject_winrt_modules(monkeypatch, manager=_OldManager(session))
++        await provider._initialize()
++        assert len(provider._manager_tokens) == 1
++        assert ledfx.now_playing.get_current().metadata.title == "Song"
++
++    def test_no_retry_timer_exists(self, provider):
++        assert not hasattr(provider, "_reselect_task")
++        from ledfx.nowplaying.providers import smtc
++
++        assert not hasattr(smtc, "_RESELECT_DELAYS")

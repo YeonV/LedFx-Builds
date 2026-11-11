@@ -1,36 +1,66 @@
-diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
-index 4c480384..64bada31 100644
---- a/ledfx/effects/audio.py
-+++ b/ledfx/effects/audio.py
-@@ -168,6 +168,19 @@ class AudioInputSource:
-                     default=0,
-                     description="Add a delay to LedFx's output to sync with your audio. Useful for Bluetooth devices which typically have a short audio lag.",
-                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=5000)),
-+                # Android-only: "System Audio (root)" (REMOTE_SUBMIX) is an
-+                # exclusive tap on some ROMs, silencing the phone's own
-+                # speaker unless LedFx echoes the captured audio back out
-+                # through a second AudioTrack. Auto-detection can get this
-+                # wrong (e.g. before a permission it needs is granted, it
-+                # fails safe and assumes echo IS needed) - this override lets
-+                # the user correct it without waiting on a new build. Inert
-+                # on every other platform and every other Android input.
-+                vol.Optional(
-+                    "android_remote_submix_echo",
-+                    default="auto",
-+                    description='Only affects the Android "System Audio (root)" input. Auto detects whether the ROM already plays audio through the speaker while capturing and only echoes it back when needed; On/Off override that detection.',
-+                ): vol.In(["auto", "on", "off"]),
-             },
-             extra=vol.ALLOW_EXTRA,
-         )
 diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
-index e4e1e2c7..95f7e05a 100644
+index c666aef..47ee913 100644
 --- a/ledfx/api/utils.py
 +++ b/ledfx/api/utils.py
-@@ -26,6 +26,7 @@ PERMITTED_KEYS = {
+@@ -10,6 +10,7 @@ PERMITTED_KEYS = {
          "pitch_method",
          "onset_method",
          "pitch_tolerance",
 +        "android_remote_submix_echo",
      ),
+     "silence_scene": ("enabled", "scene_id", "timeout_seconds"),
      "melbanks": (
-         "max_frequencies",
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index 3ee8003..931df48 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -130,6 +130,14 @@ class AudioInputConfig(LedFxModel):
+         le=5000,
+         description="Add a delay to LedFx's output to sync with your audio. Useful for Bluetooth devices which typically have a short audio lag.",
+     )
++    # Android only: "System Audio (root)" (REMOTE_SUBMIX) is an exclusive tap on
++    # some ROMs, silencing the speaker unless the captured audio is echoed back
++    # out. Auto-detection can be wrong, so the user can override it. Read
++    # straight from config.json by the Android app; inert everywhere else.
++    android_remote_submix_echo: Literal["auto", "on", "off"] = Field(
++        "auto",
++        description='Only affects the Android "System Audio (root)" input. Auto detects whether the ROM already plays audio through the speaker while capturing and only echoes it back when needed; On/Off override that detection.',
++    )
+ 
+ 
+ class AudioAnalysisConfig(LedFxModel):
+diff --git a/tests/test_android_remote_submix_echo.py b/tests/test_android_remote_submix_echo.py
+new file mode 100644
+index 0000000..4a9ccff
+--- /dev/null
++++ b/tests/test_android_remote_submix_echo.py
+@@ -0,0 +1,29 @@
++"""The Android app reads audio.android_remote_submix_echo from config.json."""
++
++import json
++
++import pytest
++from pydantic import ValidationError
++
++from ledfx.api.utils import PERMITTED_KEYS
++from ledfx.configuration.models import AudioConfig, LedFxConfig
++
++
++def test_defaults_to_auto():
++    assert AudioConfig().android_remote_submix_echo == "auto"
++
++
++@pytest.mark.parametrize("mode", ["auto", "on", "off"])
++def test_is_written_under_audio(mode):
++    config = LedFxConfig.model_validate({"audio": {"android_remote_submix_echo": mode}})
++    on_disk = json.loads(json.dumps(config.model_dump(mode="json")))
++    assert on_disk["audio"]["android_remote_submix_echo"] == mode
++
++
++def test_rejects_other_values():
++    with pytest.raises(ValidationError):
++        AudioConfig.model_validate({"android_remote_submix_echo": "loud"})
++
++
++def test_settable_over_rest():
++    assert "android_remote_submix_echo" in PERMITTED_KEYS["audio"]

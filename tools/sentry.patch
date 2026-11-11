@@ -1,8 +1,8 @@
 diff --git a/hiddenimports.py b/hiddenimports.py
-index 2d98fa1b..028e3459 100644
+index 71241ea..54eea07 100644
 --- a/hiddenimports.py
 +++ b/hiddenimports.py
-@@ -29,14 +29,6 @@ hiddenimports = [
+@@ -20,14 +20,6 @@ hiddenimports = [
      "PIL.Image",
      "PIL.ImageDraw",
      "PIL.ImageEnhance",
@@ -18,11 +18,11 @@ index 2d98fa1b..028e3459 100644
      "pyfastnoiselite.pyfastnoiselite",
      "xled",
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index e6b20e0f..4bfdf669 100644
+index 60ca226..837e18f 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
-@@ -16,8 +16,6 @@ import os
- import sys
+@@ -16,8 +16,6 @@ import sys
+ import threading
  from logging.handlers import RotatingFileHandler
  
 -from ledfx.sentry_config import setup_sentry
@@ -30,7 +30,7 @@ index e6b20e0f..4bfdf669 100644
  try:
      import psutil
  
-@@ -270,9 +268,6 @@ def main():
+@@ -278,9 +276,6 @@ def main():
          else:
              p.nice(15)
  
@@ -40,38 +40,39 @@ index e6b20e0f..4bfdf669 100644
      if args.sentry_test:
          _LOGGER.warning("Steering LedFx into a brick wall.")
          _ = 1 / 0
-diff --git a/ledfx/api/__init__.py b/ledfx/api/__init__.py
-index 15609647..5f83fca3 100644
---- a/ledfx/api/__init__.py
-+++ b/ledfx/api/__init__.py
-@@ -10,6 +10,14 @@ from ledfx.utils import BaseRegistry, RegistryLoader
+diff --git a/ledfx/api/origin_policy.py b/ledfx/api/origin_policy.py
+index d6f702b..f79b38d 100644
+--- a/ledfx/api/origin_policy.py
++++ b/ledfx/api/origin_policy.py
+@@ -304,6 +304,8 @@ def origin_middleware(ledfx):
+             requested = headers.get(hdrs.ACCESS_CONTROL_REQUEST_HEADERS)
+             if requested:
+                 response.headers[hdrs.ACCESS_CONTROL_ALLOW_HEADERS] = requested
++            if headers.get("Access-Control-Request-Private-Network") == "true":
++                response.headers["Access-Control-Allow-Private-Network"] = "true"
+             return response
  
- _LOGGER = logging.getLogger(__name__)
- 
-+
-+# CORS middleware to allow private network access
-+@web.middleware
-+async def cors_middleware(request, handler):
-+    response = await handler(request)
-+    response.headers["Access-Control-Allow-Private-Network"] = "true"
-+    return response
-+
- SNACKBAR_OPTIONS = ["success", "info", "warning", "error"]
- 
- 
-@@ -207,6 +215,7 @@ class RestApi(RegistryLoader):
-         self._ledfx = ledfx
- 
-     def register_routes(self, app):
-+        app.middlewares.append(cors_middleware)
-         methods = ["GET", "PUT", "POST", "DELETE"]
-         cors = aiohttp_cors.setup(
-             app,
+         try:
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 9ecccff7..79a65913 100644
+index bfff9b4..93259b3 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -432,56 +432,7 @@ class LedFxCore:
+@@ -1,6 +1,5 @@
+ import asyncio
+ import logging
+-import os
+ import time
+ import uuid
+ import warnings
+@@ -44,7 +43,6 @@ from ledfx.sendspin.config import eager_start as sendspin_eager_start
+ from ledfx.silence_scene import SilenceSceneController, StartupRecoveryOutcome
+ from ledfx.utils import (
+     RollingQueueHandler,
+-    UpdateChecker,
+     async_fire_and_forget,
+     build_user_collections,
+     currently_frozen,
+@@ -399,52 +397,7 @@ class LedFxCore:
          root_logger.addHandler(logqueue_handler)
  
      def check_and_notify_updates(self, show_check_notification=None):
@@ -89,9 +90,8 @@ index 9ecccff7..79a65913 100644
 -            None
 -        """
 -
--        if show_check_notification:
--            if self.icon and self.icon.HAS_NOTIFICATION:
--                self.icon.notify("Checking for updates...", "LedFx")
+-        if show_check_notification and self.icon and self.icon.HAS_NOTIFICATION:
+-            self.icon.notify("Checking for updates...", "LedFx")
 -        is_release = os.getenv("IS_RELEASE", "false").lower()
 -        if is_release == "false":
 -            _LOGGER.info("Not checking for updates - not a release.")
@@ -120,24 +120,35 @@ index 9ecccff7..79a65913 100644
 -                _LOGGER.info("LedFx is up to date.")
 -        else:
 -            _LOGGER.warning("Unable to get update information.")
--            if show_check_notification:
--                if self.icon and self.icon.HAS_NOTIFICATION:
--                    self.icon.notify(
--                        "Unable to get update information", "LedFx"
--                    )
+-            if show_check_notification and self.icon and self.icon.HAS_NOTIFICATION:
+-                self.icon.notify("Unable to get update information", "LedFx")
 +        pass
  
-     def start(self, open_ui=False, pause_all=False):
-         async_fire_and_forget(
+     def _startup_done(self, task: asyncio.Task[None]) -> None:
+         if task.cancelled():
 diff --git a/pyproject.toml b/pyproject.toml
-index 1c8b1c55..c69bf5e8 100644
+index ad5a8fe..69ee739 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -20,7 +20,6 @@ dependencies = [
+@@ -19,7 +19,6 @@ dependencies = [
+     "pystray>=0.19.5",
      "python-rtmidi>=1.5.8",
      "requests>=2.31.0",
-     "sacn>=1.9.0",
--    "sentry-sdk>=1.40.4",
+-    "sentry-sdk>=2.0.0",
      "sounddevice>=0.4.6",
      "icmplib>=3.0.4",
-     "voluptuous>=0.14.1",
+     "pydantic>=2.13,<3",
+diff --git a/tests/test_sentry_config.py b/tests/test_sentry_config.py
+index ddb9a08..c299166 100644
+--- a/tests/test_sentry_config.py
++++ b/tests/test_sentry_config.py
+@@ -2,6 +2,9 @@ import logging
+ from collections.abc import Iterator
+ 
+ import pytest
++
++# The LedFx-Builds sentry.patch drops the sentry-sdk dependency.
++pytest.importorskip("sentry_sdk")
+ import sentry_sdk
+ import sentry_sdk.client
+ from sentry_sdk.envelope import Envelope

@@ -1,34 +1,82 @@
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index e6b20e0f..c038336a 100644
+index 837e18f..fcb8b19 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
-@@ -62,6 +62,29 @@ def reset_logging():
+@@ -39,6 +39,19 @@ _LOGGER = logging.getLogger(__name__)
  
  def setup_logging(loglevel, config_dir):
      console_loglevel = loglevel or logging.WARNING
 +
-+    try:
-+        from ledfx.nowplaying.providers.android import running_on_android
-+    except ImportError:  # not an Android build - this module doesn't exist
-+
-+        def running_on_android():
-+            return False
++    from ledfx.nowplaying.providers.android import running_on_android
 +
 +    if (
 +        loglevel is None
 +        and running_on_android()
-+        and not os.path.isfile(
-+            os.path.join(config_dir, ".android_dev_logging")
-+        )
++        and not os.path.isfile(os.path.join(config_dir, ".android_dev_logging"))
 +    ):
 +        # Measured on-device: the p4a stdout/stderr -> logcat bridge costs
-+        # ~0.87ms per log call, real and ~1000x a native/desktop write - see
-+        # ledfx CLAUDE.md. Default to not paying that in production; touch
-+        # `<config_dir>/.android_dev_logging` and restart for full logging
-+        # during development. Only kicks in when nothing more specific was
-+        # asked for (-v/-vv always win).
++        # ~0.87ms per log call, ~1000x a desktop write. Production builds do not
++        # pay that; touch <config_dir>/.android_dev_logging and restart for full
++        # console logging. -v/-vv always win.
 +        console_loglevel = logging.CRITICAL + 1
-+
      console_logformat = "[%(levelname)-8s] %(name)-30s : %(message)s"
  
      file_loglevel = loglevel or logging.INFO
+diff --git a/tests/test_android_quiet_logging.py b/tests/test_android_quiet_logging.py
+new file mode 100644
+index 0000000..4293f22
+--- /dev/null
++++ b/tests/test_android_quiet_logging.py
+@@ -0,0 +1,52 @@
++"""Android production builds keep the console quiet (logcat bridge cost)."""
++
++import logging
++
++import pytest
++
++from ledfx.__main__ import setup_logging
++from ledfx.nowplaying.providers import android
++
++
++@pytest.fixture
++def console_level(monkeypatch, tmp_path):
++    root = logging.getLogger()
++    before = list(root.handlers)
++
++    def run(loglevel=None, on_android=True, dev_marker=False):
++        monkeypatch.setattr(android, "running_on_android", lambda: on_android)
++        if dev_marker:
++            (tmp_path / ".android_dev_logging").touch()
++        setup_logging(loglevel, str(tmp_path))
++        added = [h for h in root.handlers if h not in before]
++        console = [
++            h
++            for h in added
++            if isinstance(h, logging.StreamHandler)
++            and not isinstance(h, logging.FileHandler)
++        ]
++        files = [h for h in added if isinstance(h, logging.FileHandler)]
++        return console[0].level, [h.level for h in files]
++
++    yield run
++    for handler in [h for h in root.handlers if h not in before]:
++        root.removeHandler(handler)
++        handler.close()
++
++
++def test_android_production_console_is_silent(console_level):
++    console, files = console_level()
++    assert console > logging.CRITICAL
++    assert all(level == logging.INFO for level in files), "the log file keeps INFO"
++
++
++def test_dev_marker_restores_console_logging(console_level):
++    assert console_level(dev_marker=True)[0] == logging.WARNING
++
++
++def test_explicit_level_always_wins(console_level):
++    assert console_level(loglevel=logging.DEBUG)[0] == logging.DEBUG
++
++
++def test_desktop_is_unchanged(console_level):
++    assert console_level(on_android=False)[0] == logging.WARNING

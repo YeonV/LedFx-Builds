@@ -1,6 +1,6 @@
 diff --git a/ledfx/api/android_capture.py b/ledfx/api/android_capture.py
 new file mode 100644
-index 0000000..dae95b5
+index 0000000..cea4f57
 --- /dev/null
 +++ b/ledfx/api/android_capture.py
 @@ -0,0 +1,60 @@
@@ -34,7 +34,7 @@ index 0000000..dae95b5
 +        import android_playback_capture
 +
 +        return android_playback_capture.AndroidPlaybackCapture
-+    except Exception:
++    except Exception:  # noqa: BLE001 - also JNI errors, not only ImportError
 +        return None
 +
 +
@@ -64,3 +64,79 @@ index 0000000..dae95b5
 +        if capture and running_on_android():
 +            capture.revoke()
 +        return await self.bare_request_success({"active": False})
+diff --git a/tests/test_api_android_capture.py b/tests/test_api_android_capture.py
+new file mode 100644
+index 0000000..dca5ebf
+--- /dev/null
++++ b/tests/test_api_android_capture.py
+@@ -0,0 +1,70 @@
++"""/api/android/playback_capture asks the in-process capture object."""
++
++import sys
++from types import ModuleType, SimpleNamespace
++
++import pytest
++
++import ledfx.api.android_capture as endpoint_module
++from ledfx.api.android_capture import AndroidCaptureEndpoint
++
++
++@pytest.fixture
++def endpoint():
++    ep = AndroidCaptureEndpoint.__new__(AndroidCaptureEndpoint)
++    sent = []
++
++    async def bare(payload):
++        sent.append(payload)
++        return payload
++
++    ep.bare_request_success = bare
++    return ep, sent
++
++
++@pytest.fixture
++def capture(monkeypatch):
++    state = SimpleNamespace(active=True, revoked=0)
++
++    class AndroidPlaybackCapture:
++        @classmethod
++        def is_active(cls):
++            return state.active
++
++        @classmethod
++        def revoke(cls):
++            state.revoked += 1
++            state.active = False
++
++    module = ModuleType("android_playback_capture")
++    module.AndroidPlaybackCapture = AndroidPlaybackCapture
++    monkeypatch.setitem(sys.modules, "android_playback_capture", module)
++    monkeypatch.setattr(endpoint_module, "running_on_android", lambda: True)
++    return state
++
++
++async def test_reports_a_live_capture(endpoint, capture):
++    ep, _ = endpoint
++    assert await ep.get() == {"active": True}
++
++
++async def test_delete_revokes_the_real_session(endpoint, capture):
++    ep, _ = endpoint
++    assert await ep.delete() == {"active": False}
++    assert capture.revoked == 1
++    assert await ep.get() == {"active": False}
++
++
++async def test_off_android_is_inactive_and_delete_is_harmless(endpoint, monkeypatch):
++    monkeypatch.setitem(sys.modules, "android_playback_capture", None)
++    ep, _ = endpoint
++    assert await ep.get() == {"active": False}
++    assert await ep.delete() == {"active": False}
++
++
++def test_is_registered_on_the_v1_api():
++    from ledfx.api import RestEndpoint
++
++    assert "/api/android/playback_capture" in {
++        cls.ENDPOINT_PATH for cls in RestEndpoint.registry().values()
++    }

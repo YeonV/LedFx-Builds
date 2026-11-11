@@ -1,17 +1,42 @@
-diff --git a/ledfx/config.py b/ledfx/config.py
-index a2d6adf9..2b6a2701 100644
---- a/ledfx/config.py
-+++ b/ledfx/config.py
-@@ -45,6 +45,12 @@ CORE_CONFIG_KEYS_NO_RESTART = [
-     "user_presets",
-     "visualisation_maxlen",
-     "visualisation_fps",
-+    # Read fresh inside handle_visualisation_update on every frame, never
-+    # captured in the setup_visualisation_events closure the way fps/maxlen
-+    # are - so it has nothing to re-initialise and never needed a restart.
-+    # It predates this list by two months (transmission_mode 2023-12-14,
-+    # this mechanism 2024-02-16) and was simply never revisited.
-+    "transmission_mode",
-     "flush_on_deactivate",
-     "ui_brightness_boost",
-     "startup_scene_id",
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index 931df48..a3aca66 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -594,9 +594,9 @@ class LedFxConfig(LedFxModel):
+     integrations: list[IntegrationEntry] = Field(
+         list[IntegrationEntry](), json_schema_extra=_legacy_type("array", [])
+     )
+-    transmission_mode: Literal["compressed", "uncompressed"] = Field(
+-        "compressed", json_schema_extra={X_RESTART: True}
+-    )
++    # No restart: read fresh for every visualisation frame, never captured when
++    # the visualisation listeners are set up (unlike fps and maxlen).
++    transmission_mode: Literal["compressed", "uncompressed"] = "compressed"
+     visualisation_fps: int = Field(30, ge=1, le=60)
+     visualisation_maxlen: int = Field(81, ge=5, le=65536)
+     global_transitions: bool = Field(
+diff --git a/tests/configuration/test_core_models.py b/tests/configuration/test_core_models.py
+index 0e5bde7..6003181 100644
+--- a/tests/configuration/test_core_models.py
++++ b/tests/configuration/test_core_models.py
+@@ -72,7 +72,6 @@ def test_restart_fields_match_legacy_list() -> None:
+         "port",
+         "port_s",
+         "dev_mode",
+-        "transmission_mode",
+         "global_transitions",
+         "melbank_collection",
+     }
+diff --git a/tests/test_transmission_mode.py b/tests/test_transmission_mode.py
+new file mode 100644
+index 0000000..c97212e
+--- /dev/null
++++ b/tests/test_transmission_mode.py
+@@ -0,0 +1,7 @@
++"""transmission_mode: changeable live, binary by default, migrated once."""
++
++from ledfx.configuration.models import RESTART_FIELDS
++
++
++def test_changing_it_needs_no_restart():
++    assert "transmission_mode" not in RESTART_FIELDS

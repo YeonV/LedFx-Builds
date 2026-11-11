@@ -1,7 +1,8 @@
 diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
+index 2835863..fdd7cb3 100644
 --- a/ledfx/effects/audio.py
 +++ b/ledfx/effects/audio.py
-@@ -1338,10 +1338,10 @@
+@@ -1201,10 +1201,10 @@ class AudioAnalysisSource(AudioInputSource):
          # Subscribe functions to be run on every frame of audio
          self.subscribe(self.melbanks)
          self.subscribe(self.update_stems)
@@ -14,8 +15,8 @@ diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
          self.subscribe(self.freq_power)
  
          # ensure any new analysis callbacks are above this line
-@@ -1384,6 +1384,10 @@
-         # Measured on a Nexus 5: ~11% of the audio callback.
+@@ -1245,6 +1245,10 @@ class AudioAnalysisSource(AudioInputSource):
+         # anything read them. Measured on a Nexus 5: ~11% of the audio callback.
          self._freq_power_frame = 0
          self._freq_power_wanted = -(self.FREQ_POWER_TTL_FRAMES + 1)
 +        self._pitch_frame = 0
@@ -25,7 +26,7 @@ diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
          self.freq_power_raw = np.zeros(len(self.freq_max_mels))
          self.freq_power_filter = ExpFilter(
              np.zeros(len(self.freq_max_mels)), alpha_decay=0.2, alpha_rise=0.97
-@@ -1529,13 +1533,27 @@
+@@ -1381,13 +1385,26 @@ class AudioAnalysisSource(AudioInputSource):
          super()._invalidate_caches()
  
          self.pitch.cache_clear()
@@ -36,72 +37,162 @@ diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
 +        self._volume_beat_compute.cache_clear()
          self.bar_oscillator.cache_clear()
  
-+    # Matches FREQ_POWER_TTL_FRAMES: ~4s at a 60/s callback rate.
++    # Matches FREQ_POWER_TTL_FRAMES.
 +    PITCH_TTL_FRAMES = 240
 +
 +    def _pitch_tick(self):
-+        # Standing subscriber. pitchSpectrum is the only effect that reads
-+        # pitch, so outside it this aubio DSP ran for nobody - measured at
-+        # 4.8% of the audio callback on a Nexus 5.
++        # Standing subscriber. Only pitchSpectrum reads pitch, so elsewhere this
++        # aubio DSP ran for nobody: 4.8% of the audio callback on a Nexus 5.
 +        frame = self._pitch_frame = self._pitch_frame + 1
 +        if frame - self._pitch_wanted > self.PITCH_TTL_FRAMES:
 +            return
 +        self._pitch_compute()
 +
-     @lru_cache(maxsize=None)
+     @cache  # noqa: B019
 -    def pitch(self):
 +    def _pitch_compute(self):
          # If our audio handler is returning null, then we just return 0 for midi_value and wait for the device starts sending audio.
          try:
              return self._pitch(self.audio_sample(raw=True))[0]
-@@ -1544,6 +1562,15 @@
+@@ -1395,6 +1412,14 @@ class AudioAnalysisSource(AudioInputSource):
+             _LOGGER.warning("%s", e)
              return 0
  
-     @lru_cache(maxsize=None)
++    @cache  # noqa: B019
 +    def pitch(self):
-+        # Sole read path, so registering demand here keeps _pitch_tick feeding
-+        # aubio for as long as anything is actually reading pitch. aubio's
-+        # analysis window is 8 hops wide, so a read after the gate has been
-+        # shut is accurate again within ~8 frames.
++        # Sole read path: registering here keeps _pitch_tick feeding aubio while
++        # anything reads pitch. aubio's window is 8 hops, so a read after the
++        # gate was shut is accurate again within ~8 frames.
 +        self._pitch_wanted = self._pitch_frame
 +        return self._pitch_compute()
 +
-+    @lru_cache(maxsize=None)
+     @cache  # noqa: B019
      def onset(self):
          try:
-             return bool(self._onset(self.audio_sample(raw=True))[0])
-@@ -1562,8 +1589,34 @@
+@@ -1414,8 +1439,30 @@ class AudioAnalysisSource(AudioInputSource):
              _LOGGER.warning("%s", e)
              return False
  
-+    # Matches FREQ_POWER_TTL_FRAMES: ~4s at a 60/s callback rate.
++    # Matches FREQ_POWER_TTL_FRAMES.
 +    VOLUME_BEAT_TTL_FRAMES = 240
 +
 +    def _volume_beat_tick(self):
-+        # Standing subscriber, and the only caller of melbanks.want(0) in the
-+        # codebase - so while it ran unconditionally, melbank 0 was computed
-+        # every frame no matter what. Measured on a Nexus 5: melbank 0 alone
-+        # is 15.1% of the audio callback, and with an effect like Blade
-+        # Power+ (whose band powers all come from melbank 2) nothing read it.
++        # Standing subscriber and the only caller of melbanks.want(0), so while
++        # it ran unconditionally melbank 0 was computed every frame: 15.1% of the
++        # audio callback on a Nexus 5, even when nothing read it.
 +        frame = self._volume_beat_frame = self._volume_beat_frame + 1
 +        if frame - self._volume_beat_wanted > self.VOLUME_BEAT_TTL_FRAMES:
 +            return
 +        self._volume_beat_compute()
 +
-     @lru_cache(maxsize=None)
+     @cache  # noqa: B019
      def volume_beat_now(self):
-+        # Sole read path. beat_power_history is a 12-frame (200ms) rolling
-+        # window; after the gate has been shut it holds pre-gap audio, whose
-+        # ratios would be meaningless, so it is dropped rather than compared
-+        # against.
++        # Sole read path. After the gate was shut, beat_power_history holds
++        # pre-gap audio whose ratios mean nothing, so it is dropped.
 +        frame = self._volume_beat_frame
 +        if frame - self._volume_beat_wanted > self.VOLUME_BEAT_TTL_FRAMES:
 +            self.beat_power_history.clear()
 +        self._volume_beat_wanted = frame
 +        return self._volume_beat_compute()
 +
-+    @lru_cache(maxsize=None)
++    @cache  # noqa: B019
 +    def _volume_beat_compute(self):
          """
          Returns True if a beat is expected now based on volume of the beat freq region
          This algorithm is a bit weird, but works quite nicely.
+diff --git a/tests/test_on_demand_analysis.py b/tests/test_on_demand_analysis.py
+new file mode 100644
+index 0000000..353fb54
+--- /dev/null
++++ b/tests/test_on_demand_analysis.py
+@@ -0,0 +1,90 @@
++"""Melbanks, band powers, pitch and volume beat are computed only on demand."""
++
++from types import SimpleNamespace
++from unittest.mock import MagicMock
++
++import numpy as np
++
++from ledfx.effects.audio import AudioAnalysisSource
++from ledfx.effects.melbank import Melbanks
++
++
++def _melbanks():
++    m = Melbanks.__new__(Melbanks)
++    m._ledfx = SimpleNamespace(events=SimpleNamespace(has_listeners=lambda e: False))
++    m._audio = SimpleNamespace(_frequency_domain=None, volume=lambda filtered: 1.0)
++    m._publish = True
++    m.dev_enabled = False
++    m.minimum_volume = 0.0
++    m.melbank_processors = [MagicMock() for _ in range(3)]
++    m.melbanks = tuple(np.zeros(4) for _ in range(3))
++    m.melbanks_filtered = tuple(np.zeros(4) for _ in range(3))
++    m._wanted = {}
++    m._frame = 0
++    return m
++
++
++def test_unread_melbanks_are_skipped():
++    m = _melbanks()
++    m()
++    assert not any(p.called for p in m.melbank_processors)
++    m.want(1)
++    m()
++    assert [p.called for p in m.melbank_processors] == [False, True, False]
++
++
++def test_demand_expires_after_the_ttl():
++    m = _melbanks()
++    m.want(0)
++    m._frame += Melbanks.WANT_TTL_FRAMES + 1
++    m()
++    assert not m.melbank_processors[0].called
++
++
++def _source():
++    s = AudioAnalysisSource.__new__(AudioAnalysisSource)
++    s._freq_power_frame = 0
++    s._freq_power_wanted = -(AudioAnalysisSource.FREQ_POWER_TTL_FRAMES + 1)
++    s._pitch_frame = 0
++    s._pitch_wanted = -(AudioAnalysisSource.PITCH_TTL_FRAMES + 1)
++    s._volume_beat_frame = 0
++    s._volume_beat_wanted = -(AudioAnalysisSource.VOLUME_BEAT_TTL_FRAMES + 1)
++    s.melbanks = MagicMock()
++    s.melbanks.melbanks = [np.ones(24)] * 3
++    s.freq_mel_indexes = [2, 5, 17, 23]
++    s.freq_power_raw = np.zeros(4)
++    s.freq_power_filter = MagicMock(value=np.zeros(4))
++    return s
++
++
++def test_freq_power_runs_only_after_a_read():
++    s = _source()
++    s.freq_power()
++    s.melbanks.want.assert_not_called()
++    s.get_freq_power(0)
++    s.freq_power()
++    s.melbanks.want.assert_called_once_with(2)
++
++
++def test_pitch_runs_only_while_read():
++    s = _source()
++    s._pitch = MagicMock(return_value=[60.0])
++    s.audio_sample = lambda raw=False: np.zeros(4, dtype=np.float32)
++    s._pitch_tick()
++    assert s._pitch.call_count == 0
++    assert s.pitch() == 60.0
++    AudioAnalysisSource.pitch.cache_clear()
++    AudioAnalysisSource._pitch_compute.cache_clear()
++    s._pitch_tick()
++    assert s._pitch.call_count == 2
++
++
++def test_volume_beat_drops_stale_history(monkeypatch):
++    s = _source()
++    monkeypatch.setattr(AudioAnalysisSource, "_volume_beat_compute", lambda self: True)
++    s.beat_power_history = [1.0, 2.0]
++    s._volume_beat_frame = 1000
++    s._volume_beat_wanted = 0
++    assert s.volume_beat_now() is True
++    assert s.beat_power_history == []
++    AudioAnalysisSource.volume_beat_now.cache_clear()

@@ -1,9 +1,9 @@
 diff --git a/ledfx/api/stem_model.py b/ledfx/api/stem_model.py
 new file mode 100644
-index 00000000..6458297e
+index 0000000..9bbf23e
 --- /dev/null
 +++ b/ledfx/api/stem_model.py
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,110 @@
 +"""API endpoint for the stem separation model download.
 +
 +The model is a ~210 MB third-party artifact, so LedFx does not ship it: it is
@@ -55,7 +55,7 @@ index 00000000..6458297e
 +
 +    ENDPOINT_PATH = "/api/stem_model"
 +
-+    async def get(self, request: web.Request) -> web.Response:
++    async def get(self) -> web.Response:
 +        state = _snapshot()
 +        config_dir = self._ledfx.config_dir
 +        total = state["total_bytes"] or 1
@@ -69,14 +69,9 @@ index 00000000..6458297e
 +            }
 +        )
 +
-+    async def post(self, request: web.Request) -> web.Response:
-+        try:
-+            data = await request.json()
-+        except Exception:
-+            # An empty body is a legitimate "just download it"
-+            data = {}
-+
-+        force = bool(data.get("force", False))
++    async def post(self, body) -> web.Response:
++        # An empty body is a legitimate "just download it"
++        force = bool(body.get("force", False)) if isinstance(body, dict) else False
 +        config_dir = self._ledfx.config_dir
 +
 +        if model_available(config_dir) and not force:
@@ -98,15 +93,13 @@ index 00000000..6458297e
 +
 +        def progress(done, total, message):
 +            with _LOCK:
-+                _STATE.update(
-+                    done_bytes=done, total_bytes=total, message=message
-+                )
++                _STATE.update(done_bytes=done, total_bytes=total, message=message)
 +
 +        def worker():
 +            try:
 +                download(config_dir, force=force, progress=progress)
 +                _LOGGER.info("Stem separation model downloaded")
-+            except Exception as exc:
++            except Exception as exc:  # noqa: BLE001
 +                _LOGGER.error("Stem model download failed: %s", exc)
 +                with _LOCK:
 +                    _STATE["error"] = str(exc)
@@ -116,18 +109,16 @@ index 00000000..6458297e
 +
 +        # Off the event loop: this is a ~210 MB blocking download and would
 +        # otherwise stall every other request for its duration.
-+        threading.Thread(
-+            target=worker, name="StemModelDownload", daemon=True
-+        ).start()
++        threading.Thread(target=worker, name="StemModelDownload", daemon=True).start()
 +
 +        return await self.request_success(
 +            type="info", message="Downloading separation model"
 +        )
 diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
-index 86017b1f..201213fb 100644
+index 855d999..d1a5bbc 100644
 --- a/ledfx/api/utils.py
 +++ b/ledfx/api/utils.py
-@@ -26,6 +26,9 @@ PERMITTED_KEYS = {
+@@ -10,6 +10,9 @@ PERMITTED_KEYS = {
          "pitch_method",
          "onset_method",
          "pitch_tolerance",
@@ -135,34 +126,68 @@ index 86017b1f..201213fb 100644
 +        "stem_hop",
 +        "stem_threads",
      ),
+     "silence_scene": ("enabled", "scene_id", "timeout_seconds"),
      "melbanks": (
-         "max_frequencies",
-@@ -166,6 +169,14 @@ def convertToJsonSchema(schema):
-     ):
-         return {"type": "string", "format": "ipv4"}
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index c4ce5ca..072e141 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -156,6 +156,18 @@ class AudioAnalysisConfig(LedFxModel):
+     pitch_tolerance: CoercedFloat = Field(
+         0.8, ge=0.0, le=2, description="Pitch detection tolerance"
+     )
++    stems_enabled: bool = Field(
++        False,
++        description="Separate the audio into drums, bass, vocals and other so effects can react to a single instrument group. Needs a stereo input and costs CPU.",
++    )
++    # Must match ledfx.effects.stems.VALID_HOPS (not imported: it imports melbank).
++    stem_hop: Annotated[Literal[512, 1024, 2048], coerce(int)] = Field(
++        1024,
++        description="Samples per separation update. Smaller reacts faster but costs more CPU: 512 ~86Hz, 1024 ~43Hz, 2048 ~21Hz.",
++    )
++    stem_threads: CoercedInt = Field(
++        4, ge=1, le=16, description="CPU threads the separation model may use."
++    )
  
-+    elif (
-+        callable(schema)
-+        and getattr(schema, "__name__", None) == "stem_selection_validator"
-+    ):
-+        from ledfx.effects.stems import STEM_NAMES
-+
-+        return {"type": "multiselect", "enum": list(STEM_NAMES)}
-+
-     elif isinstance(schema, vol.All):
-         val = {}
-         for validator in schema.validators:
+ 
+ # Frozen: LedFxConfig and the live audio/melbank objects share these instances,
 diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
-index 7415ce38..9af85f37 100644
+index 8b48cdc..c9b34d3 100644
 --- a/ledfx/effects/audio.py
 +++ b/ledfx/effects/audio.py
-@@ -17,6 +17,17 @@ from ledfx.config import save_config
+@@ -1,3 +1,4 @@
++import inspect
+ import logging
+ import queue
+ import threading
+@@ -5,24 +6,37 @@ import time
+ from collections import deque
+ from collections.abc import Callable
+ from functools import cache, cached_property, lru_cache
+-from typing import ClassVar
++from typing import Annotated, ClassVar, Literal
+ 
+ import aubio
+ import numpy as np
+ import samplerate
+ import sounddevice as sd
++from pydantic import BeforeValidator, Field, create_model
+ 
+ import ledfx.api.websocket
+ from ledfx.api.websocket import WEB_AUDIO_CLIENTS, WebAudioStream
+ from ledfx.configuration.fields import (
+     RUNTIME_CONTEXT,
++    X_LEGACY,
+     EnumSource,
+     register_enum_source,
+ )
+ from ledfx.configuration.models import AudioConfig, replace_model
++from ledfx.configuration.plugin import PluginConfig
  from ledfx.effects import Effect
  from ledfx.effects.math import ExpFilter
- from ledfx.effects.melbank import FFT_SIZE, MIC_RATE, Melbanks
+ from ledfx.effects.melbank import MIC_RATE, Melbanks
 +from ledfx.effects.stems import (
-+    STEM_BAND_NAMES,
-+    VALID_HOPS,
++    STEM_NAMES,
 +    StemAnalysisChain,
 +    StemSeparator,
 +    canonical_band,
@@ -174,7 +199,7 @@ index 7415ce38..9af85f37 100644
  from ledfx.events import AudioDeviceChangeEvent, AudioSourceErrorEvent, Event
  from ledfx.sendspin import SENDSPIN_AVAILABLE
  from ledfx.sendspin.config import is_always_on as is_sendspin_always_on
-@@ -47,6 +58,12 @@ class AudioInputSource:
+@@ -53,6 +67,12 @@ class AudioInputSource:
      _device_list_cache = None  # Cache for device list
      _class_lock = threading.Lock()  # Class-level lock for shared state
      _activating = False  # Re-entry guard for activate()
@@ -187,30 +212,8 @@ index 7415ce38..9af85f37 100644
  
      @staticmethod
      def refresh_device_list():
-@@ -461,6 +478,21 @@ class AudioInputSource:
-                     default=0,
-                     description="Add a delay to LedFx's output to sync with your audio. Useful for Bluetooth devices which typically have a short audio lag.",
-                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=5000)),
-+                vol.Optional(
-+                    "stems_enabled",
-+                    default=False,
-+                    description="Separate the audio into drums, bass, vocals and other so effects can react to a single instrument group. Needs a stereo input and costs CPU.",
-+                ): bool,
-+                vol.Optional(
-+                    "stem_hop",
-+                    default=1024,
-+                    description="Samples per separation update. Smaller reacts faster but costs more CPU: 512 ~86Hz, 1024 ~43Hz, 2048 ~21Hz.",
-+                ): vol.In(VALID_HOPS),
-+                vol.Optional(
-+                    "stem_threads",
-+                    default=4,
-+                    description="CPU threads the separation model may use.",
-+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=16)),
-             },
-             extra=vol.ALLOW_EXTRA,
-         )
-@@ -592,6 +624,18 @@ class AudioInputSource:
-                 old_config.get(k) != new_config.get(k) for k in _PIPELINE_KEYS
+@@ -574,6 +594,16 @@ class AudioInputSource:
+                 getattr(old_config, k) != getattr(new_config, k) for k in _PIPELINE_KEYS
              )
  
 +            # Separation settings rebuild the model session, but only matter if
@@ -218,17 +221,15 @@ index 7415ce38..9af85f37 100644
 +            # thread count while it is disabled must not bounce the audio
 +            # stream.
 +            _STEM_KEYS = ("stems_enabled", "stem_hop", "stem_threads")
-+            if old_config.get("stems_enabled") or new_config.get(
-+                "stems_enabled"
-+            ):
++            if old_config.stems_enabled or new_config.stems_enabled:
 +                pipeline_changing = pipeline_changing or any(
-+                    old_config.get(k) != new_config.get(k) for k in _STEM_KEYS
++                    getattr(old_config, k) != getattr(new_config, k) for k in _STEM_KEYS
 +                )
 +
-             if old_config.get("audio_device") != new_config.get(
-                 "audio_device"
-             ):
-@@ -879,6 +923,20 @@ class AudioInputSource:
+             if old_config.audio_device != new_config.audio_device:
+                 device_changing = True
+         else:
+@@ -848,6 +878,20 @@ class AudioInputSource:
  
              self.resampler = samplerate.Resampler("sinc_fastest", channels=1)
  
@@ -249,7 +250,7 @@ index 7415ce38..9af85f37 100644
              _LOGGER.info(
                  "Audio source opened: %s: %s",
                  hostapis[device["hostapi"]]["name"],
-@@ -1103,6 +1161,18 @@ class AudioInputSource:
+@@ -1029,6 +1073,13 @@ class AudioInputSource:
          # self._raw_audio_sample = np.frombuffer(in_data, dtype=np.float32)
          raw_sample = np.frombuffer(in_data, dtype=np.float32)
  
@@ -257,21 +258,18 @@ index 7415ce38..9af85f37 100644
 +        # needs stereo at its own rate, and this is the only point where both
 +        # still exist. Cheap by contract - feed() only buffers.
 +        separator = self._stem_separator
-+        if separator is not None and separator.running:
-+            if self._stream_samplerate:
-+                separator.feed(
-+                    raw_sample,
-+                    self._stream_channels,
-+                    self._stream_samplerate,
-+                )
++        if separator is not None and separator.running and self._stream_samplerate:
++            separator.feed(raw_sample, self._stream_channels, self._stream_samplerate)
 +
          in_sample_len = len(raw_sample)
-         out_sample_len = MIC_RATE // self._config["sample_rate"]
+         out_sample_len = MIC_RATE // self._config.sample_rate
  
-@@ -1259,11 +1329,15 @@ class AudioAnalysisSource(AudioInputSource):
+@@ -1139,11 +1190,17 @@ class AudioAnalysisSource(AudioInputSource):
+     ]
  
      def __init__(self, ledfx, config):
-         config = self.CONFIG_SCHEMA(config)
++        # Set before super().__init__: it runs update_config, which reaches
++        # initialise_stems through initialise_analysis.
 +        self._stem_chains = {}
 +        self._stem_separator = None
 +        self._stem_generation = 0
@@ -284,16 +282,16 @@ index 7415ce38..9af85f37 100644
          self.subscribe(self.pitch)
          self.subscribe(self.onset)
          self.subscribe(self.bar_oscillator)
-@@ -1280,6 +1354,8 @@ class AudioAnalysisSource(AudioInputSource):
-                 self._ledfx, self, self._ledfx.config.get("melbanks", {})
+@@ -1160,6 +1217,8 @@ class AudioAnalysisSource(AudioInputSource):
+                 self._ledfx, self, self._ledfx.config.melbanks.model_dump()
              )
  
 +        self.initialise_stems()
 +
          fft_params = (
-             self._config["fft_size"],
-             MIC_RATE // self._config["sample_rate"],
-@@ -1347,6 +1423,95 @@ class AudioAnalysisSource(AudioInputSource):
+             self._config.fft_size,
+             MIC_RATE // self._config.sample_rate,
+@@ -1223,6 +1282,91 @@ class AudioAnalysisSource(AudioInputSource):
          self.beat_prev_time = time.time()
          self.beat_power_history = deque(maxlen=self.beat_power_history_len)
  
@@ -305,8 +303,8 @@ index 7415ce38..9af85f37 100644
 +        """
 +        # Chains hold aubio state sized from fft_size/sample_rate, so any
 +        # pipeline change invalidates them.
-+        for stem in list(self._stem_chains):
-+            self._release_chain(stem)
++        for selection in list(self._stem_chains):
++            self._release_chain(selection)
 +
 +        if self._stem_separator is not None:
 +            self._stem_separator.stop()
@@ -318,13 +316,13 @@ index 7415ce38..9af85f37 100644
 +        # would not reach effects that had already fallen back to the mix.
 +        self._stem_generation += 1
 +
-+        if not self._config.get("stems_enabled", False):
++        if not self._config.stems_enabled:
 +            return
 +
 +        self._stem_separator = StemSeparator(
 +            self._ledfx.config_dir,
-+            hop=self._config.get("stem_hop", 1024),
-+            threads=self._config.get("stem_threads", 4),
++            hop=self._config.stem_hop,
++            threads=self._config.stem_threads,
 +        )
 +
 +    def stem_chain(self, stems, band="full"):
@@ -344,13 +342,9 @@ index 7415ce38..9af85f37 100644
 +        if not self._stem_separator.acquire(*selection):
 +            return None
 +
-+        chain = StemAnalysisChain(
-+            self._ledfx, selection[0], self, band=selection[1]
-+        )
++        chain = StemAnalysisChain(self._ledfx, selection[0], self, band=selection[1])
 +        self._stem_chains[selection] = chain
-+        _LOGGER.info(
-+            "Stem analysis chain created for '%s'", selection_label(selection)
-+        )
++        _LOGGER.info("Stem analysis chain created for '%s'", selection_label(selection))
 +        return chain
 +
 +    def _release_chain(self, selection):
@@ -387,28 +381,85 @@ index 7415ce38..9af85f37 100644
 +        return self._stem_separator is not None
 +
      def update_config(self, config):
-         validated_config = self.CONFIG_SCHEMA(config)
-         super().update_config(validated_config)
-@@ -1557,10 +1722,30 @@ class AudioReactiveEffect(Effect):
+         super().update_config(config)
+         self.initialise_analysis()
+@@ -1410,6 +1554,62 @@ class AudioAnalysisSource(AudioInputSource):
+         return self.bar_oscillator() % 1
+ 
+ 
++StemSelection = Annotated[
++    list[Literal[STEM_NAMES]], BeforeValidator(stem_selection_validator)
++]
++
++
++class StemSelectionConfig(PluginConfig):
++    """Stem fields every audio reactive effect gains (see config_model)."""
++
++    stems: StemSelection = Field(
++        default_factory=list,
++        # Canonicalised (de-duplicated) before this bound is checked.
++        max_length=len(STEM_NAMES),
++        description="React only to these instrument groups. Selecting several sums them. Leave empty to react to the whole mix. Requires stem separation to be enabled in audio settings.",
++        json_schema_extra={X_LEGACY: {"type": "multiselect", "enum": list(STEM_NAMES)}},
++    )
++    stem_band: Literal["full", "low", "mid", "high"] = Field(
++        "full",
++        description="Analyse only part of the selected stem. The melbank normalises against its own loudest band, so on a drum stem the kick buries the hats: picking 'high' filters the kick out first and makes hats 44x stronger. Needs a stem selection - it does nothing on the full mix.",
++    )
++
++
++@cache
++def _with_stem_fields(
++    model: type[PluginConfig], below: frozenset[str]
++) -> type[PluginConfig]:
++    """model plus the stem fields, built once per (model, below).
++
++    Audio effects take their Config from GradientEffect, HSVEffect, Twod or
++    Effect, never from AudioReactiveEffect, so a field declared here would
++    reach none of them. Mixing it into whatever model the effect resolves to
++    gives every audio effect the selector without touching each one.
++
++    Field order is what the voluptuous schema produced, base classes first:
++    the stem fields go before the first field declared by a class below
++    AudioReactiveEffect (``below``) and after everything else.
++    """
++    if issubclass(model, StemSelectionConfig):
++        return model
++    merged = create_model(
++        model.__name__,
++        __base__=(model, StemSelectionConfig),
++        __module__=model.__module__,
++    )
++    stem = list(StemSelectionConfig.model_fields)
++    # model's order, not merged's: pydantic re-collects the fields from the
++    # bases and drops the order PluginConfig gave redeclared ones.
++    rest = list(model.model_fields)
++    cut = next((i for i, name in enumerate(rest) if name in below), len(rest))
++    order = [*rest[:cut], *stem, *rest[cut:]]
++    if list(merged.__pydantic_fields__) != order:
++        fields = merged.__pydantic_fields__
++        merged.__pydantic_fields__ = {name: fields[name] for name in order}
++        merged.model_rebuild(force=True)
++    return merged
++
++
+ @Effect.no_registration
+ class AudioReactiveEffect(Effect):
+     """
+@@ -1428,10 +1628,24 @@ class AudioReactiveEffect(Effect):
          "High": "high_power",
      }
  
-+    # Merged into every audio reactive effect's schema by
-+    # Effect.get_combined_default_schema, so all of them gain a stem selector.
-+    CONFIG_SCHEMA = vol.Schema(
-+        {
-+            vol.Optional(
-+                "stems",
-+                description="React only to these instrument groups. Selecting several sums them. Leave empty to react to the whole mix. Requires stem separation to be enabled in audio settings.",
-+                default=[],
-+            ): stem_selection_validator,
-+            vol.Optional(
-+                "stem_band",
-+                description="Analyse only part of the selected stem. The melbank normalises against its own loudest band, so on a drum stem the kick buries the hats: picking 'high' filters the kick out first and makes hats 44x stronger. Needs a stem selection - it does nothing on the full mix.",
-+                default="full",
-+            ): vol.In(STEM_BAND_NAMES),
-+        }
-+    )
++    @classmethod
++    def config_model(cls) -> type[PluginConfig]:
++        mro = cls.__mro__
++        below = frozenset(
++            name
++            for c in mro[: mro.index(AudioReactiveEffect)]
++            if "Config" in vars(c)
++            for name in inspect.get_annotations(vars(c)["Config"])
++        )
++        return _with_stem_fields(super().config_model(), below)
 +
      def __init__(self, ledfx, config):
          super().__init__(ledfx, config)
@@ -420,7 +471,7 @@ index 7415ce38..9af85f37 100644
  
      def activate(self, channel):
          _LOGGER.info("Activating AudioReactiveEffect.")
-@@ -1575,6 +1760,7 @@ class AudioReactiveEffect(Effect):
+@@ -1446,6 +1660,7 @@ class AudioReactiveEffect(Effect):
  
          self.audio = self._ledfx.audio
          self._ledfx.audio.subscribe(self._audio_data_updated)
@@ -428,7 +479,7 @@ index 7415ce38..9af85f37 100644
  
      def deactivate(self):
          _LOGGER.info("Deactivating AudioReactiveEffect.")
-@@ -1583,10 +1769,74 @@ class AudioReactiveEffect(Effect):
+@@ -1454,10 +1669,71 @@ class AudioReactiveEffect(Effect):
  
          if self.audio:
              self.audio.unsubscribe(self._audio_data_updated)
@@ -440,12 +491,12 @@ index 7415ce38..9af85f37 100644
 +    @property
 +    def stems(self):
 +        """The stems this effect reacts to. Empty means the full mix."""
-+        return canonical_stems(self._config.get("stems"))
++        return canonical_stems(self._config.stems)
 +
 +    @property
 +    def stem_band(self):
 +        """Which part of the stem's spectrum to analyse."""
-+        return canonical_band(self._config.get("stem_band"))
++        return canonical_band(self._config.stem_band)
 +
 +    @property
 +    def stem_selection(self):
@@ -462,16 +513,13 @@ index 7415ce38..9af85f37 100644
 +    def _sync_stem_chain(self):
 +        """Point this effect at the chain for its configured stem.
 +
-+        Resolved here rather than in config_updated: that hook is skipped for
-+        effects more than one class below AudioReactiveEffect, which would
-+        silently leave them on the wrong stem.
++        Resolved here rather than in config_updated: that hook only runs for
++        the effect's own class and its direct bases, which would silently leave
++        deeper effects on the wrong stem.
 +        """
 +        selection = self.stem_selection
 +        generation = getattr(self.audio, "_stem_generation", 0)
-+        if (
-+            selection == self._stem_current
-+            and generation == self._stem_generation
-+        ):
++        if selection == self._stem_current and generation == self._stem_generation:
 +            return
 +
 +        self._release_stem_chain()
@@ -503,14 +551,13 @@ index 7415ce38..9af85f37 100644
      def create_filter(self, alpha_decay, alpha_rise):
          # TODO: Since most effects reuse the same general filters it would be
          # nice for all that computation to be shared. This mean that shared
-@@ -1596,9 +1846,19 @@ class AudioReactiveEffect(Effect):
+@@ -1467,9 +1743,18 @@ class AudioReactiveEffect(Effect):
  
      def _audio_data_updated(self):
          self.melbank.cache_clear()
 +        if (
 +            self.stem_selection != self._stem_current
-+            or getattr(self.audio, "_stem_generation", 0)
-+            != self._stem_generation
++            or getattr(self.audio, "_stem_generation", 0) != self._stem_generation
 +        ):
 +            self._sync_stem_chain()
          with self.lock:
@@ -524,21 +571,21 @@ index 7415ce38..9af85f37 100644
  
      def audio_data_updated(self, data):
          """
-@@ -1631,11 +1891,11 @@ class AudioReactiveEffect(Effect):
+@@ -1501,11 +1786,11 @@ class AudioReactiveEffect(Effect):
              (
                  i
                  for i, x in enumerate(
--                    self.audio.melbanks.melbanks_config["max_frequencies"]
-+                    self._melbank_source.melbanks_config["max_frequencies"]
+-                    self.audio.melbanks.melbanks_config.max_frequencies
++                    self._melbank_source.melbanks_config.max_frequencies
                  )
                  if x >= self._virtual.frequency_range.max
              ),
--            len(self.audio.melbanks.melbanks_config["max_frequencies"]),
-+            len(self._melbank_source.melbanks_config["max_frequencies"]),
+-            len(self.audio.melbanks.melbanks_config.max_frequencies),
++            len(self._melbank_source.melbanks_config.max_frequencies),
          )
  
      @cached_property
-@@ -1644,7 +1904,7 @@ class AudioReactiveEffect(Effect):
+@@ -1514,7 +1799,7 @@ class AudioReactiveEffect(Effect):
              (
                  idx
                  for idx, freq in enumerate(
@@ -547,7 +594,7 @@ index 7415ce38..9af85f37 100644
                          self._selected_melbank
                      ].melbank_frequencies
                  )
-@@ -1659,14 +1919,14 @@ class AudioReactiveEffect(Effect):
+@@ -1529,14 +1814,14 @@ class AudioReactiveEffect(Effect):
              (
                  idx
                  for idx, freq in enumerate(
@@ -564,14 +611,14 @@ index 7415ce38..9af85f37 100644
                      self._selected_melbank
                  ].melbank_frequencies
              ),
-@@ -1717,11 +1977,11 @@ class AudioReactiveEffect(Effect):
+@@ -1587,11 +1872,11 @@ class AudioReactiveEffect(Effect):
          filtered, bool : melbank with smoothed attack and decay
          """
          if filtered:
--            melbank = self.audio.melbanks.melbanks_filtered[
-+            melbank = self._melbank_source.melbanks_filtered[
-                 self._selected_melbank
-             ][self._melbank_min_idx : self._melbank_max_idx]
+-            melbank = self.audio.melbanks.melbanks_filtered[self._selected_melbank][
++            melbank = self._melbank_source.melbanks_filtered[self._selected_melbank][
+                 self._melbank_min_idx : self._melbank_max_idx
+             ]
          else:
 -            melbank = self.audio.melbanks.melbanks[self._selected_melbank][
 +            melbank = self._melbank_source.melbanks[self._selected_melbank][
@@ -579,17 +626,12 @@ index 7415ce38..9af85f37 100644
              ]
  
 diff --git a/ledfx/effects/melbank.py b/ledfx/effects/melbank.py
-index 121a7c0e..329b1873 100644
+index 6ea2b05..5ba5204 100644
 --- a/ledfx/effects/melbank.py
 +++ b/ledfx/effects/melbank.py
-@@ -1,3 +1,4 @@
-+import copy
- import logging
+@@ -363,9 +363,13 @@ class Melbanks:
  
- # import time
-@@ -438,9 +439,13 @@ class Melbanks:
- 
-     DEFAULT_MELBANK_CONFIG = Melbank.CONFIG_SCHEMA({})
+     DEFAULT_MELBANK_CONFIG = MelbankConfig().model_dump()
  
 -    def __init__(self, ledfx, audio, config):
 +    def __init__(self, ledfx, audio, config, publish=True):
@@ -602,34 +644,27 @@ index 121a7c0e..329b1873 100644
          self.update_config(config)
          self.dev_enabled = self._ledfx.dev_enabled()
  
-@@ -449,6 +454,10 @@ class Melbanks:
-         self.melbank_collection = self._ledfx.config.get(
-             "melbank_collection", []
-         )
-+        if not self._publish:
-+            # Work on our own copy: the default-config branch below appends to
-+            # this list in place.
-+            self.melbank_collection = copy.deepcopy(self.melbank_collection)
-         # set up the melbanks
-         self.melbank_processors = []
- 
-@@ -506,10 +515,11 @@ class Melbanks:
+@@ -421,12 +425,13 @@ class Melbanks:
              for melbank in self.melbank_collection
          ]
  
--        self._ledfx.config["melbank_collection"] = (
--            self.cleaned_melbank_collection
--        )
--        self._ledfx.config["melbanks"] = self.melbanks_config
+-        self._ledfx.config.melbank_collection = [
+-            MelbankCollectionEntry.model_validate(entry)
+-            for entry in self.cleaned_melbank_collection
+-        ]
+-        # Shared, not copied: MelbanksConfig is frozen.
+-        self._ledfx.config.melbanks = self.melbanks_config
 +        if self._publish:
-+            self._ledfx.config["melbank_collection"] = (
-+                self.cleaned_melbank_collection
-+            )
-+            self._ledfx.config["melbanks"] = self.melbanks_config
++            self._ledfx.config.melbank_collection = [
++                MelbankCollectionEntry.model_validate(entry)
++                for entry in self.cleaned_melbank_collection
++            ]
++            # Shared, not copied: MelbanksConfig is frozen.
++            self._ledfx.config.melbanks = self.melbanks_config
          # some useful info that will be accessed faster as variables
-         self.mel_count = len(self.melbanks_config["max_frequencies"])
-         self.mel_len = self.melbanks_config["samples"]
-@@ -547,6 +557,9 @@ class Melbanks:
+         self.mel_count = len(self.melbanks_config.max_frequencies)
+         self.mel_len = self.melbanks_config.samples
+@@ -460,6 +465,9 @@ class Melbanks:
              for melbank_filtered in self.melbanks_filtered:
                  melbank_filtered[:] = 0
  
@@ -641,13 +676,15 @@ index 121a7c0e..329b1873 100644
                  self.send_melbank_event(i)
 diff --git a/ledfx/effects/noteSpectrum.py b/ledfx/effects/noteSpectrum.py
 new file mode 100644
-index 00000000..087d058f
+index 0000000..ec624a1
 --- /dev/null
 +++ b/ledfx/effects/noteSpectrum.py
-@@ -0,0 +1,158 @@
-+import numpy as np
-+import voluptuous as vol
+@@ -0,0 +1,155 @@
++import numpy as np  # noqa: N999
++from pydantic import Field
 +
++from ledfx.configuration.fields import CoercedFloat, CoercedInt
++from ledfx.configuration.plugin import TypedConfig
 +from ledfx.effects.audio import MAX_MIDI, MIN_MIDI, AudioReactiveEffect
 +from ledfx.effects.gradient import GradientEffect
 +from ledfx.effects.math import ExpFilter
@@ -681,40 +718,37 @@ index 00000000..087d058f
 +    NAME = "Note Spectrum"
 +    CATEGORY = "Classic"
 +
-+    CONFIG_SCHEMA = vol.Schema(
-+        {
-+            vol.Optional(
-+                "blur",
-+                description="Amount to blur the effect",
-+                default=1.0,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=10)),
-+            vol.Optional(
-+                "mirror",
-+                description="Mirror the effect",
-+                default=False,
-+            ): bool,
-+            vol.Optional(
-+                "note_min",
-+                description="Lowest note shown, as a MIDI number. Below ~47 a semitone is narrower than one FFT bin, so notes start to smear together.",
-+                default=DEFAULT_NOTE_MIN,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_MIDI, max=MAX_MIDI)),
-+            vol.Optional(
-+                "note_max",
-+                description="Highest note shown, as a MIDI number",
-+                default=DEFAULT_NOTE_MAX,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_MIDI, max=MAX_MIDI)),
-+            vol.Optional(
-+                "fade_rate",
-+                description="How quickly a note fades once it stops sounding. Lower leaves a longer trail behind the melody.",
-+                default=0.25,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
-+            vol.Optional(
-+                "gain",
-+                description="Brightness applied to note energy after levelling",
-+                default=1.0,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=5.0)),
-+        }
-+    )
++    class Config(GradientEffect.Config):
++        blur: CoercedFloat = Field(
++            1.0, description="Amount to blur the effect", ge=0.0, le=10
++        )
++        mirror: bool = Field(False, description="Mirror the effect")
++        note_min: CoercedInt = Field(
++            DEFAULT_NOTE_MIN,
++            description="Lowest note shown, as a MIDI number. Below ~47 a semitone is narrower than one FFT bin, so notes start to smear together.",
++            ge=MIN_MIDI,
++            le=MAX_MIDI,
++        )
++        note_max: CoercedInt = Field(
++            DEFAULT_NOTE_MAX,
++            description="Highest note shown, as a MIDI number",
++            ge=MIN_MIDI,
++            le=MAX_MIDI,
++        )
++        fade_rate: CoercedFloat = Field(
++            0.25,
++            description="How quickly a note fades once it stops sounding. Lower leaves a longer trail behind the melody.",
++            ge=0.0,
++            le=1.0,
++        )
++        gain: CoercedFloat = Field(
++            1.0,
++            description="Brightness applied to note energy after levelling",
++            ge=0.1,
++            le=5.0,
++        )
++
++    config = TypedConfig(Config)
 +
 +    def on_activate(self, pixel_count):
 +        self._trail = np.zeros(pixel_count)
@@ -736,8 +770,8 @@ index 00000000..087d058f
 +        if self._bin_starts is not None:
 +            return self._bin_starts
 +
-+        low = min(self._config["note_min"], self._config["note_max"])
-+        high = max(self._config["note_min"], self._config["note_max"])
++        low = min(self.config.note_min, self.config.note_max)
++        high = max(self.config.note_min, self.config.note_max)
 +        notes = np.arange(low, high + 1)
 +
 +        # A band spans half a semitone either side of the note, so the edges sit
@@ -782,7 +816,7 @@ index 00000000..087d058f
 +        peak = float(energy.max())
 +        tracked = float(self._peak_filter.update(np.array([peak]))[0])
 +        self._note_energy = np.clip(
-+            energy / max(tracked, 1e-6) * self._config["gain"], 0.0, 1.0
++            energy / max(tracked, 1e-6) * self.config.gain, 0.0, 1.0
 +        )
 +
 +    def render(self):
@@ -799,27 +833,27 @@ index 00000000..087d058f
 +
 +        # Hold the peak and decay it, so a note that has stopped sounding leaves
 +        # a trail and the melody reads as movement rather than flicker.
-+        self._trail = np.maximum(
-+            self._trail * (1.0 - self._config["fade_rate"]), y
-+        )
++        self._trail = np.maximum(self._trail * (1.0 - self.config.fade_rate), y)
 +        self.pixels = self.apply_gradient(self._trail)
 diff --git a/ledfx/effects/pitchLine.py b/ledfx/effects/pitchLine.py
 new file mode 100644
-index 00000000..223a6046
+index 0000000..e03a087
 --- /dev/null
 +++ b/ledfx/effects/pitchLine.py
-@@ -0,0 +1,239 @@
-+import math
+@@ -0,0 +1,237 @@
++import math  # noqa: N999
 +from collections import deque
++from typing import Annotated, Literal
 +
 +import aubio
 +import numpy as np
-+import voluptuous as vol
++from pydantic import Field
 +
++from ledfx.configuration.fields import CoercedFloat, CoercedInt, coerce
++from ledfx.configuration.plugin import TypedConfig
 +from ledfx.effects.audio import MAX_MIDI, MIN_MIDI, AudioReactiveEffect
 +from ledfx.effects.gradient import GradientEffect
 +from ledfx.effects.melbank import FFT_SIZE, MIC_RATE
-+
 +
 +# How fast the tracked peak level falls when nothing loud arrives, in dB per
 +# frame. Slow enough to hold across a note gap, fast enough to follow a
@@ -876,55 +910,55 @@ index 00000000..223a6046
 +    NAME = "Pitch Line"
 +    CATEGORY = "Classic"
 +
-+    CONFIG_SCHEMA = vol.Schema(
-+        {
-+            vol.Optional(
-+                "blur",
-+                description="Amount to blur the effect",
-+                default=2.0,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=10)),
-+            vol.Optional(
-+                "mirror",
-+                description="Mirror the effect",
-+                default=False,
-+            ): bool,
-+            vol.Optional(
-+                "note_min",
-+                description="Note at the start of the strip, as a MIDI number. A bassline sits around 33-54; a vocal or lead line around 55-84. A narrow range gives bigger, clearer movement.",
-+                default=28,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_MIDI, max=MAX_MIDI)),
-+            vol.Optional(
-+                "note_max",
-+                description="Note at the end of the strip, as a MIDI number",
-+                default=64,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_MIDI, max=MAX_MIDI)),
-+            vol.Optional(
-+                "smoothing",
-+                description="Frames of median filtering. Higher is steadier but lags behind the music: about 67ms at 9 frames, 33ms at 5. Lower it if the line feels delayed against your other effects.",
-+                default=9,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=31)),
-+            vol.Optional(
-+                "pitch_lowpass",
++    class Config(GradientEffect.Config):
++        blur: CoercedFloat = Field(
++            2.0, description="Amount to blur the effect", ge=0.0, le=10
++        )
++        mirror: bool = Field(False, description="Mirror the effect")
++        note_min: CoercedInt = Field(
++            28,
++            description="Note at the start of the strip, as a MIDI number. A bassline sits around 33-54; a vocal or lead line around 55-84. A narrow range gives bigger, clearer movement.",
++            ge=MIN_MIDI,
++            le=MAX_MIDI,
++        )
++        note_max: CoercedInt = Field(
++            64,
++            description="Note at the end of the strip, as a MIDI number",
++            ge=MIN_MIDI,
++            le=MAX_MIDI,
++        )
++        smoothing: CoercedInt = Field(
++            9,
++            description="Frames of median filtering. Higher is steadier but lags behind the music: about 67ms at 9 frames, 33ms at 5. Lower it if the line feels delayed against your other effects.",
++            ge=1,
++            le=31,
++        )
++        pitch_lowpass: Annotated[Literal[0, 100, 150, 200, 250, 400], coerce(int)] = (
++            Field(
++                0,
 +                description="Low-pass the audio before detecting pitch, in Hz. An octave-up error is the detector locking onto the second harmonic, so removing it helps: on a real bassline, 100Hz cut octave errors from 12% to 5%. Set 0 to use the shared detector instead. Only sensible for low sources - leave off for vocals.",
-+                default=0,
-+            ): vol.All(vol.Coerce(int), vol.In([0, 100, 150, 200, 250, 400])),
-+            vol.Optional(
-+                "silence_floor",
-+                description="Level in dBFS below which the stem counts as silent and the point goes dark. A separated stem always carries residue, so this has to be judged on level. Scored against a hand-labelled track, -30 agreed with where the bass actually played 74% of the time and -27 got 82%, while -45 false-lit 87% of the silent passages. Lower it if quiet notes are being cut.",
-+                default=-30,
-+            ): vol.All(vol.Coerce(int), vol.Range(min=-80, max=-10)),
-+            vol.Optional(
-+                "width",
-+                description="Width of the point, as a fraction of the strip",
-+                default=0.05,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.005, max=0.5)),
-+            vol.Optional(
-+                "fade_rate",
-+                description="How quickly the trail behind the point fades. Lower leaves a longer tail showing where the line has been.",
-+                default=0.2,
-+            ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
-+        }
-+    )
++            )
++        )
++        silence_floor: CoercedInt = Field(
++            -30,
++            description="Level in dBFS below which the stem counts as silent and the point goes dark. A separated stem always carries residue, so this has to be judged on level. Scored against a hand-labelled track, -30 agreed with where the bass actually played 74% of the time and -27 got 82%, while -45 false-lit 87% of the silent passages. Lower it if quiet notes are being cut.",
++            ge=-80,
++            le=-10,
++        )
++        width: CoercedFloat = Field(
++            0.05,
++            description="Width of the point, as a fraction of the strip",
++            ge=0.005,
++            le=0.5,
++        )
++        fade_rate: CoercedFloat = Field(
++            0.2,
++            description="How quickly the trail behind the point fades. Lower leaves a longer tail showing where the line has been.",
++            ge=0.0,
++            le=1.0,
++        )
++
++    config = TypedConfig(Config)
 +
 +    def on_activate(self, pixel_count):
 +        self._trail = np.zeros(pixel_count)
@@ -932,10 +966,10 @@ index 00000000..223a6046
 +        # render() reads this, and audio_data_updated can return before setting
 +        # it on the very first frames
 +        self._brightness = 0.0
-+        self._peak_db = self._config["silence_floor"]
++        self._peak_db = self.config.silence_floor
 +
 +    def config_updated(self, config):
-+        self._history = deque(maxlen=self._config["smoothing"])
++        self._history = deque(maxlen=self.config.smoothing)
 +        self._note = None
 +        # Rebuilt lazily on the first frame, when the block length is known
 +        self._detector = None
@@ -955,17 +989,15 @@ index 00000000..223a6046
 +        if self._detector is None:
 +            # hop must match the block the audio pipeline delivers
 +            self._detector = aubio.pitch(
-+                self.audio._config["pitch_method"],
++                self.audio._config.pitch_method,
 +                FFT_SIZE,
 +                len(block),
 +                MIC_RATE,
 +            )
 +            self._detector.set_unit("midi")
-+            self._detector.set_tolerance(self.audio._config["pitch_tolerance"])
++            self._detector.set_tolerance(self.audio._config.pitch_tolerance)
 +            self._lowpass = aubio.digital_filter(3)
-+            self._lowpass.set_biquad(
-+                *_lowpass_biquad(self._config["pitch_lowpass"])
-+            )
++            self._lowpass.set_biquad(*_lowpass_biquad(self.config.pitch_lowpass))
 +
 +        # Copy: the filter works in place and this buffer is shared with the
 +        # melbanks and any other effect reading the same stem.
@@ -976,9 +1008,9 @@ index 00000000..223a6046
 +            return 0
 +
 +    def audio_data_updated(self, data):
-+        low = min(self._config["note_min"], self._config["note_max"])
-+        high = max(self._config["note_min"], self._config["note_max"])
-+        floor = self._config["silence_floor"]
++        low = min(self.config.note_min, self.config.note_max)
++        high = max(self.config.note_min, self.config.note_max)
++        floor = self.config.silence_floor
 +
 +        block = data.audio_sample(raw=True)
 +        if block is None or not len(block):
@@ -1010,7 +1042,7 @@ index 00000000..223a6046
 +        span = max(self._peak_db - floor, MIN_LEVEL_SPAN_DB)
 +        self._brightness = float(np.clip((level_db - floor) / span, 0.0, 1.0))
 +
-+        if self._config["pitch_lowpass"]:
++        if self.config.pitch_lowpass:
 +            midi = self._band_limited_pitch(data)
 +        else:
 +            midi = data.pitch() or 0
@@ -1029,8 +1061,8 @@ index 00000000..223a6046
 +        if self._note is None:
 +            return
 +
-+        low = min(self._config["note_min"], self._config["note_max"])
-+        high = max(self._config["note_min"], self._config["note_max"])
++        low = min(self.config.note_min, self.config.note_max)
++        high = max(self.config.note_min, self.config.note_max)
 +        span = max(high - low, 1)
 +
 +        position = np.clip((self._note - low) / span, 0.0, 1.0)
@@ -1038,22 +1070,20 @@ index 00000000..223a6046
 +
 +        # A soft point rather than a single pixel, so the movement is visible on
 +        # a dense strip and does not disappear between pixels.
-+        sigma = max(self._config["width"] * self.pixel_count, 0.6)
-+        point = np.exp(
-+            -0.5 * ((np.arange(self.pixel_count) - centre) / sigma) ** 2
-+        )
++        sigma = max(self.config.width * self.pixel_count, 0.6)
++        point = np.exp(-0.5 * ((np.arange(self.pixel_count) - centre) / sigma) ** 2)
 +
 +        self._trail = np.maximum(
-+            self._trail * (1.0 - self._config["fade_rate"]),
++            self._trail * (1.0 - self.config.fade_rate),
 +            point * self._brightness,
 +        )
 +        self.pixels = self.apply_gradient(self._trail)
 diff --git a/ledfx/effects/stems.py b/ledfx/effects/stems.py
 new file mode 100644
-index 00000000..de56a33d
+index 0000000..9c5a503
 --- /dev/null
 +++ b/ledfx/effects/stems.py
-@@ -0,0 +1,788 @@
+@@ -0,0 +1,769 @@
 +"""Real-time stem separation.
 +
 +Runs a causal HS-TasNet model (ONNX) over the incoming audio so that effects can
@@ -1197,11 +1227,8 @@ index 00000000..de56a33d
 +
 +
 +def stem_selection_validator(value):
-+    """Config validator for a stem selection.
-+
-+    Named rather than a lambda: the schema serialiser dispatches on the
-+    function name to emit a multiselect widget for the frontend.
-+    """
++    """Config validator for a stem selection: unknown names are dropped and the
++    result is sorted and de-duplicated, so stored configs stay canonical."""
 +    return list(canonical_stems(value))
 +
 +
@@ -1307,16 +1334,14 @@ index 00000000..de56a33d
 +        # devices to render to.
 +        options.intra_op_num_threads = self._threads
 +        options.inter_op_num_threads = 1
-+        options.graph_optimization_level = (
-+            ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-+        )
++        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 +        try:
 +            self._session = ort.InferenceSession(
 +                model_path(self._config_dir),
 +                options,
 +                providers=["CPUExecutionProvider"],
 +            )
-+        except Exception as exc:
++        except Exception as exc:  # noqa: BLE001
 +            _LOGGER.error("Failed to load stem separation model: %s", exc)
 +            self._session = None
 +            return False
@@ -1367,9 +1392,7 @@ index 00000000..de56a33d
 +            self._refcounts[selection] = self._refcounts.get(selection, 0) + 1
 +            first = self._refcounts[selection] == 1
 +        if first:
-+            _LOGGER.debug(
-+                "Stem selection '%s' acquired", selection_label(selection)
-+            )
++            _LOGGER.debug("Stem selection '%s' acquired", selection_label(selection))
 +        return self.start()
 +
 +    def release(self, stems, band="full"):
@@ -1427,9 +1450,7 @@ index 00000000..de56a33d
 +
 +        if samplerate_in != MODEL_RATE:
 +            if self._in_resampler is None or self._in_rate != samplerate_in:
-+                self._in_resampler = samplerate.Resampler(
-+                    "sinc_fastest", channels=2
-+                )
++                self._in_resampler = samplerate.Resampler("sinc_fastest", channels=2)
 +                self._in_rate = samplerate_in
 +            frames = self._in_resampler.process(
 +                frames, MODEL_RATE / samplerate_in
@@ -1529,18 +1550,14 @@ index 00000000..de56a33d
 +            resampler = samplerate.Resampler("sinc_fastest", channels=1)
 +            self._out_resamplers[selection] = resampler
 +
-+        resampled = resampler.process(mono, MIC_RATE / MODEL_RATE).astype(
-+            np.float32
-+        )
++        resampled = resampler.process(mono, MIC_RATE / MODEL_RATE).astype(np.float32)
 +
 +        with self._lock:
 +            if selection not in self._refcounts:
 +                return
 +            existing = self._out.get(selection)
 +            buf = (
-+                resampled
-+                if existing is None
-+                else np.concatenate((existing, resampled))
++                resampled if existing is None else np.concatenate((existing, resampled))
 +            )
 +            # A consumer that stopped reading must not leak memory. Keeping the
 +            # newest audio also keeps latency bounded after a render stall.
@@ -1571,11 +1588,13 @@ index 00000000..de56a33d
 +        self.selection = canonical_selection(stems, band)
 +        self.stems, self.band = self.selection
 +        self.label = selection_label(self.selection)
-+        # Melbanks reads min_volume off the audio object it is bound to.
-+        self._config = {"min_volume": source._config["min_volume"]}
++        # Melbanks reads min_volume off the audio object it is bound to. The
++        # source's AudioConfig is frozen, so sharing it is safe; a config change
++        # rebuilds every chain (AudioAnalysisSource.initialise_stems).
++        self._config = source._config
 +
-+        fft_size = source._config["fft_size"]
-+        self._frame_len = MIC_RATE // source._config["sample_rate"]
++        fft_size = source._config.fft_size
++        self._frame_len = MIC_RATE // source._config.sample_rate
 +        self._phase_vocoder = aubio.pvoc(fft_size, self._frame_len)
 +        self._frequency_domain_null = aubio.cvec(fft_size)
 +        self._frequency_domain = self._frequency_domain_null
@@ -1598,17 +1617,11 @@ index 00000000..de56a33d
 +        # did. Note the corollary: a *melodic* selection is a worse beat source
 +        # than the mix, and its grid will free-run more.
 +        fft_params = (fft_size, self._frame_len, MIC_RATE)
-+        self._onset_detector = aubio.onset(
-+            source._config["onset_method"], *fft_params
-+        )
-+        self._tempo_detector = aubio.tempo(
-+            source._config["tempo_method"], *fft_params
-+        )
-+        self._pitch_detector = aubio.pitch(
-+            source._config["pitch_method"], *fft_params
-+        )
++        self._onset_detector = aubio.onset(source._config.onset_method, *fft_params)
++        self._tempo_detector = aubio.tempo(source._config.tempo_method, *fft_params)
++        self._pitch_detector = aubio.pitch(source._config.pitch_method, *fft_params)
 +        self._pitch_detector.set_unit("midi")
-+        self._pitch_detector.set_tolerance(source._config["pitch_tolerance"])
++        self._pitch_detector.set_tolerance(source._config.pitch_tolerance)
 +
 +        # Beat grid state, per selection. Free-runs on the last known period
 +        # when the stem goes quiet, so a sparse selection degrades to a steady
@@ -1643,7 +1656,7 @@ index 00000000..de56a33d
 +            self._melbanks = Melbanks(
 +                self._ledfx,
 +                self,
-+                self._ledfx.config.get("melbanks", {}),
++                self._ledfx.config.melbanks.model_dump(),
 +                publish=False,
 +            )
 +        return self._melbanks
@@ -1755,8 +1768,7 @@ index 00000000..de56a33d
 +        history_sum = sum(self.beat_power_history)
 +        if history_sum > 0:
 +            difference = (
-+                beat_power * self._source.beat_power_history_len / history_sum
-+                - 1
++                beat_power * self._source.beat_power_history_len / history_sum - 1
 +            )
 +        else:
 +            difference = 0
@@ -1766,8 +1778,7 @@ index 00000000..de56a33d
 +        if (
 +            difference >= self._source.beat_min_percent_diff
 +            and melbank_max >= self._source.beat_min_amplitude
-+            and time_now - self.beat_prev_time
-+            > self._source.beat_min_time_since
++            and time_now - self.beat_prev_time > self._source.beat_min_time_since
 +        ):
 +            self.beat_prev_time = time_now
 +            return True
@@ -1831,7 +1842,7 @@ index 00000000..de56a33d
 +        # measured at nearly twice the mix onset rate on a stem holding under 5%
 +        # of the energy. Below the volume gate we report no transients at all,
 +        # which is also what the melbank path does with the frequency domain.
-+        above_gate = self._volume > self._config["min_volume"]
++        above_gate = self._volume > self._config.min_volume
 +        self._fresh = above_gate
 +
 +        if above_gate:
@@ -1843,11 +1854,13 @@ index 00000000..de56a33d
 +        self.freq_power()
 +        return True
 diff --git a/ledfx/presets.py b/ledfx/presets.py
-index 2cd5fdef..b52dc936 100644
+index fccc553..6515cc1 100644
 --- a/ledfx/presets.py
 +++ b/ledfx/presets.py
-@@ -1,4 +1,137 @@
- ledfx_presets = {
+@@ -7,6 +7,139 @@ class BuiltinPreset(TypedDict):
+ 
+ 
+ ledfx_presets: dict[str, dict[str, BuiltinPreset]] = {
 +    "pitchLine": {
 +        "walking_bassline": {
 +            "config": {
@@ -1984,7 +1997,7 @@ index 2cd5fdef..b52dc936 100644
      "bleep": {
          "pipe": {
              "config": {
-@@ -3129,6 +3262,58 @@ ledfx_presets = {
+@@ -3137,6 +3270,58 @@ ledfx_presets: dict[str, dict[str, BuiltinPreset]] = {
          },
      },
      "blade_power_plus": {
@@ -2045,10 +2058,10 @@ index 2cd5fdef..b52dc936 100644
                  "background_brightness": 0.3,
 diff --git a/ledfx/tools/stem_model.py b/ledfx/tools/stem_model.py
 new file mode 100644
-index 00000000..499a6ffc
+index 0000000..80df944
 --- /dev/null
 +++ b/ledfx/tools/stem_model.py
-@@ -0,0 +1,202 @@
+@@ -0,0 +1,200 @@
 +"""Download the stem separation model.
 +
 +The model is ~210 MB, so it is not shipped with LedFx. It is fetched from the
@@ -2069,10 +2082,12 @@ index 00000000..499a6ffc
 +import sys
 +import urllib.request
 +
-+from ledfx.config import get_default_config_directory
++from ledfx.configuration.paths import get_default_config_directory
 +from ledfx.effects.stems import model_dir, model_path
 +
-+LFS_ENDPOINT = "https://github.com/sweetspotsoundsystem/stemgen-rt.git/info/lfs/objects/batch"
++LFS_ENDPOINT = (
++    "https://github.com/sweetspotsoundsystem/stemgen-rt.git/info/lfs/objects/batch"
++)
 +
 +# oid/size pairs from the repository's LFS pointer files.
 +OBJECTS = {
@@ -2093,9 +2108,7 @@ index 00000000..499a6ffc
 +        {
 +            "operation": "download",
 +            "transfers": ["basic"],
-+            "objects": [
-+                {"oid": o["oid"], "size": o["size"]} for o in OBJECTS.values()
-+            ],
++            "objects": [{"oid": o["oid"], "size": o["size"]} for o in OBJECTS.values()],
 +        }
 +    ).encode()
 +
@@ -2115,8 +2128,7 @@ index 00000000..499a6ffc
 +        href = entry.get("actions", {}).get("download", {}).get("href")
 +        if not href:
 +            raise RuntimeError(
-+                f"LFS gave no download URL for {entry.get('oid')}: "
-+                f"{entry.get('error')}"
++                f"LFS gave no download URL for {entry.get('oid')}: {entry.get('error')}"
 +            )
 +        by_oid[entry["oid"]] = href
 +    return by_oid
@@ -2130,23 +2142,23 @@ index 00000000..499a6ffc
 +    written = 0
 +    partial = target + ".part"
 +
-+    with urllib.request.urlopen(url, timeout=60) as response:
-+        with open(partial, "wb") as handle:
-+            while True:
-+                block = response.read(1 << 20)
-+                if not block:
-+                    break
-+                handle.write(block)
-+                digest.update(block)
-+                written += len(block)
-+                if on_bytes:
-+                    on_bytes(len(block))
++    with (
++        urllib.request.urlopen(url, timeout=60) as response,
++        open(partial, "wb") as handle,
++    ):
++        while True:
++            block = response.read(1 << 20)
++            if not block:
++                break
++            handle.write(block)
++            digest.update(block)
++            written += len(block)
++            if on_bytes:
++                on_bytes(len(block))
 +
 +    if written != expected_size:
 +        os.remove(partial)
-+        raise RuntimeError(
-+            f"{target}: expected {expected_size} bytes, got {written}"
-+        )
++        raise RuntimeError(f"{target}: expected {expected_size} bytes, got {written}")
 +    if digest.hexdigest() != expected_oid:
 +        os.remove(partial)
 +        raise RuntimeError(f"{target}: checksum mismatch, refusing to install")
@@ -2226,15 +2238,14 @@ index 00000000..499a6ffc
 +    def show(done, total, message):
 +        pct = 100 * done / total if total else 0
 +        print(
-+            f"\r  {message}: {pct:5.1f}% "
-+            f"({done / 1e6:.0f}/{total / 1e6:.0f} MB)   ",
++            f"\r  {message}: {pct:5.1f}% ({done / 1e6:.0f}/{total / 1e6:.0f} MB)   ",
 +            end="",
 +            flush=True,
 +        )
 +
 +    try:
 +        download(config_dir, force=args.force, progress=show)
-+    except Exception as exc:
++    except Exception as exc:  # noqa: BLE001
 +        print(f"Download failed: {exc}", file=sys.stderr)
 +        return 1
 +
@@ -2252,13 +2263,13 @@ index 00000000..499a6ffc
 +if __name__ == "__main__":
 +    sys.exit(main())
 diff --git a/pyproject.toml b/pyproject.toml
-index 1c8b1c55..c92c9ac9 100644
+index 69ee739..746ca52 100644
 --- a/pyproject.toml
 +++ b/pyproject.toml
-@@ -105,10 +105,16 @@ build-backend = "pdm.backend"
- hue = [
-     "python-mbedtls==2.9.2; python_version <= \"3.12\" and ((platform_machine != \"aarch64\" and platform_machine != \"armv7l\") and sys_platform == \"linux\" or sys_platform == \"win32\" or sys_platform == \"darwin\")",
- ]
+@@ -102,10 +102,16 @@ build-backend = "pdm.backend"
+ 
+ [project.optional-dependencies]
+ hue = []
 +# Real-time stem separation. Optional because the runtime is a large wheel and
 +# the model itself is a separate ~210 MB download (python -m ledfx.tools.stem_model).
 +stems = [
@@ -2272,11 +2283,24 @@ index 1c8b1c55..c92c9ac9 100644
  [tool.pytest.ini_options]
  testpaths = ["tests"]
  norecursedirs = ["dist", "build", ".tox"]
+diff --git a/tests/api_v2/test_plugins.py b/tests/api_v2/test_plugins.py
+index db6ed9f..2de6097 100644
+--- a/tests/api_v2/test_plugins.py
++++ b/tests/api_v2/test_plugins.py
+@@ -31,7 +31,7 @@ PREFIX = {"effect": "Effect", "device": "Device", "integration": "Integration"}
+ BASES = {"effect": Effect, "device": Device, "integration": Integration}
+ # The registry sizes in the canonical environment (Linux, Python 3.12, every
+ # extra); elsewhere plugins with a missing optional dependency don't load.
+-COUNTS = {"effect": 63, "device": 18, "integration": 4}
++COUNTS = {"effect": 65, "device": 18, "integration": 4}
+ CANONICAL = os.environ.get("LEDFX_CANONICAL_SPEC") == "1"
+ # Device configs require these (no defaults).
+ REQUIRED = {"name": "Strip", "ip_address": "192.168.1.50", "group_name": "Group"}
 diff --git a/tests/test_definitions/virtual_fallback.py b/tests/test_definitions/virtual_fallback.py
-index 42c23d86..5ae3fa67 100644
+index 8284f7f..25f2756 100644
 --- a/tests/test_definitions/virtual_fallback.py
 +++ b/tests/test_definitions/virtual_fallback.py
-@@ -95,6 +95,8 @@ virtual_fallback_tests = {
+@@ -93,6 +93,8 @@ virtual_fallback_tests = {
                          "background_color": "#000000",
                          "background_brightness": 1.0,
                          "diag": False,
@@ -2287,10 +2311,10 @@ index 42c23d86..5ae3fa67 100644
                      "type": "bar",
 diff --git a/tests/test_stems.py b/tests/test_stems.py
 new file mode 100644
-index 00000000..e539691d
+index 0000000..961a97c
 --- /dev/null
 +++ b/tests/test_stems.py
-@@ -0,0 +1,767 @@
+@@ -0,0 +1,813 @@
 +"""Tests for real-time stem separation.
 +
 +The separation model is a ~210 MB optional download, so the tests that need it
@@ -2300,15 +2324,20 @@ index 00000000..e539691d
 +
 +import logging
 +import time
++from types import SimpleNamespace
++from typing import ClassVar
 +
 +import numpy as np
 +import pytest
 +
++from ledfx.configuration.models import AudioConfig, LedFxConfig
++from ledfx.configuration.paths import get_default_config_directory
++from ledfx.configuration.schema import legacy_schema
 +from ledfx.effects.audio import AudioReactiveEffect
 +from ledfx.effects.stems import (
 +    MODEL_CONTEXT,
-+    STEM_BAND_NAMES,
 +    MODEL_RATE,
++    STEM_BAND_NAMES,
 +    STEM_NAMES,
 +    VALID_HOPS,
 +    StemAnalysisChain,
@@ -2332,17 +2361,9 @@ index 00000000..e539691d
 +class FakeSource:
 +    """Minimal stand-in for AudioAnalysisSource."""
 +
-+    _config = {
-+        "min_volume": 0.2,
-+        "fft_size": 4096,
-+        "sample_rate": FRAME_HZ,
-+        "onset_method": "hfc",
-+        "tempo_method": "default",
-+        "pitch_method": "yinfft",
-+        "pitch_tolerance": 0.8,
-+    }
-+    freq_max_mels = [100, 250, 3000, 10000]
-+    freq_mel_indexes = [2, 5, 17, 23]
++    _config = AudioConfig(sample_rate=FRAME_HZ)
++    freq_max_mels: ClassVar[list[int]] = [100, 250, 3000, 10000]
++    freq_mel_indexes: ClassVar[list[int]] = [2, 5, 17, 23]
 +    # volume-beat thresholds, read off the source by each chain
 +    beat_max_mel_index = 3
 +    beat_power_history_len = 12
@@ -2361,7 +2382,7 @@ index 00000000..e539691d
 +
 +class FakeLedfx:
 +    def __init__(self, config_dir="."):
-+        self.config = {"melbanks": {}}
++        self.config = LedFxConfig()
 +        self.config_dir = config_dir
 +        self.events = FakeEvents()
 +
@@ -2394,23 +2415,81 @@ index 00000000..e539691d
 +
 +
 +def test_schema_emits_a_multiselect_widget():
-+    from ledfx.api.utils import convertToJsonSchema
 +    from ledfx.effects.bands import BandsAudioEffect
 +
-+    prop = convertToJsonSchema(BandsAudioEffect.schema())["properties"][
-+        "stems"
-+    ]
++    prop = legacy_schema(BandsAudioEffect.config_model())["properties"]["stems"]
 +    assert prop["type"] == "multiselect"
 +    assert prop["enum"] == list(STEM_NAMES)
 +    assert prop["default"] == []
 +
 +
++def _all_effect_classes():
++    import importlib
++    import pkgutil
++
++    import ledfx.effects as package
++    from ledfx.effects import Effect
++
++    for module in pkgutil.walk_packages(package.__path__, "ledfx.effects."):
++        try:
++            importlib.import_module(module.name)
++        except ImportError:
++            pass  # optional dependency missing, e.g. imageio
++    return Effect.registry().values()
++
++
++def test_every_registered_audio_effect_has_the_selector():
++    """Audio effects inherit Config from GradientEffect, HSVEffect, Twod or
++    Effect, never from AudioReactiveEffect - config_model has to add it."""
++    audio = [c for c in _all_effect_classes() if issubclass(c, AudioReactiveEffect)]
++    assert audio
++    for effect in audio:
++        fields = effect.config_model().model_fields
++        assert "stems" in fields and "stem_band" in fields, effect.__name__
++
++
++def test_non_audio_effects_do_not_gain_the_selector():
++    others = [
++        c for c in _all_effect_classes() if not issubclass(c, AudioReactiveEffect)
++    ]
++    assert others
++    for effect in others:
++        assert "stems" not in effect.config_model().model_fields, effect.__name__
++
++
++def test_stem_config_model_is_built_once_per_base():
++    from ledfx.effects.energy import EnergyAudioEffect
++
++    assert EnergyAudioEffect.config_model() is EnergyAudioEffect.config_model()
++
++
++def test_stem_selection_is_canonicalised_on_validation():
++    from ledfx.effects.energy import EnergyAudioEffect
++
++    config = EnergyAudioEffect.config_model().model_validate(
++        {"stems": ["vocals", "nonsense", "bass", "bass"]}
++    )
++    assert config.stems == ["bass", "vocals"]
++
++
++def test_unknown_stem_band_is_rejected():
++    from pydantic import ValidationError
++
++    from ledfx.effects.energy import EnergyAudioEffect
++
++    with pytest.raises(ValidationError):
++        EnergyAudioEffect.config_model().model_validate({"stem_band": "sub"})
++
++
++def test_audio_config_hops_match_the_separator():
++    hops = AudioConfig.model_fields["stem_hop"].annotation.__args__
++    assert tuple(hops) == VALID_HOPS
++
++
 +def test_selection_is_order_and_duplicate_independent():
 +    """The tuple keys the analysis chains, so it must be canonical or the same
 +    channel gets built twice."""
-+    assert canonical_stems(["bass", "drums"]) == canonical_stems(
-+        ["drums", "bass"]
-+    )
++    assert canonical_stems(["bass", "drums"]) == canonical_stems(["drums", "bass"])
 +    assert canonical_stems(["drums", "drums"]) == ("drums",)
 +
 +
@@ -2561,9 +2640,9 @@ index 00000000..e539691d
 +    ):
 +        # a proxy would find the source attribute; these must not exist there
 +        assert not hasattr(source, name), f"{name} would be proxied"
-+        assert callable(
-+            getattr(StemAnalysisChain, name)
-+        ), f"{name} missing from the chain"
++        assert callable(getattr(StemAnalysisChain, name)), (
++            f"{name} missing from the chain"
++        )
 +
 +
 +def test_starved_frame_reports_no_onset_and_free_runs_the_bar():
@@ -2622,12 +2701,13 @@ index 00000000..e539691d
 +def test_chain_melbanks_do_not_touch_shared_config():
 +    """Stem melbanks must not fight the mix melbanks over config or graphs."""
 +    ledfx = FakeLedfx()
-+    ledfx.config["melbank_collection"] = []
++    before_collection = ledfx.config.melbank_collection
++    before_melbanks = ledfx.config.melbanks
 +    chain = StemAnalysisChain(ledfx, ["drums"], FakeSource())
 +    melbanks = chain.melbanks
 +    melbanks()
-+    assert ledfx.config["melbank_collection"] == [], "must not publish"
-+    assert "melbanks" in ledfx.config and ledfx.config["melbanks"] == {}
++    assert ledfx.config.melbank_collection is before_collection, "must not publish"
++    assert ledfx.config.melbanks is before_melbanks, "must not publish"
 +    assert ledfx.events.fired == [], "must not emit graph events"
 +
 +
@@ -2670,7 +2750,8 @@ index 00000000..e539691d
 +def _effect(stems):
 +    """An AudioReactiveEffect stub with only the attributes routing touches."""
 +    effect = AudioReactiveEffect.__new__(AudioReactiveEffect)
-+    effect._config = {"stems": list(stems), "stem_band": "full"}
++    # Mutable on purpose: these tests drive routing, not validation.
++    effect._config = SimpleNamespace(stems=list(stems), stem_band="full")
 +    effect._stem_chain = None
 +    effect._stem_current = None
 +    effect._stem_generation = -1
@@ -2704,7 +2785,7 @@ index 00000000..e539691d
 +    """Config order must not churn chains every time the UI reorders chips."""
 +    effect = _effect(["drums", "bass"])
 +    effect._sync_stem_chain()
-+    effect._config["stems"] = ["bass", "drums"]
++    effect._config.stems = ["bass", "drums"]
 +    effect._sync_stem_chain()
 +    assert effect.audio.acquired == [canonical_selection(["bass", "drums"])]
 +    assert effect.audio.released == []
@@ -2713,15 +2794,15 @@ index 00000000..e539691d
 +def test_switching_selection_releases_the_previous_one():
 +    effect = _effect(["drums"])
 +    effect._sync_stem_chain()
-+    effect._config["stems"] = ["bass"]
++    effect._config.stems = ["bass"]
 +    effect._sync_stem_chain()
 +    assert effect.audio.acquired == [
 +        canonical_selection(["drums"]),
 +        canonical_selection(["bass"]),
 +    ]
-+    assert effect.audio.released == [
-+        canonical_selection(["drums"])
-+    ], "old chain must be released"
++    assert effect.audio.released == [canonical_selection(["drums"])], (
++        "old chain must be released"
++    )
 +    assert effect._melbank_source == "bass-melbanks"
 +
 +
@@ -2737,7 +2818,7 @@ index 00000000..e539691d
 +def test_clearing_the_selection_releases_the_chain():
 +    effect = _effect(["drums"])
 +    effect._sync_stem_chain()
-+    effect._config["stems"] = []
++    effect._config.stems = []
 +    effect._sync_stem_chain()
 +    assert effect.audio.released == [canonical_selection(["drums"])]
 +    assert effect._melbank_source == "mix-melbanks"
@@ -2751,9 +2832,7 @@ index 00000000..e539691d
 +    with caplog.at_level(logging.WARNING):
 +        effect._sync_stem_chain()
 +    assert effect._melbank_source == "mix-melbanks"
-+    assert any(
-+        "falling back to the full mix" in r.message for r in caplog.records
-+    )
++    assert any("falling back to the full mix" in r.message for r in caplog.records)
 +
 +
 +def test_enabling_separation_later_reaches_existing_effects():
@@ -2797,27 +2876,21 @@ index 00000000..e539691d
 +    effect._sync_stem_chain()
 +    effect._release_stem_chain()
 +    effect._release_stem_chain()
-+    assert effect.audio.released == [
-+        canonical_selection(["drums"])
-+    ], "must not double-release"
++    assert effect.audio.released == [canonical_selection(["drums"])], (
++        "must not double-release"
++    )
 +
 +
 +# ---------------------------------------------------------------------------
 +# With the model installed
 +# ---------------------------------------------------------------------------
 +
-+_HAVE_MODEL = model_available(
-+    __import__("ledfx.config", fromlist=["x"]).get_default_config_directory()
-+)
-+_SKIP = pytest.mark.skipif(
-+    not _HAVE_MODEL, reason="separation model not installed"
-+)
++_HAVE_MODEL = model_available(get_default_config_directory())
++_SKIP = pytest.mark.skipif(not _HAVE_MODEL, reason="separation model not installed")
 +
 +
 +@pytest.fixture
 +def real_config_dir():
-+    from ledfx.config import get_default_config_directory
-+
 +    return get_default_config_directory()
 +
 +
@@ -2897,9 +2970,9 @@ index 00000000..e539691d
 +    for i in range(len(STEM_NAMES)):
 +        for j in range(i + 1, len(STEM_NAMES)):
 +            delta = np.abs(out[i] - out[j]).max()
-+            assert (
-+                delta > 1e-3
-+            ), f"{STEM_NAMES[i]} and {STEM_NAMES[j]} are near-identical"
++            assert delta > 1e-3, (
++                f"{STEM_NAMES[i]} and {STEM_NAMES[j]} are near-identical"
++            )
 +
 +
 +@_SKIP
@@ -2907,8 +2980,7 @@ index 00000000..e539691d
 +    """Sanity check on the split itself, using a strongly tonal low input."""
 +    out = _separate(graph, _tone_mix())
 +    energies = {
-+        n: float(np.sqrt((out[i] ** 2).mean()))
-+        for i, n in enumerate(STEM_NAMES)
++        n: float(np.sqrt((out[i] ** 2).mean())) for i, n in enumerate(STEM_NAMES)
 +    }
 +    _LOGGER.info("stem energies: %s", energies)
 +    assert max(energies, key=energies.get) == "bass", energies
@@ -3011,9 +3083,7 @@ index 00000000..e539691d
 +
 +def test_selection_label_mentions_the_band():
 +    assert selection_label(canonical_selection(["drums"])) == "drums"
-+    assert (
-+        selection_label(canonical_selection(["drums"], "high")) == "drums high"
-+    )
++    assert selection_label(canonical_selection(["drums"], "high")) == "drums high"
 +    assert selection_label(canonical_selection([], "high")) == "mix"
 +
 +
@@ -3041,7 +3111,7 @@ index 00000000..e539691d
 +def test_changing_only_the_band_rebuilds_the_chain():
 +    effect = _effect(["drums"])
 +    effect._sync_stem_chain()
-+    effect._config["stem_band"] = "high"
++    effect._config.stem_band = "high"
 +    effect._sync_stem_chain()
 +    assert effect.audio.acquired == [
 +        canonical_selection(["drums"], "full"),
@@ -3054,7 +3124,7 @@ index 00000000..e539691d
 +def test_band_is_ignored_without_a_stem_selection():
 +    """Bands only exist inside the separator, so the mix path is unaffected."""
 +    effect = _effect([])
-+    effect._config["stem_band"] = "high"
++    effect._config.stem_band = "high"
 +    effect._sync_stem_chain()
 +    assert effect._melbank_source == "mix-melbanks"
 +    assert effect.audio.acquired == []

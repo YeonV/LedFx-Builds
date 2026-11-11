@@ -1,41 +1,236 @@
-diff --git a/ledfx/config.py b/ledfx/config.py
-index 60859415..1288d33c 100644
---- a/ledfx/config.py
-+++ b/ledfx/config.py
-@@ -933,6 +933,23 @@ def migrate_config(old_config):
-                         )
-                     )
- 
-+    # Move users off base64 transmission. Measured on a Nexus 5 driving real
-+    # LEDs: 16% off the audio thread and 14% off total service CPU, and on
-+    # desktop ~11us/frame to encode against ~28us for base64 while shipping
-+    # 31% fewer bytes. Only rewrites the old default - anyone on
-+    # "uncompressed" or already on a binary mode is left alone.
-+    #
-+    # Gated on configuration_version, NOT PROJECT_VERSION - they are separate
-+    # version lines and CONFIGURATION_VERSION was already 2.3.6, so a gate
-+    # below that would never fire. Ships with the CONFIG_MICRO_VERSION bump
-+    # to 7 in consts.py, same as the 2.3.6 equalizer2d migration did.
-+    if parse_version(old_version) < parse_version("2.3.7"):
-+        if new_config.get("transmission_mode") == "compressed":
-+            _LOGGER.warning(
-+                "Migrating transmission_mode from compressed to binary_rgb"
-+            )
-+            new_config["transmission_mode"] = "binary_rgb"
+diff --git a/ledfx/configuration/migrations/builds.py b/ledfx/configuration/migrations/builds.py
+new file mode 100644
+index 0000000..9d32ac3
+--- /dev/null
++++ b/ledfx/configuration/migrations/builds.py
+@@ -0,0 +1,56 @@
++"""LedFx-Builds config migrations, kept apart from the shared MIGRATIONS list.
 +
-     _LOGGER.warning("Finished migrating config.")
-     return new_config
- 
++MIGRATIONS is upstream's numbered schema_version sequence ("append only"). A
++build-specific step appended there would take a number upstream may later
++give its own step, and the files of anyone switching between the two builds
++would then skip one or the other. These steps are gated on
++``configuration_version`` instead, which every config.json still carries and
++which upstream keeps frozen as LEGACY_CONFIGURATION_VERSION; this build writes
++the version of its newest step there (ledfx.consts).
++"""
++
++import copy
++import logging
++
++from packaging.version import InvalidVersion
++from packaging.version import parse as parse_version
++
++_LOGGER = logging.getLogger(__name__)
++
++
++def _older_than(raw: dict[str, object], version: str) -> bool:
++    found = raw.get("configuration_version")
++    if not isinstance(found, str):
++        return True
++    try:
++        return parse_version(found) < parse_version(version)
++    except InvalidVersion:
++        return True
++
++
++def transmission_mode_to_binary(raw: dict[str, object]) -> dict[str, object]:
++    """2.3.7: move users off base64 visualisation frames, once.
++
++    Measured on a Nexus 5 driving real LEDs: 16% off the audio thread and 14%
++    off total service CPU; on desktop ~11us per frame to encode against ~28us
++    for base64, shipping 31% fewer bytes. Only the old default is rewritten:
++    "uncompressed", or a choice made after this step ran, is left alone.
++    """
++    if raw.get("transmission_mode") != "compressed":
++        return raw
++    _LOGGER.warning("Migrating transmission_mode from compressed to binary_rgb")
++    return {**raw, "transmission_mode": "binary_rgb"}
++
++
++# (configuration_version the step brings a file to, step), oldest first.
++BUILD_MIGRATIONS = [("2.3.7", transmission_mode_to_binary)]
++BUILD_CONFIGURATION_VERSION = BUILD_MIGRATIONS[-1][0]
++
++
++def run_build_migrations(raw: dict[str, object]) -> tuple[dict[str, object], bool]:
++    """Apply the steps the file predates; returns (data, whether anything changed)."""
++    data = raw
++    for version, step in BUILD_MIGRATIONS:
++        if _older_than(raw, version):
++            data = step(copy.deepcopy(data) if data is raw else data)
++    return data, data != raw
+diff --git a/ledfx/configuration/store.py b/ledfx/configuration/store.py
+index efcbffb..a50ddea 100644
+--- a/ledfx/configuration/store.py
++++ b/ledfx/configuration/store.py
+@@ -18,6 +18,7 @@ from ledfx.configuration.migrations import (
+     run_migrations,
+     schema_version_of,
+ )
++from ledfx.configuration.migrations.builds import run_build_migrations
+ from ledfx.configuration.migrations.v2 import strip_envelope
+ from ledfx.configuration.models import DeviceEntry, LedFxConfig, VirtualEntry
+ from ledfx.consts import LEGACY_CONFIGURATION_VERSION
+@@ -146,6 +147,16 @@ class ConfigStore:
+                 )
+                 return store
+             migrated = True
++        try:
++            raw, build_migrated = run_build_migrations(raw)
++        except Exception as err:  # nothing may reach disk after a failed migration
++            _LOGGER.exception("Build config migration failed.")
++            store._enter_safe_mode(None, f"config.json could not be migrated: {err}")
++            return store
++        if build_migrated and not migrated:
++            # Accumulate: a failed DOWNGRADE backup must still block the save.
++            backup_failed = store.backup("VERSION") is None or backup_failed
++            migrated = True
+         if backup_failed:
+             # Keep the data in memory, but never overwrite the only copy.
+             store.error = (
 diff --git a/ledfx/consts.py b/ledfx/consts.py
-index 2df7d30e..80e23618 100644
+index 25d756f..68c3520 100644
 --- a/ledfx/consts.py
 +++ b/ledfx/consts.py
-@@ -7,7 +7,7 @@ PROJECT_AUTHOR = "LedFx Developers"
- PROJECT_LICENSE = "GPL-3.0"
- CONFIG_MAJOR_VERSION = 2
- CONFIG_MINOR_VERSION = 3
--CONFIG_MICRO_VERSION = 6
-+CONFIG_MICRO_VERSION = 7
+@@ -16,7 +16,10 @@ CONFIGURATION_VERSION = (
+ )
+ # Written to every config.json forever: pre-overhaul LedFx builds re-run their
+ # destructive migrate_config() on files that lack it (see ConfigStore).
+-LEGACY_CONFIGURATION_VERSION = "2.3.6"
++# LedFx-Builds: the newest build migration (configuration/migrations/builds.py).
++# Older builds only migrate files older than themselves, so a higher value keeps
++# them off it the same way.
++LEGACY_CONFIGURATION_VERSION = "2.3.7"
+ LEDFX_ASSETS_PATH = ledfx_assets.where()
  
- # Dev turns sentry logging on and off
- DEV = 0
+ if __name__ == "__main__":
+diff --git a/tests/configuration/test_config_api.py b/tests/configuration/test_config_api.py
+index ce47b1e..e96a595 100644
+--- a/tests/configuration/test_config_api.py
++++ b/tests/configuration/test_config_api.py
+@@ -10,6 +10,7 @@ from ledfx.api.integration_spotify import QLCEndpoint as SpotifyEndpoint
+ from ledfx.api.integrations import IntegrationsEndpoint
+ from ledfx.api.scenes import ScenesEndpoint
+ from ledfx.configuration.migrations import CURRENT_SCHEMA_VERSION
++from ledfx.consts import LEGACY_CONFIGURATION_VERSION
+ from ledfx.integrations.spotify import Spotify
+ from tests.test_utilities.fake_ledfx import fake_ledfx
+ 
+@@ -98,7 +99,10 @@ async def test_get_includes_runtime_keys() -> None:
+     endpoint, _ = _endpoint()
+     request = make_mocked_request("GET", "/api/config")
+     body = json.loads((await endpoint.get(request)).text or "")
+-    assert body["hosts"] == ["10.0.0.2"] and body["configuration_version"] == "2.3.6"
++    assert (
++        body["hosts"] == ["10.0.0.2"]
++        and body["configuration_version"] == LEGACY_CONFIGURATION_VERSION
++    )
+     assert "ledfx_presets" in body
+ 
+ 
+diff --git a/tests/configuration/test_history_corpus.py b/tests/configuration/test_history_corpus.py
+index 3b18d9c..482c790 100644
+--- a/tests/configuration/test_history_corpus.py
++++ b/tests/configuration/test_history_corpus.py
+@@ -7,6 +7,7 @@ from pathlib import Path
+ import pytest
+ 
+ from ledfx.configuration.store import QUARANTINE_FILE_NAME, ConfigStore
++from ledfx.consts import LEGACY_CONFIGURATION_VERSION
+ 
+ HERE = os.path.dirname(__file__)
+ CORPUS = sorted(
+@@ -30,7 +31,7 @@ def test_every_known_config_loads_without_quarantine_and_round_trips(
+     first = store.serialise()
+     reloaded = ConfigStore.load(str(tmp_path))
+     assert reloaded.serialise() == first
+-    assert json.loads(first)["configuration_version"] == "2.3.6"
++    assert json.loads(first)["configuration_version"] == LEGACY_CONFIGURATION_VERSION
+ 
+ 
+ EVERY_PLUGIN = os.path.join(HERE, "..", "configs", "v2_3_6_every_plugin.json")
+diff --git a/tests/configuration/test_store.py b/tests/configuration/test_store.py
+index efd18ab..0176d43 100644
+--- a/tests/configuration/test_store.py
++++ b/tests/configuration/test_store.py
+@@ -5,6 +5,7 @@ import tempfile
+ from pathlib import Path
+ 
+ import pytest
++from packaging.version import parse as parse_version
+ 
+ from ledfx.configuration.migrations import CURRENT_SCHEMA_VERSION
+ from ledfx.configuration.models import DeviceEntry
+@@ -13,6 +14,7 @@ from ledfx.configuration.store import (
+     ConfigStore,
+     backup_config_file,
+ )
++from ledfx.consts import LEGACY_CONFIGURATION_VERSION
+ 
+ 
+ def _write(tmp_path: Path, data: object) -> Path:
+@@ -32,17 +34,19 @@ def test_missing_file_creates_defaults(tmp_path: Path) -> None:
+     assert store.data.port == 8888
+     on_disk = json.loads((tmp_path / "config.json").read_text())
+     assert on_disk["schema_version"] == CURRENT_SCHEMA_VERSION
+-    assert on_disk["configuration_version"] == "2.3.6"
++    assert on_disk["configuration_version"] == LEGACY_CONFIGURATION_VERSION
+ 
+ 
+ def test_saved_file_keeps_legacy_version_marker_for_downgrades(tmp_path: Path) -> None:
+     # Review Focus 3: pre-overhaul builds must see configuration_version 2.3.6
++    # or later, or they re-run their destructive migrate_config().
++    assert parse_version(LEGACY_CONFIGURATION_VERSION) >= parse_version("2.3.6")
+     _write(tmp_path, {"schema_version": CURRENT_SCHEMA_VERSION, "port": 1})
+     store = ConfigStore.load(str(tmp_path))
+     store.data.port = 2
+     assert store.save_now()
+     on_disk = json.loads((tmp_path / "config.json").read_text())
+-    assert on_disk["configuration_version"] == "2.3.6"
++    assert on_disk["configuration_version"] == LEGACY_CONFIGURATION_VERSION
+     assert on_disk["port"] == 2
+ 
+ 
+diff --git a/tests/test_transmission_mode.py b/tests/test_transmission_mode.py
+index c97212e..a6a515f 100644
+--- a/tests/test_transmission_mode.py
++++ b/tests/test_transmission_mode.py
+@@ -1,7 +1,37 @@
+ """transmission_mode: changeable live, binary by default, migrated once."""
+ 
++import pytest
++
++from ledfx.configuration.migrations.builds import (
++    BUILD_CONFIGURATION_VERSION,
++    run_build_migrations,
++)
+ from ledfx.configuration.models import RESTART_FIELDS
++from ledfx.consts import LEGACY_CONFIGURATION_VERSION
+ 
+ 
+ def test_changing_it_needs_no_restart():
+     assert "transmission_mode" not in RESTART_FIELDS
++
++
++@pytest.mark.parametrize(
++    ("version", "mode", "expected"),
++    [
++        ("2.3.6", "compressed", "binary_rgb"),  # upstream file, old default
++        (None, "compressed", "binary_rgb"),  # no version at all
++        ("2.3.6", "uncompressed", "uncompressed"),  # a deliberate choice
++        ("2.3.7", "compressed", "compressed"),  # chosen after the step ran
++    ],
++)
++def test_build_step(version, mode, expected):
++    raw = {"transmission_mode": mode}
++    if version is not None:
++        raw["configuration_version"] = version
++    data, changed = run_build_migrations(raw)
++    assert data["transmission_mode"] == expected
++    assert changed is (expected != mode)
++    assert raw["transmission_mode"] == mode, "the input is never mutated"
++
++
++def test_files_are_written_at_the_newest_build_step():
++    assert LEGACY_CONFIGURATION_VERSION == BUILD_CONFIGURATION_VERSION

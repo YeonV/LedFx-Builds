@@ -1,70 +1,134 @@
+diff --git a/ledfx/core.py b/ledfx/core.py
+index 550b9cc..c74bc3b 100644
+--- a/ledfx/core.py
++++ b/ledfx/core.py
+@@ -36,7 +36,10 @@ from ledfx.http_manager import HttpServer
+ from ledfx.integrations import Integrations
+ from ledfx.mdns_manager import ZeroConfRunner
+ from ledfx.nowplaying import NowPlayingService
+-from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
++from ledfx.nowplaying.providers.android import (
++    AndroidNowPlayingProvider,
++    boost_current_thread,
++)
+ from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
+ from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
+ from ledfx.playlists import PlaylistManager
+@@ -472,6 +475,9 @@ class LedFxCore:
+             self.stop(1)
+ 
+     def start(self, open_ui=False, pause_all=False):
++        # run_forever() below makes this thread the event loop for the app's
++        # lifetime: every update-event handler plus all REST/WebSocket I/O.
++        boost_current_thread("event loop")
+         async_fire_and_forget(
+             self.async_start(open_ui=open_ui, pause_all=pause_all),
+             self.loop,
+diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
+index f4d758d..de50fa6 100644
+--- a/ledfx/nowplaying/providers/android.py
++++ b/ledfx/nowplaying/providers/android.py
+@@ -91,6 +91,26 @@ def running_on_android() -> bool:
+     return android_context() is not None
+ 
+ 
++def boost_current_thread(role: str) -> None:
++    """Raise the calling thread to THREAD_PRIORITY_AUDIO on Android.
++
++    The render loop and the asyncio event loop are the real-time halves of an
++    audio-reactive pipeline, yet at Android's default priority they compete
++    with ordinary background workers. AudioRecord already runs at this priority
++    natively; measured on-device, matching it was the single biggest win of the
++    b38 investigation. A no-op everywhere else.
++    """
++    if not running_on_android():
++        return
++    try:
++        from jnius import autoclass
++
++        process = autoclass("android.os.Process")
++        process.setThreadPriority(process.THREAD_PRIORITY_AUDIO)
++    except Exception:
++        _LOGGER.exception("Android: failed to raise %s thread priority", role)
++
++
+ def notification_access_granted() -> bool:
+     """Has the user granted LedFx notification access?
+ 
 diff --git a/ledfx/virtuals.py b/ledfx/virtuals.py
-index b77cbf90..027b0ffd 100644
+index be32db7..27b4ea2 100644
 --- a/ledfx/virtuals.py
 +++ b/ledfx/virtuals.py
-@@ -830,6 +830,30 @@ class Virtual:
+@@ -824,6 +824,9 @@ class Virtual:
          return self._active_effect
-
+ 
      def thread_function(self):
-+        try:
-+            from ledfx.nowplaying.providers.android import running_on_android
-+        except ImportError:  # not an Android build - this module doesn't exist
++        from ledfx.nowplaying.providers.android import boost_current_thread
 +
-+            def running_on_android():
-+                return False
-+
-+        if running_on_android():
-+            # This loop is the render half of the same real-time pipeline as
-+            # audio analysis (InputStream.run() in the Android sounddevice
-+            # shim) and the asyncio event loop (LedFxCore.start()) - both get
-+            # the same boost. At Android's default thread priority it
-+            # competes for the CPU on equal footing with ordinary background
-+            # workers, despite carrying every frame's assemble+flush.
-+            try:
-+                from jnius import autoclass
-+
-+                Process = autoclass("android.os.Process")
-+                Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-+            except Exception:
-+                _LOGGER.exception(
-+                    "Android: failed to raise render thread priority"
-+                )
-+
++        boost_current_thread("render")
          while True:
              if not self._active:
                  break
-diff --git a/ledfx/core.py b/ledfx/core.py
-index b9eba15e..acb75190 100644
---- a/ledfx/core.py
-+++ b/ledfx/core.py
-@@ -510,6 +510,30 @@ class LedFxCore:
-         pass
-
-     def start(self, open_ui=False, pause_all=False):
-+        try:
-+            from ledfx.nowplaying.providers.android import running_on_android
-+        except ImportError:  # not an Android build - this module doesn't exist
+diff --git a/tests/test_android_thread_priority.py b/tests/test_android_thread_priority.py
+new file mode 100644
+index 0000000..6cb6504
+--- /dev/null
++++ b/tests/test_android_thread_priority.py
+@@ -0,0 +1,57 @@
++"""Render and event-loop threads run at THREAD_PRIORITY_AUDIO on Android."""
 +
-+            def running_on_android():
-+                return False
++import inspect
++import logging
++import sys
++from types import ModuleType, SimpleNamespace
 +
-+        if running_on_android():
-+            # run_forever() below blocks this calling thread for the app's
-+            # entire lifetime - it IS the asyncio event loop thread from this
-+            # point on, carrying every VirtualUpdateEvent/DeviceUpdateEvent
-+            # handler plus all REST/WebSocket I/O. Same boost as the render
-+            # thread (Virtual.thread_function) and the audio-analysis thread
-+            # (InputStream.run() in the Android sounddevice shim).
-+            try:
-+                from jnius import autoclass
++import pytest
 +
-+                Process = autoclass("android.os.Process")
-+                Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-+            except Exception:
-+                _LOGGER.exception(
-+                    "Android: failed to raise event loop thread priority"
-+                )
++from ledfx.nowplaying.providers import android
 +
-         async_fire_and_forget(
-             self.async_start(open_ui=open_ui, pause_all=pause_all), self.loop
-         )
++
++@pytest.fixture
++def process(monkeypatch):
++    calls = []
++    fake = SimpleNamespace(THREAD_PRIORITY_AUDIO=-16, setThreadPriority=calls.append)
++    jnius = ModuleType("jnius")
++    jnius.autoclass = lambda name: {"android.os.Process": fake}[name]
++    monkeypatch.setitem(sys.modules, "jnius", jnius)
++    monkeypatch.setattr(android, "running_on_android", lambda: True)
++    return calls
++
++
++def test_boosts_to_audio_priority_on_android(process):
++    android.boost_current_thread("render")
++    assert process == [-16]
++
++
++def test_noop_off_android(process, monkeypatch):
++    monkeypatch.setattr(android, "running_on_android", lambda: False)
++    android.boost_current_thread("render")
++    assert process == []
++
++
++def test_failure_is_logged_not_raised(process, monkeypatch, caplog):
++    def refuse(priority):
++        raise RuntimeError("java.lang.SecurityException")
++
++    sys.modules["jnius"].autoclass = lambda name: SimpleNamespace(
++        THREAD_PRIORITY_AUDIO=-16, setThreadPriority=refuse
++    )
++    with caplog.at_level(logging.ERROR):
++        android.boost_current_thread("event loop")
++    assert "event loop thread priority" in caplog.text
++
++
++def test_render_loop_and_event_loop_boost_themselves():
++    from ledfx.core import LedFxCore
++    from ledfx.virtuals import Virtual
++
++    assert 'boost_current_thread("render")' in inspect.getsource(
++        Virtual.thread_function
++    )
++    start = inspect.getsource(LedFxCore.start)
++    assert start.index('boost_current_thread("event loop")') < start.index(
++        "self.loop.run_forever()"
++    )

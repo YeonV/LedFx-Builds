@@ -1,102 +1,172 @@
 diff --git a/ledfx/api/websocket.py b/ledfx/api/websocket.py
-index b6fe143c..cb11433e 100644
+index fe50e8f..ca7dd88 100644
 --- a/ledfx/api/websocket.py
 +++ b/ledfx/api/websocket.py
-@@ -26,6 +26,16 @@ from ledfx.events import (
+@@ -30,6 +30,41 @@ from ledfx.events import (
  
  _LOGGER = logging.getLogger(__name__)
  MAX_PENDING_MESSAGES = 256
 +
-+# Binary vis frame: 12-byte little-endian header, then raw pixel bytes.
++# Binary vis frame (transmission_mode binary_rgb): 12-byte little-endian header,
++# then raw pixel bytes.
 +#   0 magic  1 version  2 flags (bit0 = is_device)  3 bytes-per-pixel
 +#   4:8 subscription id  8:10 rows  10:12 cols
-+# The subscription id is what routes the frame client-side - a binary frame
-+# has no JSON envelope to carry event_type/vis_id, and the client already
-+# knows which id it registered for which virtual.
++# The subscription id routes the frame client-side: a binary frame has no JSON
++# envelope for event_type/vis_id.
 +VIS_BINARY_MAGIC = 0x4C
 +VIS_BINARY_VERSION = 1
 +VIS_BINARY_HEADER = "<BBBBIHH"
++
++
++def binary_vis_frame(message: dict[str, object]) -> bytes:
++    """Binary frame for a vis message whose pixels are raw bytes.
++
++    Built at send time, not when queued: the mailbox must keep dicts so
++    subscription removal can filter pending frames. Raises struct.error when
++    the id or a dimension does not fit its header field.
++    """
++    pixels = bytes(message["pixels"])
++    rows, cols = message.get("shape") or (1, 0)
++    count = int(rows) * int(cols)
++    header = struct.pack(
++        VIS_BINARY_HEADER,
++        VIS_BINARY_MAGIC,
++        VIS_BINARY_VERSION,
++        1 if message.get("is_device") else 0,
++        len(pixels) // count if count else 0,
++        message.get("id"),
++        int(rows),
++        int(cols),
++    )
++    return header + pixels
++
++
+ FINAL_ERROR_REPLY_TIMEOUT = 1.0
  MAX_VAL = 32767
  
- # Phase 2: Client metadata constants
-@@ -189,7 +199,23 @@ class WebsocketConnection:
-         ):
-             # Single-slot mailbox: overwrite any pending frame for this vis_id
-             vis_id = message.get("vis_id")
--            self._vis_slots[vis_id] = message
-+            pixels = message.get("pixels")
-+            if isinstance(pixels, (bytes, bytearray)):
-+                rows, cols = message.get("shape") or (1, 0)
-+                count = rows * cols
-+                header = struct.pack(
-+                    VIS_BINARY_HEADER,
-+                    VIS_BINARY_MAGIC,
-+                    VIS_BINARY_VERSION,
-+                    1 if message.get("is_device") else 0,
-+                    len(pixels) // count if count else 0,
-+                    int(message.get("id", 0)),
-+                    int(rows),
-+                    int(cols),
-+                )
-+                self._vis_slots[vis_id] = header + bytes(pixels)
-+            else:
-+                self._vis_slots[vis_id] = message
-         else:
-             # Ordered control message
-             if self._control_queue.qsize() >= MAX_PENDING_MESSAGES:
-@@ -284,6 +310,9 @@ class WebsocketConnection:
-                 self._vis_slots.clear()
-                 for message in frames.values():
+@@ -385,6 +420,16 @@ class WebsocketConnection:
+                     if message is None:
+                         continue
                      try:
-+                        if isinstance(message, (bytes, bytearray)):
-+                            await self._socket.send_bytes(message)
++                        if isinstance(message.get("pixels"), bytes):
++                            try:
++                                frame = binary_vis_frame(message)
++                            except struct.error as err:
++                                _LOGGER.error(
++                                    "Unable to pack vis frame %s: %s", vis_id, err
++                                )
++                                continue
++                            await socket.send_bytes(frame)
 +                            continue
-                         await self._socket.send_json(message, dumps=json.dumps)
+                         await socket.send_json(message, dumps=dumps)
                      except TypeError as err:
                          _LOGGER.error(
-diff --git a/ledfx/config.py b/ledfx/config.py
-index d76fdcf7..37f3fa60 100644
---- a/ledfx/config.py
-+++ b/ledfx/config.py
-@@ -78,6 +78,13 @@ UI_ONLY_KEYS_IGNORED_FOR_CONFIG_COMPARISON = [
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index a3aca66..b377a14 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -596,7 +596,9 @@ class LedFxConfig(LedFxModel):
+     )
+     # No restart: read fresh for every visualisation frame, never captured when
+     # the visualisation listeners are set up (unlike fps and maxlen).
+-    transmission_mode: Literal["compressed", "uncompressed"] = "compressed"
++    transmission_mode: Literal["compressed", "uncompressed", "binary_rgb"] = (
++        "binary_rgb"
++    )
+     visualisation_fps: int = Field(30, ge=1, le=60)
+     visualisation_maxlen: int = Field(81, ge=5, le=65536)
+     global_transitions: bool = Field(
+diff --git a/ledfx/configuration/paths.py b/ledfx/configuration/paths.py
+index 4efa416..50a3798 100644
+--- a/ledfx/configuration/paths.py
++++ b/ledfx/configuration/paths.py
+@@ -33,6 +33,10 @@ VISUALISATION_CONFIG_KEYS = [
  class Transmission:
      BASE64_COMPRESSED = "compressed"
      UNCOMPRESSED = "uncompressed"
-+    # Raw pixel bytes in a binary websocket frame - no base64 expansion on
-+    # the wire, no per-pixel decode in the browser. Measured at 20860 active
-+    # pixels: 20us/frame to encode against 38us for base64, and 175us total
-+    # client+core per frame against 1314us. An RGBA variant was tried and
-+    # dropped - interleaving an alpha column is a strided write that costs
-+    # more than base64 at scale (92us/frame) and won at no size.
++    # Raw pixel bytes in a binary websocket frame: no base64 expansion, no
++    # per-pixel decode in the browser. Measured at 20860 pixels: 20us/frame to
++    # encode against 38us for base64, 175us client+core against 1314us.
 +    BINARY_RGB = "binary_rgb"
  
-     @staticmethod
-     def get_list():
-@@ -161,7 +168,7 @@ CORE_CONFIG_SCHEMA = vol.Schema(
-         vol.Optional("scenes", default={}): dict,
-         vol.Optional("playlists", default={}): dict,
-         vol.Optional("integrations", default=[]): list,
--        vol.Optional("transmission_mode", default="compressed"): vol.In(
-+        vol.Optional("transmission_mode", default="binary_rgb"): vol.In(
-             Transmission.get_list()
-         ),
-         vol.Optional("visualisation_fps", default=30): vol.All(
+ 
+ def load_logger():
 diff --git a/ledfx/core.py b/ledfx/core.py
-index acb75190..8bedfd53 100644
+index c74bc3b..1556f3a 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -470,10 +470,10 @@ class LedFxCore:
-                     pixels, self.config["ui_brightness_boost"], 100
-                 )
+@@ -428,7 +428,11 @@ class LedFxCore:
+             if self.config.ui_brightness_boost != 0:
+                 pixels = pixels_boost(pixels, self.config.ui_brightness_boost, 100)
  
--            if (
--                self.config["transmission_mode"]
--                == Transmission.BASE64_COMPRESSED
--            ):
-+            mode = self.config["transmission_mode"]
+-            if self.config.transmission_mode == Transmission.BASE64_COMPRESSED:
++            mode = self.config.transmission_mode
 +            if mode == Transmission.BINARY_RGB:
-+                pixels = pixels.astype(np.uint8).tobytes()
++                # Sent as a binary websocket frame (api/websocket.py).
++                pixels = pixels.astype(np.uint8, copy=False).tobytes()
 +            elif mode == Transmission.BASE64_COMPRESSED:
-                 b_arr = bytes(pixels.astype(np.uint8).flatten())
+                 b_arr = pixels.astype(np.uint8, copy=False).tobytes()
                  pixels = pybase64.b64encode(b_arr).decode("ASCII")
              else:
+diff --git a/tests/test_transmission_mode.py b/tests/test_transmission_mode.py
+index a6a515f..1728093 100644
+--- a/tests/test_transmission_mode.py
++++ b/tests/test_transmission_mode.py
+@@ -35,3 +35,57 @@ def test_build_step(version, mode, expected):
+ 
+ def test_files_are_written_at_the_newest_build_step():
+     assert LEGACY_CONFIGURATION_VERSION == BUILD_CONFIGURATION_VERSION
++
++
++def test_binary_is_the_default():
++    from ledfx.configuration.models import LedFxConfig
++
++    assert LedFxConfig().transmission_mode == "binary_rgb"
++
++
++def test_binary_frame_matches_the_frontend_decoder():
++    import struct
++
++    from ledfx.api.websocket import binary_vis_frame
++
++    pixels = bytes(range(12))
++    frame = binary_vis_frame(
++        {"id": 7, "pixels": pixels, "shape": (2, 2), "is_device": True}
++    )
++    assert struct.unpack("<BBBBIHH", frame[:12]) == (0x4C, 1, 1, 3, 7, 2, 2)
++    assert frame[12:] == pixels
++
++
++def test_oversized_dimension_raises_struct_error():
++    import struct
++
++    from ledfx.api.websocket import binary_vis_frame
++
++    with pytest.raises(struct.error):
++        binary_vis_frame({"id": 1, "pixels": b"\0" * 3, "shape": (1, 70000)})
++
++
++def test_upstream_compressed_file_is_migrated_once(tmp_path):
++    import json
++
++    from ledfx.configuration.store import ConfigStore
++
++    (tmp_path / "config.json").write_text(
++        json.dumps(
++            {
++                "schema_version": 2,
++                "configuration_version": "2.3.6",
++                "transmission_mode": "compressed",
++            }
++        )
++    )
++    store = ConfigStore.load(str(tmp_path))
++    assert store.data.transmission_mode == "binary_rgb"
++    on_disk = json.loads((tmp_path / "config.json").read_text())
++    assert on_disk["transmission_mode"] == "binary_rgb"
++    assert on_disk["configuration_version"] == LEGACY_CONFIGURATION_VERSION
++    assert list(tmp_path.glob("config_backup_VERSION_*"))
++
++    store.data.transmission_mode = "compressed"
++    store.save_now()
++    assert ConfigStore.load(str(tmp_path)).data.transmission_mode == "compressed"
