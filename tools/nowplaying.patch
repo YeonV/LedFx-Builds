@@ -224,10 +224,10 @@ index 6ca54f3..49a9060 100644
  
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
 new file mode 100644
-index 0000000..d2e944d
+index 0000000..570229c
 --- /dev/null
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -0,0 +1,456 @@
+@@ -0,0 +1,467 @@
 +"""Android Now Playing provider.
 +
 +Reads the phone's own media sessions (Spotify, YouTube Music, anything that
@@ -378,6 +378,7 @@ index 0000000..d2e944d
 +        self._listener = None
 +        self._access_warned = False
 +        self._last_identity = None
++        self._artwork_sent = False
 +        self._grant_receiver = None
 +
 +    # ------------------------------------------------------------------
@@ -432,6 +433,7 @@ index 0000000..d2e944d
 +        self._component = None
 +        self._access_warned = False
 +        self._last_identity = None
++        self._artwork_sent = False
 +
 +    # ------------------------------------------------------------------
 +    # Waiting for notification access
@@ -482,6 +484,7 @@ index 0000000..d2e944d
 +    def clear(self):
 +        """Explicitly reset this provider's state and notify the service."""
 +        self._last_identity = None
++        self._artwork_sent = False
 +        now_playing = getattr(self._ledfx, "now_playing", None)
 +        if now_playing is not None:
 +            now_playing.clear(SOURCE_ID)
@@ -545,9 +548,15 @@ index 0000000..d2e944d
 +
 +        identity = (title, artist, album)
 +        if identity == self._last_identity:
-+            # Same track: a playback-state event. The service decides whether
-+            # the new timing anchor is worth forwarding.
++            # Same track: a playback-state event, or the player filling in what
++            # it published first without - browsers send the title before the
++            # cover. The service decides whether the timing is worth forwarding.
 +            now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=True)
++            if not self._artwork_sent:
++                artwork = self._artwork(metadata)
++                if artwork is not None:
++                    self._artwork_sent = True
++                    now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
 +            return
 +        self._last_identity = identity
 +
@@ -557,6 +566,7 @@ index 0000000..d2e944d
 +        # is coming, and only falls back when it is not.
 +        artwork = self._artwork(metadata)
 +        now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=artwork is not None)
++        self._artwork_sent = artwork is not None
 +        if artwork is not None:
 +            now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
 +
@@ -681,6 +691,7 @@ index 0000000..d2e944d
 +        if self._last_identity is None:
 +            return
 +        self._last_identity = None
++        self._artwork_sent = False
 +        now_playing = getattr(self._ledfx, "now_playing", None)
 +        if now_playing is not None:
 +            now_playing.clear(SOURCE_ID)
@@ -1529,10 +1540,10 @@ index 5e2ff16..f33c93f 100644
          async_shutdown_devices=AsyncMock(side_effect=drain_devices)
 diff --git a/tests/test_now_playing_android.py b/tests/test_now_playing_android.py
 new file mode 100644
-index 0000000..62ef00e
+index 0000000..66b8f2d
 --- /dev/null
 +++ b/tests/test_now_playing_android.py
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,437 @@
 +"""Android Now Playing provider, driven by a fake jnius."""
 +
 +import asyncio
@@ -1953,6 +1964,23 @@ index 0000000..62ef00e
 +    grants[0].callback(None, None)
 +    await _settle()
 +    assert provider._watcher is None
++
++
++async def test_cover_published_after_the_title_is_picked_up_once(droid, ledfx):
++    controller = FakeController(FakeMetadata(), FakeState())
++    droid.manager.controllers = [controller]
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    ledfx.now_playing.set_artwork_bytes.assert_not_called()
++
++    controller.metadata = FakeMetadata(art=FakeBitmap())
++    provider._on_media_changed()
++    await _settle()
++    ledfx.now_playing.set_artwork_bytes.assert_called_once()
++
++    provider._on_media_changed()
++    await _settle()
++    assert ledfx.now_playing.set_artwork_bytes.call_count == 1, "once per track"
 diff --git a/tests/test_now_playing_opt_in.py b/tests/test_now_playing_opt_in.py
 new file mode 100644
 index 0000000..3be26f1
