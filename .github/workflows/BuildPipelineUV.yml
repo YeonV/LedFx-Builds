@@ -7,6 +7,9 @@ on:
         description: 'Frontend Version'
         default: '106'
         required: false
+      version:
+        description: 'Full release version (for example 2.2.0-b1)'
+        required: false
       release:
         description: 'Create Release'
         default: 'Yes'
@@ -59,6 +62,7 @@ jobs:
       BUILD_LINUX: ${{ github.event.inputs.ubuntu == 'true' && 'true' || 'false' }}
       BUILD_LINUX_ARM64: ${{ github.event.inputs.ubuntuaarch64 == 'true' && 'true' || 'false' }}
       action_state: "2.1"  # Default value
+      RELEASE_VERSION: ${{ github.event.inputs.version || format('2.1.{0}', github.event.inputs.fversion) }}
       BACKEND_BRANCH: ${{ github.event.inputs.backend_branch || 'main' }}
 
     steps:
@@ -190,8 +194,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ env.action_state }}.${{ github.event.inputs.fversion }}
-          release_name: "Release v${{ env.action_state }}.${{ github.event.inputs.fversion }}"
+          tag_name: v${{ env.RELEASE_VERSION }}
+          release_name: "Release v${{ env.RELEASE_VERSION }}"
           body_path: ./messages.md
           draft: false
           prerelease: true
@@ -203,7 +207,7 @@ jobs:
           workflow: Build Song Detector
           repo: YeonV/LedFx-Builds
           token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
+          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "version": "${{ env.RELEASE_VERSION }}", "release": "${{ github.event.inputs.release }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
 
 
       - name: Trigger Build Android Matrix
@@ -213,7 +217,7 @@ jobs:
           workflow: LedFx BuildPipeline Android Matrix
           repo: YeonV/LedFx-Builds
           token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "release": "${{ startsWith(github.event.head_commit.message, ''Beta'') && ''No'' || ''Yes'' }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
+          inputs: '{ "fversion": "${{ github.event.inputs.fversion}}", "version": "${{ env.RELEASE_VERSION }}", "release": "${{ github.event.inputs.release }}", "upload_url": "${{ steps.create_release.outputs.upload_url }}" }'
 
       - name: Output Release URL File
         if: ${{ env.IS_RELEASE == 'true' }}
@@ -281,6 +285,7 @@ jobs:
       BUILD_LINUX_ARM64: ${{ github.event.inputs.ubuntuaarch64 == 'true' && 'true' || 'false' }}
       BINARY_NAME: "LedFx"  # Default value
       action_state: "2.1"  # Default value
+      RELEASE_VERSION: ${{ github.event.inputs.version || format('2.1.{0}', github.event.inputs.fversion) }}
     defaults:
       run:
         shell: bash -x {0}
@@ -394,7 +399,7 @@ jobs:
         run: |
           cd src3
           yarn
-          npm version ${{ env.action_state }}.${{ github.event.inputs.fversion }}
+          npm version --allow-same-version --no-git-tag-version ${{ env.RELEASE_VERSION }}
           yarn build
           cd ..
 
@@ -473,8 +478,8 @@ jobs:
       - name: Bump version
         if: ${{ env.IS_WIN == 'true' || env.IS_LINUX == 'true' }}
         run: |
-          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/ledfx/consts.py
-          sed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./src/pyproject.toml
+          sed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "${{ env.RELEASE_VERSION }}"/' ./src/ledfx/consts.py
+          sed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "${{ env.RELEASE_VERSION }}"/' ./src/pyproject.toml
           new_version=$(sed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./src/ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
@@ -485,8 +490,8 @@ jobs:
         run: |
           brew install gnu-sed
           cd src
-          gsed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "\1.\2.${{ github.event.inputs.fversion }}"/' ./ledfx/consts.py
-          gsed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "\1.\2.${{ github.event.inputs.fversion }}"/' ./pyproject.toml
+          gsed -i '0,/PROJECT_VERSION = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//PROJECT_VERSION = "${{ env.RELEASE_VERSION }}"/' ./ledfx/consts.py
+          gsed -i '0,/version = "\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)\(-[a-z0-9]*\)*"/s//version = "${{ env.RELEASE_VERSION }}"/' ./pyproject.toml
           new_version=$(gsed -n 's/.*PROJECT_VERSION = "\([0-9]*\.[0-9]*\.[0-9]*\(-[a-z0-9]*\)*\)".*/\1/p' ./ledfx/consts.py)
           echo "action_state=$new_version" >> $GITHUB_ENV
           BINARY_NAME=LedFx_core-
@@ -1585,4 +1590,3 @@ jobs:
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"New Beta-Binaries available\n**DOWNLOAD:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n:regional_indicator_a: LedFx_core-v${{ env.action_state }}--win.zip\n:regional_indicator_b: LedFx_CC-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_c: LedFx_CC-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_d: LedFx_CC-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_e: LedFx_CC-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_f: LedFx_CC-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_g: LedFx_CC-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_h: LedFx_client-v${{ env.action_state }}--linux-amd64.AppImage\n:regional_indicator_i: LedFx_client-v${{ env.action_state }}--linux-amd64.snap\n:regional_indicator_j: LedFx_client-v${{ env.action_state }}--mac-arm64.dmg\n:regional_indicator_k: LedFx_client-v${{ env.action_state }}--mac-arm64.zip\n:regional_indicator_l: LedFx_client-v${{ env.action_state }}--mac-x64.dmg\n:regional_indicator_m: LedFx_client-v${{ env.action_state }}--mac-x64.zip\n:regional_indicator_o: LedFx_client-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_p: LedFx_client-v${{ env.action_state }}--win-setup.exe\n:regional_indicator_q: LedFx_client-v${{ env.action_state }}--win.zip\n:regional_indicator_r: LedFx_core-v${{ env.action_state }}--linux-x64.tar.gz\n:regional_indicator_s: LedFx_core-v${{ env.action_state }}--osx-arm64.zip\n:regional_indicator_t: LedFx_core-v${{ env.action_state }}--osx-x64.zip\n:regional_indicator_u: LedFx_core-v${{ env.action_state }}--win-portable.exe\n:regional_indicator_v: LedFx_CC-v${{ env.action_state }}--linux-amd64.AppImage\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"======================================\n**NOT WORKING**\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
 #          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"======================================\n**WORKING**\"}" https://discord.com/api/webhooks/1196958406234345522/zSejZjvGh2rWdAIyIp3IL-8W-yXniX4bsXNxHi9Mn6QmlbhCThWPSDYoLT_PO5a2WQAb
-

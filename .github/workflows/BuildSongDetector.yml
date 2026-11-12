@@ -6,6 +6,9 @@ on:
       fversion:
         description: 'Frontend Version'
         required: true
+      version:
+        description: 'Full release version (for example 2.2.0-b1)'
+        required: false
       release:
         description: 'Is Release? (Yes/No)'
         required: true

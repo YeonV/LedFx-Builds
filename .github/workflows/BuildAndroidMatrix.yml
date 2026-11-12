@@ -7,6 +7,9 @@ on:
         description: 'Frontend Version'
         default: '109-b22'
         required: false
+      version:
+        description: 'Full release version (for example 2.2.0-b1)'
+        required: false
       upload_url:
         description: 'Upload URL for release'
         required: false
@@ -334,7 +337,6 @@ jobs:
 
 
       - name: Build ${{ matrix.arch }}
-        continue-on-error: true
         run: buildozer android debug
 
       # buildozer's own debug signing uses an auto-generated keystore that
@@ -372,6 +374,7 @@ jobs:
         with:
           name: package-${{ matrix.arch }}
           path: ./bin/*.apk
+          if-no-files-found: error
 
       # - name: Upload compiled distribution for ${{ matrix.arch }}
       #   uses: actions/upload-artifact@v4
@@ -679,7 +682,6 @@ jobs:
           echo "-----------------------------------------------"
 
       - name: Build Release ${{ matrix.arch }}
-        continue-on-error: true
         run: buildozer android release
 
       - name: Decode keystore from secrets
@@ -713,6 +715,7 @@ jobs:
         with:
           name: package-release-${{ matrix.arch }}
           path: ./bin/*.apk
+          if-no-files-found: error
 
   # build_universal:
   #   name: Package Universal APK
@@ -879,12 +882,17 @@ jobs:
           path: ledfx_root_audio_module.zip
 
   release:
-    if: ${{ always() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
+    if: ${{ success() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
     needs: [build_archs, build_archs_release, build_rootpack] # build_universal
     permissions:
       contents: write
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || format('v2.1.{0}', github.event.inputs.fversion) }}
     steps:
+      - name: Prepare download directories
+        run: mkdir -p apks rootpack-dl
+
       - name: Download all APK artifacts
         uses: actions/download-artifact@v4
         with:
@@ -899,7 +907,15 @@ jobs:
           path: rootpack-dl/
 
       - name: List downloaded files
-        run: ls -R apks/ rootpack-dl/
+        run: |
+          echo "Downloaded APK artifacts:"
+          find apks -type f -print
+          echo "Downloaded root-audio artifact:"
+          find rootpack-dl -type f -print
+          if ! find apks -type f -name '*.apk' -print -quit | grep -q .; then
+            echo "::error::No APK artifacts were produced by the Android build matrix"
+            exit 1
+          fi
 
       - name: Extract release tag from upload URL
         id: extract_tag
@@ -935,9 +951,9 @@ jobs:
               
               # Detect if this is a release build by checking the filename
               if [[ "$apk_file" == *"release"* ]]; then
-                asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}-release.apk"
+                asset_name="LedFx_CC-${RELEASE_VERSION}--android-${arch}-release.apk"
               else
-                asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-${arch}.apk"
+                asset_name="LedFx_CC-${RELEASE_VERSION}--android-${arch}.apk"
               fi
               
               echo "Uploading $apk_file as $asset_name"
@@ -961,7 +977,7 @@ jobs:
         run: |
           module_file="rootpack-dl/ledfx_root_audio_module.zip"
           if [ -f "$module_file" ]; then
-            asset_name="LedFx_CC-v2.1.${{ github.event.inputs.fversion }}--android-root-audio-module.zip"
+            asset_name="LedFx_CC-${RELEASE_VERSION}--android-root-audio-module.zip"
             echo "Uploading $module_file as $asset_name"
 
             UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
