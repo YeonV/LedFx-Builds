@@ -882,7 +882,10 @@ jobs:
           path: ledfx_root_audio_module.zip
 
   release:
-    if: ${{ success() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
+    # !cancelled(), not success(): upload every APK that did build, even when
+    # another architecture failed. "List downloaded files" still fails the job
+    # when no APK was produced at all.
+    if: ${{ !cancelled() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
     needs: [build_archs, build_archs_release, build_rootpack] # build_universal
     permissions:
@@ -901,6 +904,8 @@ jobs:
           merge-multiple: true
 
       - name: Download root-audio module artifact
+        # The rootpack job may have failed; its upload step skips a missing zip.
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: rootpack
