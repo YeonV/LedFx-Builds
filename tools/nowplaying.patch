@@ -224,10 +224,10 @@ index 6ca54f3..49a9060 100644
  
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
 new file mode 100644
-index 0000000..f4d758d
+index 0000000..d2e944d
 --- /dev/null
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -0,0 +1,403 @@
+@@ -0,0 +1,456 @@
 +"""Android Now Playing provider.
 +
 +Reads the phone's own media sessions (Spotify, YouTube Music, anything that
@@ -256,6 +256,9 @@ index 0000000..f4d758d
 +LISTENER_CLASS = "org.kivy.android.PythonNotificationListenerService"
 +WATCHER_CLASS = "org.kivy.android.MediaSessionWatcher"
 +WATCHER_LISTENER = "org/kivy/android/MediaSessionWatcherListener"
++# Sent by the bootstrap's PythonNotificationListenerService when Android connects
++# it, which it does the moment the user grants notification access.
++ACCESS_GRANTED_ACTION = "org.kivy.android.NOTIFICATION_ACCESS_GRANTED"
 +
 +# MediaMetadata keys, used as literals so no extra JNI lookups are needed.
 +_KEY_TITLE = "android.media.metadata.TITLE"
@@ -375,6 +378,7 @@ index 0000000..f4d758d
 +        self._listener = None
 +        self._access_warned = False
 +        self._last_identity = None
++        self._grant_receiver = None
 +
 +    # ------------------------------------------------------------------
 +    # Lifecycle
@@ -409,11 +413,14 @@ index 0000000..f4d758d
 +        except Exception as exc:  # noqa: BLE001
 +            self._listener = None
 +            self._warn_missing_access(exc)
++            self._wait_for_access()
 +            return
++        self._stop_waiting_for_access()
 +        self._watcher = watcher
 +        self._refresh()
 +
 +    def stop(self):
++        self._stop_waiting_for_access()
 +        if self._watcher is not None:
 +            try:
 +                self._watcher.stop()
@@ -425,6 +432,52 @@ index 0000000..f4d758d
 +        self._component = None
 +        self._access_warned = False
 +        self._last_identity = None
++
++    # ------------------------------------------------------------------
++    # Waiting for notification access
++    # ------------------------------------------------------------------
++
++    def _wait_for_access(self):
++        """Retry start() once the user grants notification access.
++
++        Switching Now Playing on usually happens before the grant (the intro
++        dialog does both at once), and Android announces the grant to nothing
++        but the notification listener, which forwards it as a broadcast.
++        """
++        if self._grant_receiver is not None:
++            return
++        try:
++            from android.broadcast import BroadcastReceiver
++
++            receiver = BroadcastReceiver(
++                self._on_access_granted, actions=[ACCESS_GRANTED_ACTION]
++            )
++            receiver.start()
++        except Exception:
++            _LOGGER.debug("Android: cannot wait for the access grant", exc_info=True)
++            return
++        self._grant_receiver = receiver
++
++    def _stop_waiting_for_access(self):
++        receiver, self._grant_receiver = self._grant_receiver, None
++        if receiver is not None:
++            try:
++                receiver.stop()
++            except Exception:
++                _LOGGER.debug("Android: grant receiver stop failed", exc_info=True)
++
++    def _on_access_granted(self, context, intent):
++        """Called on the receiver's handler thread."""
++        loop = self._loop
++        if loop is not None and not loop.is_closed():
++            loop.call_soon_threadsafe(self._retry_after_grant)
++
++    def _retry_after_grant(self):
++        if self._watcher is not None or self._grant_receiver is None:
++            return
++        _LOGGER.info("Android: notification access granted, starting Now Playing")
++        self._access_warned = False
++        self.start()
 +
 +    def clear(self):
 +        """Explicitly reset this provider's state and notify the service."""
@@ -1476,10 +1529,10 @@ index 5e2ff16..f33c93f 100644
          async_shutdown_devices=AsyncMock(side_effect=drain_devices)
 diff --git a/tests/test_now_playing_android.py b/tests/test_now_playing_android.py
 new file mode 100644
-index 0000000..09b1d46
+index 0000000..62ef00e
 --- /dev/null
 +++ b/tests/test_now_playing_android.py
-@@ -0,0 +1,355 @@
+@@ -0,0 +1,420 @@
 +"""Android Now Playing provider, driven by a fake jnius."""
 +
 +import asyncio
@@ -1835,6 +1888,71 @@ index 0000000..09b1d46
 +    provider = MPRISNowPlayingProvider(SimpleNamespace())
 +    provider.start()
 +    assert provider._init_task is None
++
++
++@pytest.fixture
++def grants(monkeypatch):
++    receivers = []
++
++    class FakeReceiver:
++        def __init__(self, callback, actions=None, categories=None):
++            self.callback, self.actions = callback, actions
++            self.started = self.stopped = False
++            receivers.append(self)
++
++        def start(self):
++            self.started = True
++
++        def stop(self):
++            self.stopped = True
++
++    package = ModuleType("android")
++    module = ModuleType("android.broadcast")
++    module.BroadcastReceiver = FakeReceiver
++    package.broadcast = module
++    monkeypatch.setitem(sys.modules, "android", package)
++    monkeypatch.setitem(sys.modules, "android.broadcast", module)
++    return receivers
++
++
++async def test_waits_for_the_grant_and_starts_on_it(droid, ledfx, grants):
++    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
++    FakeWatcher.fail_start = True
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    (receiver,) = grants
++    assert receiver.started
++    assert receiver.actions == [android.ACCESS_GRANTED_ACTION]
++    assert provider._watcher is None
++
++    FakeWatcher.fail_start = False
++    receiver.callback(None, None)
++    await _settle()
++    assert provider._watcher is not None
++    assert receiver.stopped, "no longer needed once watching"
++    ledfx.now_playing.set_metadata.assert_called()
++
++
++async def test_a_grant_that_still_fails_keeps_waiting(droid, ledfx, grants):
++    FakeWatcher.fail_start = True
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    grants[0].callback(None, None)
++    await _settle()
++    assert provider._watcher is None
++    assert len(grants) == 1
++    assert not grants[0].stopped
++
++
++async def test_stop_releases_the_grant_receiver(droid, ledfx, grants):
++    FakeWatcher.fail_start = True
++    provider = android.AndroidNowPlayingProvider(ledfx)
++    provider.start()
++    provider.stop()
++    assert grants[0].stopped
++    grants[0].callback(None, None)
++    await _settle()
++    assert provider._watcher is None
 diff --git a/tests/test_now_playing_opt_in.py b/tests/test_now_playing_opt_in.py
 new file mode 100644
 index 0000000..3be26f1
