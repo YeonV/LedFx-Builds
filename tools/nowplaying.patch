@@ -1240,7 +1240,7 @@ index c12d11f..ab3cbb5 100644
      def _maybe_clear(self):
          if (
 diff --git a/ledfx/nowplaying/service.py b/ledfx/nowplaying/service.py
-index c01aec8..9595a21 100644
+index c01aec8a..66801468 100644
 --- a/ledfx/nowplaying/service.py
 +++ b/ledfx/nowplaying/service.py
 @@ -8,6 +8,7 @@ source of truth for the rest of LedFx.
@@ -1433,7 +1433,7 @@ index c01aec8..9595a21 100644
      def get_current(self) -> NowPlayingState:
          """Return the current Now Playing state.
  
-@@ -777,6 +877,52 @@ class NowPlayingService:
+@@ -777,6 +877,56 @@ class NowPlayingService:
          if hasattr(self._ledfx, "events"):
              self._ledfx.events.fire_event(event)
  
@@ -1460,10 +1460,14 @@ index c01aec8..9595a21 100644
 +        artwork = self._state.artwork
 +        config_dir = getattr(self._ledfx, "config_dir", None)
 +        if artwork and artwork.cache_key and config_dir:
++            # realpath both: Android reaches the same files as /data/user/0/...
++            # and /data/data/..., and relpath only compares spellings.
 +            relative = os.path.relpath(
-+                artwork.cache_key, get_assets_directory(config_dir)
++                os.path.realpath(artwork.cache_key),
++                os.path.realpath(get_assets_directory(config_dir)),
 +            )
-+            thumbnail = relative.replace(os.sep, "/")
++            if not relative.startswith(".."):
++                thumbnail = relative.replace(os.sep, "/")
 +
 +        timestamp = time.time() if metadata.position is not None else None
 +        self._emitted_position = metadata.position
@@ -1983,10 +1987,10 @@ index 0000000..66b8f2d
 +    assert ledfx.now_playing.set_artwork_bytes.call_count == 1, "once per track"
 diff --git a/tests/test_now_playing_opt_in.py b/tests/test_now_playing_opt_in.py
 new file mode 100644
-index 0000000..3be26f1
+index 00000000..138f0e3f
 --- /dev/null
 +++ b/tests/test_now_playing_opt_in.py
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,287 @@
 +"""Now Playing is opt-in, purges on opt-out, and feeds song_detected."""
 +
 +import io
@@ -2222,6 +2226,29 @@ index 0000000..3be26f1
 +def test_artwork_arrival_reemits_with_an_assets_relative_thumbnail(service, ledfx):
 +    service.set_metadata("smtc", _track(), has_own_artwork=True)
 +    service.set_artwork_bytes("smtc", _png(), "image/png")
++    event = ledfx.events.of(Event.SONG_DETECTED)[-1]
++    assert event.thumbnail == "now_playing/now_playing.png"
++
++
++def test_thumbnail_survives_a_symlinked_config_dir(tmp_path):
++    # Android reaches the app's files as /data/user/0/... and /data/data/...;
++    # the artwork path and config_dir can arrive spelled differently.
++    real = tmp_path / "real"
++    real.mkdir()
++    link = tmp_path / "link"
++    try:
++        os.symlink(real, link, target_is_directory=True)
++    except OSError:
++        pytest.skip("symlinks unavailable")
++    ledfx = _Ledfx(config_dir=str(link))
++    service = NowPlayingService(ledfx)
++    service._art_resolver = MagicMock()
++    service.set_metadata("smtc", _track(), has_own_artwork=True)
++    service.set_artwork_bytes("smtc", _png(), "image/png")
++    service._state.artwork.cache_key = os.path.realpath(
++        service._state.artwork.cache_key
++    )
++    service._emit_song_detected()
 +    event = ledfx.events.of(Event.SONG_DETECTED)[-1]
 +    assert event.thumbnail == "now_playing/now_playing.png"
 +
