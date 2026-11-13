@@ -29,6 +29,20 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 mapfile -t PATCHES < <(grep -oE 'git apply [a-z_]+\.patch' "$REPO_ROOT/.github/workflows/BuildAndroidMatrix.yml" | awk '{print $3}' | awk '!seen[$0]++')
 [ ${#PATCHES[@]} -gt 0 ] || { echo "no patches found in BuildAndroidMatrix.yml" >&2; exit 1; }
 
+# CI copies every patch by name before applying it; one that is applied but not
+# copied fails the build with "can't open patch" although it applies cleanly
+# here. Check both workflows for that.
+for wf in BuildAndroidMatrix.yml BuildPipelineUV.yml; do
+  path="$REPO_ROOT/.github/workflows/$wf"
+  for p in $(grep -oE 'git apply [a-z_]+\.patch' "$path" | awk '{print $3}' | sort -u); do
+    if ! grep -qE "cp \./src2/tools/$p " "$path"; then
+      echo "==> $wf applies $p but never copies it" >&2
+      exit 1
+    fi
+  done
+done
+echo "==> every applied patch is also copied, in both workflows"
+
 echo "==> Cloning LedFx/LedFx@main (fresh, depth 1) ..."
 git clone --depth 1 --quiet https://github.com/LedFx/LedFx.git "$WORK_DIR/ledfx"
 echo "    HEAD: $(git -C "$WORK_DIR/ledfx" rev-parse HEAD)"

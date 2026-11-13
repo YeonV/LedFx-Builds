@@ -318,6 +318,7 @@ jobs:
           cp ./src2/tools/sentry.patch ./src/sentry.patch
           cp ./src2/tools/stems.patch ./src/stems.patch
           cp ./src2/tools/nowplaying.patch ./src/nowplaying.patch
+          cp ./src2/tools/song_info_now_playing.patch ./src/song_info_now_playing.patch
           cp ./src2/tools/event_listener_gating.patch ./src/event_listener_gating.patch
           cp ./src2/tools/transmission_mode_no_restart.patch ./src/transmission_mode_no_restart.patch
           cp ./src2/tools/transmission_mode_migration.patch ./src/transmission_mode_migration.patch

@@ -72,6 +72,7 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
+          cp ./src2/tools/song_info_now_playing.patch ./deps/ledfx/song_info_now_playing.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
@@ -427,6 +428,7 @@ jobs:
         run: |
           cp ./src2/tools/sentry.patch ./deps/ledfx/sentry.patch
           cp ./src2/tools/nowplaying.patch ./deps/ledfx/nowplaying.patch
+          cp ./src2/tools/song_info_now_playing.patch ./deps/ledfx/song_info_now_playing.patch
           cp ./src2/tools/wled_mdns.patch ./deps/ledfx/wled_mdns.patch
           cp ./src2/tools/remote_submix_echo.patch ./deps/ledfx/remote_submix_echo.patch
           cp ./src2/tools/boot_status.patch ./deps/ledfx/boot_status.patch
