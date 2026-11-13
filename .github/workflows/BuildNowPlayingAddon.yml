@@ -11,16 +11,10 @@ name: Build Android Now Playing addon
 # Signed with the production keystore, like every LedFx APK.
 
 on:
+  # Called by BuildAndroidMatrix.yml, which uploads the addon to its release.
+  workflow_call:
   workflow_dispatch:
     inputs:
-      version_name:
-        description: 'Addon version name (for example 1.0.0)'
-        default: '1.0.0'
-        required: true
-      version_code:
-        description: 'Addon version code (integer, must grow with every release)'
-        default: '1'
-        required: true
       release_tag:
         description: 'Optional: upload the APK to this LedFx-Builds release tag'
         default: ''
@@ -35,8 +29,6 @@ jobs:
       SRC: addons/nowplaying-android
       MIN_SDK: '26'
       TARGET_SDK: '35'
-      VERSION_NAME: ${{ github.event.inputs.version_name }}
-      VERSION_CODE: ${{ github.event.inputs.version_code }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +41,10 @@ jobs:
       - name: Locate SDK tools
         run: |
           set -euo pipefail
+          # Addon version lives with its source; raise it when the addon changes.
+          cat "$SRC/version.env" >> "$GITHUB_ENV"
+          . "$SRC/version.env"
+          echo "addon version: $VERSION_NAME ($VERSION_CODE)"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
           # Stable platforms only: the runner also carries previews such as
           # android-37.2-beta3, which must not be the compile target.
@@ -129,11 +125,11 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nowplaying-addon-${{ github.event.inputs.version_name }}
+          name: nowplaying-addon
           path: build/${{ env.OUT }}
 
       - name: Upload to release
-        if: ${{ github.event.inputs.release_tag != '' }}
+        if: ${{ inputs.release_tag != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.inputs.release_tag }}" "build/$OUT" -R "${{ github.repository }}" --clobber
+        run: gh release upload "${{ inputs.release_tag }}" "build/$OUT" -R "${{ github.repository }}" --clobber

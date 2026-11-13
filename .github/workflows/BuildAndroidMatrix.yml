@@ -889,13 +889,19 @@ jobs:
           name: rootpack
           path: ledfx_root_audio_module.zip
 
+  build_nowplaying_addon:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/BuildNowPlayingAddon.yml
+    secrets: inherit
+
   release:
     # !cancelled(), not success(): upload every APK that did build, even when
     # another architecture failed. "List downloaded files" still fails the job
     # when no APK was produced at all.
     if: ${{ !cancelled() && github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     runs-on: ubuntu-22.04
-    needs: [build_archs, build_archs_release, build_rootpack] # build_universal
+    needs: [build_archs, build_archs_release, build_rootpack, build_nowplaying_addon] # build_universal
     permissions:
       contents: write
     env:
@@ -1002,4 +1008,30 @@ jobs:
               "${UPLOAD_URL}?name=${asset_name}"
           else
             echo "::warning::root-audio module zip not found, skipping"
+          fi
+
+      - name: Download Now Playing addon artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: nowplaying-addon
+          path: addon-dl/
+
+      - name: Upload Now Playing addon to Release
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          addon_file=$(ls addon-dl/*.apk 2>/dev/null | head -n 1)
+          if [ -n "$addon_file" ]; then
+            asset_name=$(basename "$addon_file")
+            echo "Uploading $addon_file as $asset_name"
+            UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              --data-binary @"$addon_file" \
+              "${UPLOAD_URL}?name=${asset_name}"
+          else
+            echo "::warning::Now Playing addon APK not found, skipping"
           fi
