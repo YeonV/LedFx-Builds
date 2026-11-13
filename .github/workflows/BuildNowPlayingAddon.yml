@@ -50,7 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
-          PLATFORM=$(ls "$ANDROID_HOME/platforms" | sort -V | tail -n 1)
+          # Stable platforms only: the runner also carries previews such as
+          # android-37.2-beta3, which must not be the compile target.
+          PLATFORM=$(ls "$ANDROID_HOME/platforms" | grep -E '^android-[0-9]+$' | sort -V | tail -n 1)
           LEVEL=${PLATFORM#android-}
           echo "build-tools: $BT"
           echo "platform: $PLATFORM"
@@ -105,12 +107,21 @@ jobs:
             --key-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
             --ks-key-alias ${{ secrets.ANDROID_KEYSTORE_LEDFX_ALIAS }} \
             --out "build/$OUT" build/aligned.apk
-          "$BT/apksigner" verify --print-certs "build/$OUT" | grep -E "Signer #1 certificate (DN|SHA-256)"
-          "$BT/aapt2" dump badging "build/$OUT" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):"
+          # Printed in full, not filtered: a grep that matches nothing would
+          # fail the step without a word (run 1 did exactly that).
+          "$BT/apksigner" verify --verbose --print-certs "build/$OUT"
+          "$BT/aapt2" dump badging "build/$OUT"
           # The listener must be in, with its bind permission.
           "$BT/aapt2" dump xmltree --file AndroidManifest.xml "build/$OUT" > build/manifest.txt
-          grep -q 'com.ledfx.nowplaying.NowPlayingListenerService' build/manifest.txt
-          grep -q 'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' build/manifest.txt
+          for needle in com.ledfx.nowplaying.NowPlayingListenerService \
+                        android.permission.BIND_NOTIFICATION_LISTENER_SERVICE \
+                        android.service.notification.NotificationListenerService; do
+            if ! grep -q "$needle" build/manifest.txt; then
+              echo "::error::manifest is missing $needle"
+              cat build/manifest.txt
+              exit 1
+            fi
+          done
           echo "OUT=$OUT" >> "$GITHUB_ENV"
 
       - name: Upload artifact
