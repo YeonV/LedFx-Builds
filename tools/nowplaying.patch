@@ -1,20 +1,16 @@
 diff --git a/ledfx/api/info.py b/ledfx/api/info.py
-index a27c6ee..4691209 100644
+index a27c6ee5..10de252f 100644
 --- a/ledfx/api/info.py
 +++ b/ledfx/api/info.py
-@@ -1,12 +1,21 @@
+@@ -1,5 +1,6 @@
  import logging
  import os
 +import sys
  
  from aiohttp import web
  
- from ledfx.api import RestEndpoint
+@@ -7,6 +8,10 @@ from ledfx.api import RestEndpoint
  from ledfx.consts import PROJECT_VERSION
-+from ledfx.nowplaying.providers.android import (
-+    notification_access_granted,
-+    running_on_android,
-+)
  from ledfx.sendspin import SENDSPIN_AVAILABLE
  
 +# Platforms with a Now Playing provider. Elsewhere the switch would be an
@@ -24,7 +20,7 @@ index a27c6ee..4691209 100644
  _LOGGER = logging.getLogger(__name__)
  
  
-@@ -31,6 +40,17 @@ class InfoEndpoint(RestEndpoint):
+@@ -31,6 +36,11 @@ class InfoEndpoint(RestEndpoint):
              "config_error": self._ledfx.config_store.error,
              "features": {
                  "sendspin": SENDSPIN_AVAILABLE,
@@ -33,12 +29,6 @@ index a27c6ee..4691209 100644
 +                # the feature is running.
 +                "now_playing": sys.platform in _NOW_PLAYING_PLATFORMS,
 +                "now_playing_enabled": self._ledfx.now_playing.enabled,
-+                # Android reads the media session through a notification
-+                # listener, a special access the user grants in Settings.
-+                # Reported so a client can tell "nothing is playing" apart
-+                # from "LedFx is not allowed to look".
-+                "now_playing_needs_access": running_on_android()
-+                and not notification_access_granted(),
              },
              "silence_scene": silence_scene.status()
              if silence_scene is not None
@@ -86,26 +76,10 @@ index c4ce5ca..3ee8003 100644
          NowPlayingConfig(), json_schema_extra=_legacy_type("dict", {})
      )
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 93259b3..27726ca 100644
+index 93259b3f..cb5b0b20 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -35,6 +35,7 @@ from ledfx.http_manager import HttpServer
- from ledfx.integrations import Integrations
- from ledfx.mdns_manager import ZeroConfRunner
- from ledfx.nowplaying import NowPlayingService
-+from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
- from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
- from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
- from ledfx.playlists import PlaylistManager
-@@ -118,6 +119,7 @@ class LedFxCore:
-         self.audio_device_monitor = None
-         self._mpris_now_playing = None
-         self._smtc_now_playing = None
-+        self._android_now_playing = None
- 
-         if self.config.debug_asyncio:
-             self.loop.set_debug(True)
-@@ -162,6 +164,53 @@ class LedFxCore:
+@@ -162,6 +162,52 @@ class LedFxCore:
          if "sendspin_always_on" in event.config:
              self.reconcile_sendspin_always_on_runtime("base_config_update")
  
@@ -127,7 +101,6 @@ index 93259b3..27726ca 100644
 +        for provider in (
 +            self._smtc_now_playing,
 +            self._mpris_now_playing,
-+            self._android_now_playing,
 +        ):
 +            if provider is None:
 +                continue
@@ -159,7 +132,7 @@ index 93259b3..27726ca 100644
      def reconcile_sendspin_always_on_runtime(self, trigger: str):
          """Reconcile runtime Sendspin always-on behavior from current config.
  
-@@ -466,15 +515,13 @@ class LedFxCore:
+@@ -466,15 +512,12 @@ class LedFxCore:
          # Now Playing drives virtuals through the manager, so it starts once
          # virtuals, effects and gradients exist (Sendspin may push metadata
          # while virtuals load, below).
@@ -176,24 +149,10 @@ index 93259b3..27726ca 100644
 -        self._mpris_now_playing.start()
 +        self._smtc_now_playing = SMTCNowPlayingProvider(self)  # Windows
 +        self._mpris_now_playing = MPRISNowPlayingProvider(self)  # Linux
-+        self._android_now_playing = AndroidNowPlayingProvider(self)  # Android
 +        self.reconcile_now_playing_runtime("startup")
  
          # TODO: Deferr
          self.devices.create_from_config(self.config.devices)
-@@ -608,6 +655,12 @@ class LedFxCore:
-                     except Exception as e:  # noqa: BLE001
-                         _LOGGER.warning("Error stopping MPRIS provider: %s", e)
- 
-+                if self._android_now_playing is not None:
-+                    try:
-+                        self._android_now_playing.stop()
-+                    except Exception as e:  # noqa: BLE001
-+                        _LOGGER.warning("Error stopping Android provider: %s", e)
-+
-                 _LOGGER.info("Stopping HTTP Server...")
-                 await self.http.stop()
- 
 diff --git a/ledfx/nowplaying/models.py b/ledfx/nowplaying/models.py
 index 6ca54f3..49a9060 100644
 --- a/ledfx/nowplaying/models.py
@@ -224,59 +183,22 @@ index 6ca54f3..49a9060 100644
  
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
 new file mode 100644
-index 0000000..570229c
+index 00000000..0cef6d47
 --- /dev/null
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -0,0 +1,467 @@
-+"""Android Now Playing provider.
+@@ -0,0 +1,57 @@
++"""Android helpers for the core.
 +
-+Reads the phone's own media sessions (Spotify, YouTube Music, anything that
-+publishes a MediaSession) through MediaSessionManager via pyjnius, and reacts
-+to their events: the bootstrap's org.kivy.android.MediaSessionWatcher calls
-+back whenever the session list, a track or the playback state changes.
-+
-+Android gates ``getActiveSessions`` behind notification access, a *special
-+access* rather than a runtime permission: no in-app dialog can request it, the
-+user grants it once in Settings. Until then the watcher cannot start and this
-+provider stays quiet.
++Now Playing on Android comes from the separate LedFx Now Playing addon APK,
++which reads the media session and sends it to the core as song_info websocket
++messages (song_info_now_playing.patch). The main app no longer declares a
++notification listener; what remains here is telling Android apart from
++desktop Linux.
 +"""
 +
-+import asyncio
 +import logging
 +
-+from ledfx.nowplaying.models import TrackMetadata
-+
 +_LOGGER = logging.getLogger(__name__)
-+
-+SOURCE_ID = "android"
-+
-+# Declared in the manifest by the python-for-android webview bootstrap.
-+# getActiveSessions only accepts a listener component the user has granted
-+# access to, and Android checks that it belongs to the calling package.
-+LISTENER_CLASS = "org.kivy.android.PythonNotificationListenerService"
-+WATCHER_CLASS = "org.kivy.android.MediaSessionWatcher"
-+WATCHER_LISTENER = "org/kivy/android/MediaSessionWatcherListener"
-+# Sent by the bootstrap's PythonNotificationListenerService when Android connects
-+# it, which it does the moment the user grants notification access.
-+ACCESS_GRANTED_ACTION = "org.kivy.android.NOTIFICATION_ACCESS_GRANTED"
-+
-+# MediaMetadata keys, used as literals so no extra JNI lookups are needed.
-+_KEY_TITLE = "android.media.metadata.TITLE"
-+_KEY_ARTIST = "android.media.metadata.ARTIST"
-+_KEY_ALBUM_ARTIST = "android.media.metadata.ALBUM_ARTIST"
-+_KEY_ALBUM = "android.media.metadata.ALBUM"
-+_KEY_DURATION = "android.media.metadata.DURATION"
-+
-+# Artwork the player already holds. ALBUM_ART is what the big players publish;
-+# ART and DISPLAY_ICON are checked too because the key is the app's choice.
-+_ART_KEYS = (
-+    "android.media.metadata.ALBUM_ART",
-+    "android.media.metadata.ART",
-+    "android.media.metadata.DISPLAY_ICON",
-+)
-+
-+_STATE_PLAYING = 3  # PlaybackState.STATE_PLAYING
-+_UNKNOWN_POSITION = -1  # PlaybackState.PLAYBACK_POSITION_UNKNOWN
 +
 +_context = None
 +_context_checked = False
@@ -322,379 +244,6 @@ index 0000000..570229c
 +    can.
 +    """
 +    return android_context() is not None
-+
-+
-+def notification_access_granted() -> bool:
-+    """Has the user granted LedFx notification access?
-+
-+    Readable without any permission, so clients can be told why Now Playing is
-+    switched on yet reporting nothing.
-+    """
-+    context = android_context()
-+    if context is None:
-+        return False
-+    try:
-+        from jnius import autoclass
-+
-+        secure = autoclass("android.provider.Settings$Secure")
-+        enabled = secure.getString(
-+            context.getContentResolver(), "enabled_notification_listeners"
-+        )
-+    except Exception:  # noqa: BLE001
-+        return False
-+    if not enabled:
-+        return False
-+    return f"{context.getPackageName()}/{LISTENER_CLASS}" in enabled
-+
-+
-+def _watcher_listener(on_change):
-+    """A pyjnius implementation of MediaSessionWatcherListener.
-+
-+    Built lazily: jnius only exists on Android.
-+    """
-+    from jnius import PythonJavaClass, java_method
-+
-+    class _Listener(PythonJavaClass):
-+        __javainterfaces__ = (WATCHER_LISTENER,)
-+        __javacontext__ = "app"
-+
-+        @java_method("()V")
-+        def onMediaChanged(self):
-+            on_change()
-+
-+    return _Listener()
-+
-+
-+class AndroidNowPlayingProvider:
-+    def __init__(self, ledfx):
-+        self._ledfx = ledfx
-+        self._loop = None
-+        self._context = None
-+        self._manager = None
-+        self._component = None
-+        # Both must stay referenced: pyjnius does not keep a Python
-+        # implementation alive for Java, so a collected listener ends the events.
-+        self._watcher = None
-+        self._listener = None
-+        self._access_warned = False
-+        self._last_identity = None
-+        self._artwork_sent = False
-+        self._grant_receiver = None
-+
-+    # ------------------------------------------------------------------
-+    # Lifecycle
-+    # ------------------------------------------------------------------
-+
-+    def start(self):
-+        if self._watcher is not None:
-+            return
-+        self._context = android_context()
-+        if self._context is None:
-+            return
-+        try:
-+            self._loop = asyncio.get_running_loop()
-+        except RuntimeError:
-+            _LOGGER.error("Android: start() called without a running loop")
-+            return
-+        try:
-+            from jnius import autoclass
-+
-+            watcher_cls = autoclass(WATCHER_CLASS)
-+        except Exception:  # noqa: BLE001
-+            _LOGGER.warning(
-+                "Android: %s missing from this APK, Now Playing unavailable",
-+                WATCHER_CLASS,
-+            )
-+            return
-+
-+        self._listener = _watcher_listener(self._on_media_changed)
-+        watcher = watcher_cls(self._context, LISTENER_CLASS, self._listener)
-+        try:
-+            watcher.start()
-+        except Exception as exc:  # noqa: BLE001
-+            self._listener = None
-+            self._warn_missing_access(exc)
-+            self._wait_for_access()
-+            return
-+        self._stop_waiting_for_access()
-+        self._watcher = watcher
-+        self._refresh()
-+
-+    def stop(self):
-+        self._stop_waiting_for_access()
-+        if self._watcher is not None:
-+            try:
-+                self._watcher.stop()
-+            except Exception:
-+                _LOGGER.debug("Android: watcher stop failed", exc_info=True)
-+        self._watcher = None
-+        self._listener = None
-+        self._manager = None
-+        self._component = None
-+        self._access_warned = False
-+        self._last_identity = None
-+        self._artwork_sent = False
-+
-+    # ------------------------------------------------------------------
-+    # Waiting for notification access
-+    # ------------------------------------------------------------------
-+
-+    def _wait_for_access(self):
-+        """Retry start() once the user grants notification access.
-+
-+        Switching Now Playing on usually happens before the grant (the intro
-+        dialog does both at once), and Android announces the grant to nothing
-+        but the notification listener, which forwards it as a broadcast.
-+        """
-+        if self._grant_receiver is not None:
-+            return
-+        try:
-+            from android.broadcast import BroadcastReceiver
-+
-+            receiver = BroadcastReceiver(
-+                self._on_access_granted, actions=[ACCESS_GRANTED_ACTION]
-+            )
-+            receiver.start()
-+        except Exception:
-+            _LOGGER.debug("Android: cannot wait for the access grant", exc_info=True)
-+            return
-+        self._grant_receiver = receiver
-+
-+    def _stop_waiting_for_access(self):
-+        receiver, self._grant_receiver = self._grant_receiver, None
-+        if receiver is not None:
-+            try:
-+                receiver.stop()
-+            except Exception:
-+                _LOGGER.debug("Android: grant receiver stop failed", exc_info=True)
-+
-+    def _on_access_granted(self, context, intent):
-+        """Called on the receiver's handler thread."""
-+        loop = self._loop
-+        if loop is not None and not loop.is_closed():
-+            loop.call_soon_threadsafe(self._retry_after_grant)
-+
-+    def _retry_after_grant(self):
-+        if self._watcher is not None or self._grant_receiver is None:
-+            return
-+        _LOGGER.info("Android: notification access granted, starting Now Playing")
-+        self._access_warned = False
-+        self.start()
-+
-+    def clear(self):
-+        """Explicitly reset this provider's state and notify the service."""
-+        self._last_identity = None
-+        self._artwork_sent = False
-+        now_playing = getattr(self._ledfx, "now_playing", None)
-+        if now_playing is not None:
-+            now_playing.clear(SOURCE_ID)
-+
-+    # ------------------------------------------------------------------
-+    # Events
-+    # ------------------------------------------------------------------
-+
-+    def _on_media_changed(self):
-+        """Called by MediaSessionWatcher on Android's main thread."""
-+        loop = self._loop
-+        if loop is not None and not loop.is_closed():
-+            loop.call_soon_threadsafe(self._refresh)
-+
-+    def _refresh(self):
-+        if self._watcher is None:
-+            return
-+        try:
-+            self._read_and_push()
-+        except Exception:
-+            _LOGGER.exception("Android: Now Playing update failed")
-+
-+    def _read_and_push(self):
-+        controller = self._active_controller()
-+        if controller is None:
-+            self._maybe_clear()
-+            return
-+
-+        metadata = controller.getMetadata()
-+        if metadata is None:
-+            self._maybe_clear()
-+            return
-+
-+        title = metadata.getString(_KEY_TITLE) or None
-+        artist = (
-+            metadata.getString(_KEY_ARTIST)
-+            or metadata.getString(_KEY_ALBUM_ARTIST)
-+            or None
-+        )
-+        album = metadata.getString(_KEY_ALBUM) or None
-+
-+        if title is None and artist is None:
-+            self._maybe_clear()
-+            return
-+
-+        now_playing = getattr(self._ledfx, "now_playing", None)
-+        if now_playing is None:
-+            return
-+
-+        position, playing = self._timing(controller.getPlaybackState())
-+        duration_ms = metadata.getLong(_KEY_DURATION)
-+        track = TrackMetadata(
-+            source_id=SOURCE_ID,
-+            title=title,
-+            artist=artist,
-+            album=album,
-+            position=position,
-+            duration=duration_ms / 1000 if duration_ms > 0 else None,
-+            playing=playing,
-+        )
-+
-+        identity = (title, artist, album)
-+        if identity == self._last_identity:
-+            # Same track: a playback-state event, or the player filling in what
-+            # it published first without - browsers send the title before the
-+            # cover. The service decides whether the timing is worth forwarding.
-+            now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=True)
-+            if not self._artwork_sent:
-+                artwork = self._artwork(metadata)
-+                if artwork is not None:
-+                    self._artwork_sent = True
-+                    now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
-+            return
-+        self._last_identity = identity
-+
-+        # The player is already holding the cover for this exact track, so a
-+        # MusicBrainz lookup would be both slower and a worse match. Read
-+        # before set_metadata so the service knows up front whether artwork
-+        # is coming, and only falls back when it is not.
-+        artwork = self._artwork(metadata)
-+        now_playing.set_metadata(SOURCE_ID, track, has_own_artwork=artwork is not None)
-+        self._artwork_sent = artwork is not None
-+        if artwork is not None:
-+            now_playing.set_artwork_bytes(SOURCE_ID, artwork, "image/png")
-+
-+    @staticmethod
-+    def _timing(state):
-+        """(position in seconds, playing) from a PlaybackState, None if unknown.
-+
-+        PlaybackState stores the position at its last update; while playing it
-+        has advanced by the elapsed time times the speed since then.
-+        """
-+        if state is None:
-+            return None, None
-+        try:
-+            playing = state.getState() == _STATE_PLAYING
-+            position_ms = state.getPosition()
-+            if position_ms == _UNKNOWN_POSITION:
-+                return None, playing
-+            # getLastPositionUpdateTime is elapsed real time, 0 if never set.
-+            updated = state.getLastPositionUpdateTime()
-+            if playing and updated > 0:
-+                from jnius import autoclass
-+
-+                clock = autoclass("android.os.SystemClock")
-+                elapsed = clock.elapsedRealtime() - updated
-+                position_ms += elapsed * state.getPlaybackSpeed()
-+            return max(position_ms, 0) / 1000, playing
-+        except Exception:
-+            _LOGGER.debug("Android: playback state unreadable", exc_info=True)
-+            return None, None
-+
-+    def _artwork(self, metadata):
-+        """PNG bytes of the track's embedded cover, or None.
-+
-+        Android hands the artwork over as a Bitmap, so it is re-encoded here.
-+        PNG keeps the colours exact, which matters because the bytes go
-+        straight into gradient extraction.
-+        """
-+        from jnius import autoclass
-+
-+        for key in _ART_KEYS:
-+            try:
-+                bitmap = metadata.getBitmap(key)
-+            except Exception:  # noqa: BLE001, S112
-+                continue
-+            if bitmap is None:
-+                continue
-+            try:
-+                byte_stream = autoclass("java.io.ByteArrayOutputStream")
-+                compress_format = autoclass("android.graphics.Bitmap$CompressFormat")
-+                stream = byte_stream()
-+                bitmap.compress(compress_format.PNG, 100, stream)
-+                raw = stream.toByteArray()
-+                if isinstance(raw, (bytes, bytearray)):
-+                    return bytes(raw)
-+                # Some pyjnius versions hand back signed Java bytes.
-+                return bytes(bytearray(b & 0xFF for b in raw))
-+            except Exception:
-+                _LOGGER.exception("Android: could not read artwork from %s", key)
-+        return None
-+
-+    # ------------------------------------------------------------------
-+    # Sessions
-+    # ------------------------------------------------------------------
-+
-+    def _active_controller(self):
-+        """The playing session, else the first one that exists."""
-+        from jnius import cast
-+
-+        sessions = self._active_sessions()
-+        if sessions is None:
-+            return None
-+
-+        fallback = None
-+        for index in range(sessions.size()):
-+            controller = cast(
-+                "android.media.session.MediaController", sessions.get(index)
-+            )
-+            state = controller.getPlaybackState()
-+            if state is not None and state.getState() == _STATE_PLAYING:
-+                return controller
-+            if fallback is None:
-+                fallback = controller
-+        return fallback
-+
-+    def _active_sessions(self):
-+        from jnius import autoclass, cast
-+
-+        if self._manager is None:
-+            context_cls = autoclass("android.content.Context")
-+            component_cls = autoclass("android.content.ComponentName")
-+            self._manager = cast(
-+                "android.media.session.MediaSessionManager",
-+                self._context.getSystemService(context_cls.MEDIA_SESSION_SERVICE),
-+            )
-+            self._component = component_cls(
-+                self._context.getPackageName(), LISTENER_CLASS
-+            )
-+
-+        try:
-+            return self._manager.getActiveSessions(self._component)
-+        except Exception as exc:  # noqa: BLE001
-+            self._warn_missing_access(exc)
-+            return None
-+
-+    def _warn_missing_access(self, exc):
-+        """Say it once, and say what fixes it.
-+
-+        The situation only changes when the user acts in Settings.
-+        """
-+        if self._access_warned:
-+            return
-+        self._access_warned = True
-+        _LOGGER.warning(
-+            "Android: cannot read the media session - LedFx does not have "
-+            "notification access. Grant it under Settings > Notifications > "
-+            "Device & app notifications > LedFx, then toggle Now Playing off "
-+            "and on. (%s)",
-+            exc,
-+        )
-+
-+    def _maybe_clear(self):
-+        if self._last_identity is None:
-+            return
-+        self._last_identity = None
-+        self._artwork_sent = False
-+        now_playing = getattr(self._ledfx, "now_playing", None)
-+        if now_playing is not None:
-+            now_playing.clear(SOURCE_ID)
 diff --git a/ledfx/nowplaying/providers/mpris.py b/ledfx/nowplaying/providers/mpris.py
 index b7733b9..294b837 100644
 --- a/ledfx/nowplaying/providers/mpris.py
@@ -1502,495 +1051,28 @@ index 69ee739..f2f4946 100644
      "dbus-fast>=5.0.22,<6.0.0; sys_platform == \"linux\"",
  ]
  name = "LedFx"
-diff --git a/tests/configuration/test_store_wiring.py b/tests/configuration/test_store_wiring.py
-index b325584..003fde0 100644
---- a/tests/configuration/test_store_wiring.py
-+++ b/tests/configuration/test_store_wiring.py
-@@ -80,6 +80,7 @@ async def test_shutdown_flush_survives_stop_failure() -> None:
-     core.audio_device_monitor = None
-     core._smtc_now_playing = None
-     core._mpris_now_playing = None
-+    core._android_now_playing = None
-     core.http = MagicMock(stop=AsyncMock(side_effect=RuntimeError("boom")))
-     core.devices = MagicMock(async_shutdown_devices=AsyncMock())
-     core.thread_executor = MagicMock()
-@@ -103,6 +104,7 @@ async def test_shutdown_completes_when_flush_raises() -> None:
-     core.audio_device_monitor = None
-     core._smtc_now_playing = None
-     core._mpris_now_playing = None
-+    core._android_now_playing = None
-     core.http = MagicMock(stop=AsyncMock())
-     core.devices = MagicMock(async_shutdown_devices=AsyncMock())
-     core.thread_executor = MagicMock()
-diff --git a/tests/test_hue_native_lifecycle.py b/tests/test_hue_native_lifecycle.py
-index 5e2ff16..f33c93f 100644
---- a/tests/test_hue_native_lifecycle.py
-+++ b/tests/test_hue_native_lifecycle.py
-@@ -366,6 +366,7 @@ async def test_core_drains_hue_before_global_cancellation(
-     core.events = MagicMock()
-     core.audio_device_monitor = None
-     core._smtc_now_playing = core._mpris_now_playing = None
-+    core._android_now_playing = None
-     core.http = MagicMock(stop=AsyncMock())
-     core.devices = MagicMock(
-         async_shutdown_devices=lambda: Devices.async_shutdown_devices(registry)
-@@ -879,6 +880,7 @@ async def test_core_drains_owned_hue_work_after_earlier_shutdown_failure(
-     core.events = MagicMock()
-     core.audio_device_monitor = None
-     core._smtc_now_playing = core._mpris_now_playing = None
-+    core._android_now_playing = None
-     core.http = MagicMock(stop=AsyncMock())
-     core.devices = MagicMock(
-         async_shutdown_devices=AsyncMock(side_effect=drain_devices)
 diff --git a/tests/test_now_playing_android.py b/tests/test_now_playing_android.py
 new file mode 100644
-index 0000000..66b8f2d
+index 00000000..368dfae4
 --- /dev/null
 +++ b/tests/test_now_playing_android.py
-@@ -0,0 +1,437 @@
-+"""Android Now Playing provider, driven by a fake jnius."""
-+
-+import asyncio
-+import logging
-+import sys
-+from types import ModuleType, SimpleNamespace
-+from typing import ClassVar
-+from unittest.mock import MagicMock
-+
-+import pytest
+@@ -0,0 +1,10 @@
++"""On desktop the Android helpers report no Android context."""
 +
 +from ledfx.nowplaying.providers import android
 +
-+PACKAGE = "com.ledfx.ledfx"
 +
-+
-+class FakeMetadata:
-+    def __init__(
-+        self, title="Song", artist="Artist", album="Album", duration_ms=0, art=None
-+    ):
-+        self._strings = {
-+            android._KEY_TITLE: title,
-+            android._KEY_ARTIST: artist,
-+            android._KEY_ALBUM: album,
-+        }
-+        self._duration = duration_ms
-+        self._art = art
-+
-+    def getString(self, key):
-+        return self._strings.get(key)
-+
-+    def getLong(self, key):
-+        return self._duration if key == android._KEY_DURATION else 0
-+
-+    def getBitmap(self, key):
-+        return self._art if key == android._ART_KEYS[0] else None
-+
-+
-+class FakeState:
-+    def __init__(self, state=3, position=10_000, updated=1_000, speed=1.0):
-+        self._state, self._position, self._updated, self._speed = (
-+            state,
-+            position,
-+            updated,
-+            speed,
-+        )
-+
-+    def getState(self):
-+        return self._state
-+
-+    def getPosition(self):
-+        return self._position
-+
-+    def getLastPositionUpdateTime(self):
-+        return self._updated
-+
-+    def getPlaybackSpeed(self):
-+        return self._speed
-+
-+
-+class FakeController:
-+    def __init__(self, metadata=None, state=None):
-+        self.metadata, self.state = metadata, state
-+
-+    def getMetadata(self):
-+        return self.metadata
-+
-+    def getPlaybackState(self):
-+        return self.state
-+
-+
-+class FakeSessions:
-+    def __init__(self, controllers):
-+        self.controllers = controllers
-+
-+    def size(self):
-+        return len(self.controllers)
-+
-+    def get(self, index):
-+        return self.controllers[index]
-+
-+
-+class FakeManager:
-+    def __init__(self):
-+        self.controllers = []
-+        self.denied = False
-+
-+    def getActiveSessions(self, component):
-+        if self.denied:
-+            raise RuntimeError("java.lang.SecurityException: Missing permission")
-+        assert component == (PACKAGE, android.LISTENER_CLASS)
-+        return FakeSessions(self.controllers)
-+
-+
-+class FakeBitmap:
-+    def compress(self, fmt, quality, stream):
-+        stream.data = b"\x89PNG-fake"
-+
-+
-+class FakeStream:
-+    def __init__(self):
-+        self.data = b""
-+
-+    def toByteArray(self):
-+        return self.data
-+
-+
-+class FakeWatcher:
-+    instances: ClassVar[list] = []
-+    fail_start = False
-+
-+    def __init__(self, context, listener_class, listener):
-+        self.context, self.listener_class, self.listener = (
-+            context,
-+            listener_class,
-+            listener,
-+        )
-+        self.started = self.stopped = False
-+        FakeWatcher.instances.append(self)
-+
-+    def start(self):
-+        if FakeWatcher.fail_start:
-+            raise RuntimeError("java.lang.SecurityException: no notification access")
-+        self.started = True
-+
-+    def stop(self):
-+        self.stopped = True
-+
-+
-+@pytest.fixture
-+def droid(monkeypatch):
-+    """A fake Android: context, session manager and the bootstrap watcher."""
-+    manager = FakeManager()
-+    context = MagicMock()
-+    context.getSystemService.return_value = manager
-+    context.getPackageName.return_value = PACKAGE
-+    clock = SimpleNamespace(now=3_000)
-+    secure = SimpleNamespace(listeners="")
-+    FakeWatcher.instances = []
-+    FakeWatcher.fail_start = False
-+    missing = set()
-+
-+    classes = {
-+        "org.kivy.android.PythonService": SimpleNamespace(mService=context),
-+        "android.content.Context": SimpleNamespace(
-+            MEDIA_SESSION_SERVICE="media_session"
-+        ),
-+        "android.content.ComponentName": lambda pkg, cls: (pkg, cls),
-+        "android.os.SystemClock": SimpleNamespace(elapsedRealtime=lambda: clock.now),
-+        "android.provider.Settings$Secure": SimpleNamespace(
-+            getString=lambda resolver, key: secure.listeners
-+        ),
-+        "java.io.ByteArrayOutputStream": FakeStream,
-+        "android.graphics.Bitmap$CompressFormat": SimpleNamespace(PNG="PNG"),
-+        android.WATCHER_CLASS: FakeWatcher,
-+    }
-+
-+    def autoclass(name):
-+        if name in missing:
-+            raise Exception(f"Class not found {name}")  # noqa: TRY002
-+        return classes[name]
-+
-+    class PythonJavaClass:
-+        pass
-+
-+    jnius = ModuleType("jnius")
-+    jnius.autoclass = autoclass
-+    jnius.cast = lambda name, obj: obj
-+    jnius.PythonJavaClass = PythonJavaClass
-+    jnius.java_method = lambda signature: lambda fn: fn
-+    monkeypatch.setitem(sys.modules, "jnius", jnius)
++def test_no_android_context_on_desktop(monkeypatch):
 +    monkeypatch.setattr(android, "_context", None)
 +    monkeypatch.setattr(android, "_context_checked", False)
-+    return SimpleNamespace(
-+        manager=manager, context=context, clock=clock, secure=secure, missing=missing
-+    )
-+
-+
-+@pytest.fixture
-+def ledfx():
-+    return SimpleNamespace(now_playing=MagicMock())
-+
-+
-+async def _settle():
-+    for _ in range(3):
-+        await asyncio.sleep(0)
-+
-+
-+def test_not_android_without_jnius(monkeypatch):
-+    monkeypatch.setitem(sys.modules, "jnius", None)
-+    monkeypatch.setattr(android, "_context", None)
-+    monkeypatch.setattr(android, "_context_checked", False)
++    assert android.android_context() is None
 +    assert android.running_on_android() is False
-+    assert android.notification_access_granted() is False
-+
-+
-+def test_start_is_a_noop_off_android(monkeypatch, ledfx):
-+    monkeypatch.setitem(sys.modules, "jnius", None)
-+    monkeypatch.setattr(android, "_context", None)
-+    monkeypatch.setattr(android, "_context_checked", False)
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    assert provider._watcher is None
-+    ledfx.now_playing.set_metadata.assert_not_called()
-+
-+
-+def test_access_check_reads_the_enabled_listener_list(droid):
-+    assert android.notification_access_granted() is False
-+    droid.secure.listeners = f"other/x:{PACKAGE}/{android.LISTENER_CLASS}"
-+    assert android.notification_access_granted() is True
-+
-+
-+async def test_start_watches_and_pushes_the_current_track(droid, ledfx):
-+    droid.manager.controllers = [
-+        FakeController(FakeMetadata(duration_ms=200_000), FakeState())
-+    ]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+
-+    (watcher,) = FakeWatcher.instances
-+    assert watcher.started and watcher.listener_class == android.LISTENER_CLASS
-+    source, track = ledfx.now_playing.set_metadata.call_args.args
-+    assert source == android.SOURCE_ID
-+    assert (track.title, track.artist, track.album) == ("Song", "Artist", "Album")
-+    assert track.duration == 200.0
-+    assert track.playing is True
-+    assert track.position == pytest.approx(12.0), "10s + 2s elapsed at speed 1"
-+
-+
-+async def test_an_event_refreshes_on_the_loop(droid, ledfx):
-+    controller = FakeController(FakeMetadata(title="First"), FakeState())
-+    droid.manager.controllers = [controller]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+
-+    controller.metadata = FakeMetadata(title="Second")
-+    FakeWatcher.instances[0].listener.onMediaChanged()
-+    assert ledfx.now_playing.set_metadata.call_count == 1, "must hop to the loop"
-+    await _settle()
-+    assert ledfx.now_playing.set_metadata.call_args.args[1].title == "Second"
-+
-+
-+async def test_same_track_event_forwards_timing_only(droid, ledfx):
-+    controller = FakeController(FakeMetadata(art=FakeBitmap()), FakeState())
-+    droid.manager.controllers = [controller]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    assert ledfx.now_playing.set_artwork_bytes.call_count == 1
-+
-+    controller.state = FakeState(state=2, position=30_000)
-+    provider._on_media_changed()
-+    await _settle()
-+
-+    track = ledfx.now_playing.set_metadata.call_args.args[1]
-+    assert track.playing is False and track.position == 30.0, "paused: no extrapolation"
-+    assert ledfx.now_playing.set_artwork_bytes.call_count == 1, "no artwork re-read"
-+
-+
-+async def test_embedded_artwork_suppresses_the_lookup(droid, ledfx):
-+    droid.manager.controllers = [
-+        FakeController(FakeMetadata(art=FakeBitmap()), FakeState())
-+    ]
-+    android.AndroidNowPlayingProvider(ledfx).start()
-+    assert ledfx.now_playing.set_metadata.call_args.kwargs["has_own_artwork"] is True
-+    ledfx.now_playing.set_artwork_bytes.assert_called_once_with(
-+        android.SOURCE_ID, b"\x89PNG-fake", "image/png"
-+    )
-+
-+
-+async def test_without_artwork_the_lookup_may_run(droid, ledfx):
-+    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
-+    android.AndroidNowPlayingProvider(ledfx).start()
-+    assert ledfx.now_playing.set_metadata.call_args.kwargs["has_own_artwork"] is False
-+
-+
-+async def test_the_playing_session_wins(droid, ledfx):
-+    droid.manager.controllers = [
-+        FakeController(FakeMetadata(title="Paused"), FakeState(state=2)),
-+        FakeController(FakeMetadata(title="Playing"), FakeState(state=3)),
-+    ]
-+    android.AndroidNowPlayingProvider(ledfx).start()
-+    assert ledfx.now_playing.set_metadata.call_args.args[1].title == "Playing"
-+
-+
-+async def test_unknown_position_and_unset_update_time(droid, ledfx):
-+    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState(position=-1))]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    assert ledfx.now_playing.set_metadata.call_args.args[1].position is None
-+
-+    assert provider._timing(FakeState(position=5_000, updated=0)) == (5.0, True)
-+
-+
-+async def test_session_gone_clears(droid, ledfx):
-+    controller = FakeController(FakeMetadata(), FakeState())
-+    droid.manager.controllers = [controller]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+
-+    droid.manager.controllers = []
-+    provider._on_media_changed()
-+    await _settle()
-+    ledfx.now_playing.clear.assert_called_once_with(android.SOURCE_ID)
-+
-+
-+async def test_missing_access_warns_once_and_stays_quiet(droid, ledfx, caplog):
-+    FakeWatcher.fail_start = True
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    with caplog.at_level(logging.WARNING):
-+        provider.start()
-+        provider.start()
-+    assert provider._watcher is None
-+    assert sum("notification access" in r.message for r in caplog.records) == 1
-+    ledfx.now_playing.set_metadata.assert_not_called()
-+
-+
-+async def test_apk_without_the_bridge_degrades(droid, ledfx, caplog):
-+    droid.missing.add(android.WATCHER_CLASS)
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    with caplog.at_level(logging.WARNING):
-+        provider.start()
-+    assert provider._watcher is None
-+    assert any("missing from this APK" in r.message for r in caplog.records)
-+
-+
-+async def test_stop_releases_the_watcher(droid, ledfx):
-+    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    watcher = FakeWatcher.instances[0]
-+    provider.stop()
-+    assert watcher.stopped
-+    assert provider._watcher is None and provider._listener is None
-+
-+    provider._on_media_changed()
-+    await _settle()
-+    assert ledfx.now_playing.set_metadata.call_count == 1, "no updates after stop"
-+
-+
-+async def test_restart_after_stop_watches_again(droid, ledfx):
-+    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    provider.stop()
-+    provider.start()
-+    assert len(FakeWatcher.instances) == 2 and FakeWatcher.instances[1].started
-+
-+
-+def test_mpris_stands_down_on_android(droid, monkeypatch):
-+    from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
-+
-+    monkeypatch.setattr(sys, "platform", "linux")
-+    provider = MPRISNowPlayingProvider(SimpleNamespace())
-+    provider.start()
-+    assert provider._init_task is None
-+
-+
-+@pytest.fixture
-+def grants(monkeypatch):
-+    receivers = []
-+
-+    class FakeReceiver:
-+        def __init__(self, callback, actions=None, categories=None):
-+            self.callback, self.actions = callback, actions
-+            self.started = self.stopped = False
-+            receivers.append(self)
-+
-+        def start(self):
-+            self.started = True
-+
-+        def stop(self):
-+            self.stopped = True
-+
-+    package = ModuleType("android")
-+    module = ModuleType("android.broadcast")
-+    module.BroadcastReceiver = FakeReceiver
-+    package.broadcast = module
-+    monkeypatch.setitem(sys.modules, "android", package)
-+    monkeypatch.setitem(sys.modules, "android.broadcast", module)
-+    return receivers
-+
-+
-+async def test_waits_for_the_grant_and_starts_on_it(droid, ledfx, grants):
-+    droid.manager.controllers = [FakeController(FakeMetadata(), FakeState())]
-+    FakeWatcher.fail_start = True
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    (receiver,) = grants
-+    assert receiver.started
-+    assert receiver.actions == [android.ACCESS_GRANTED_ACTION]
-+    assert provider._watcher is None
-+
-+    FakeWatcher.fail_start = False
-+    receiver.callback(None, None)
-+    await _settle()
-+    assert provider._watcher is not None
-+    assert receiver.stopped, "no longer needed once watching"
-+    ledfx.now_playing.set_metadata.assert_called()
-+
-+
-+async def test_a_grant_that_still_fails_keeps_waiting(droid, ledfx, grants):
-+    FakeWatcher.fail_start = True
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    grants[0].callback(None, None)
-+    await _settle()
-+    assert provider._watcher is None
-+    assert len(grants) == 1
-+    assert not grants[0].stopped
-+
-+
-+async def test_stop_releases_the_grant_receiver(droid, ledfx, grants):
-+    FakeWatcher.fail_start = True
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    provider.stop()
-+    assert grants[0].stopped
-+    grants[0].callback(None, None)
-+    await _settle()
-+    assert provider._watcher is None
-+
-+
-+async def test_cover_published_after_the_title_is_picked_up_once(droid, ledfx):
-+    controller = FakeController(FakeMetadata(), FakeState())
-+    droid.manager.controllers = [controller]
-+    provider = android.AndroidNowPlayingProvider(ledfx)
-+    provider.start()
-+    ledfx.now_playing.set_artwork_bytes.assert_not_called()
-+
-+    controller.metadata = FakeMetadata(art=FakeBitmap())
-+    provider._on_media_changed()
-+    await _settle()
-+    ledfx.now_playing.set_artwork_bytes.assert_called_once()
-+
-+    provider._on_media_changed()
-+    await _settle()
-+    assert ledfx.now_playing.set_artwork_bytes.call_count == 1, "once per track"
 diff --git a/tests/test_now_playing_opt_in.py b/tests/test_now_playing_opt_in.py
 new file mode 100644
-index 00000000..138f0e3f
+index 00000000..479a49b3
 --- /dev/null
 +++ b/tests/test_now_playing_opt_in.py
-@@ -0,0 +1,287 @@
+@@ -0,0 +1,286 @@
 +"""Now Playing is opt-in, purges on opt-out, and feeds song_detected."""
 +
 +import io
@@ -2081,12 +1163,11 @@ index 00000000..138f0e3f
 +
 +
 +def _core(enabled):
-+    providers = [MagicMock(), MagicMock(), MagicMock()]
++    providers = [MagicMock(), MagicMock()]
 +    core = SimpleNamespace(
 +        config=LedFxConfig(now_playing_enabled=enabled),
 +        _smtc_now_playing=providers[0],
 +        _mpris_now_playing=providers[1],
-+        _android_now_playing=providers[2],
 +        now_playing=MagicMock(),
 +    )
 +    return core, providers

@@ -1,20 +1,16 @@
 diff --git a/ledfx/core.py b/ledfx/core.py
-index 550b9cc..c74bc3b 100644
+index 98b7a891..03838e60 100644
 --- a/ledfx/core.py
 +++ b/ledfx/core.py
-@@ -36,7 +36,10 @@ from ledfx.http_manager import HttpServer
+@@ -36,6 +36,7 @@ from ledfx.http_manager import HttpServer
  from ledfx.integrations import Integrations
  from ledfx.mdns_manager import ZeroConfRunner
  from ledfx.nowplaying import NowPlayingService
--from ledfx.nowplaying.providers.android import AndroidNowPlayingProvider
-+from ledfx.nowplaying.providers.android import (
-+    AndroidNowPlayingProvider,
-+    boost_current_thread,
-+)
++from ledfx.nowplaying.providers.android import boost_current_thread
  from ledfx.nowplaying.providers.mpris import MPRISNowPlayingProvider
  from ledfx.nowplaying.providers.smtc import SMTCNowPlayingProvider
  from ledfx.playlists import PlaylistManager
-@@ -472,6 +475,9 @@ class LedFxCore:
+@@ -469,6 +470,9 @@ class LedFxCore:
              self.stop(1)
  
      def start(self, open_ui=False, pause_all=False):
@@ -25,13 +21,15 @@ index 550b9cc..c74bc3b 100644
              self.async_start(open_ui=open_ui, pause_all=pause_all),
              self.loop,
 diff --git a/ledfx/nowplaying/providers/android.py b/ledfx/nowplaying/providers/android.py
-index f4d758d..de50fa6 100644
+index 0cef6d47..199ea388 100644
 --- a/ledfx/nowplaying/providers/android.py
 +++ b/ledfx/nowplaying/providers/android.py
-@@ -91,6 +91,26 @@ def running_on_android() -> bool:
+@@ -55,3 +55,23 @@ def running_on_android() -> bool:
+     can.
+     """
      return android_context() is not None
- 
- 
++
++
 +def boost_current_thread(role: str) -> None:
 +    """Raise the calling thread to THREAD_PRIORITY_AUDIO on Android.
 +
@@ -50,13 +48,8 @@ index f4d758d..de50fa6 100644
 +        process.setThreadPriority(process.THREAD_PRIORITY_AUDIO)
 +    except Exception:
 +        _LOGGER.exception("Android: failed to raise %s thread priority", role)
-+
-+
- def notification_access_granted() -> bool:
-     """Has the user granted LedFx notification access?
- 
 diff --git a/ledfx/virtuals.py b/ledfx/virtuals.py
-index be32db7..27b4ea2 100644
+index be32db71..27b4ea23 100644
 --- a/ledfx/virtuals.py
 +++ b/ledfx/virtuals.py
 @@ -824,6 +824,9 @@ class Virtual:
@@ -71,7 +64,7 @@ index be32db7..27b4ea2 100644
                  break
 diff --git a/tests/test_android_thread_priority.py b/tests/test_android_thread_priority.py
 new file mode 100644
-index 0000000..6cb6504
+index 00000000..6cb65049
 --- /dev/null
 +++ b/tests/test_android_thread_priority.py
 @@ -0,0 +1,57 @@

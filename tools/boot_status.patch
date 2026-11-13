@@ -44,8 +44,7 @@ index 27726ca..550b9cc 100644
          self.devices = Devices(self)
          self.effects = Effects(self)
          self.virtuals = Virtuals(self)
-@@ -523,6 +538,7 @@ class LedFxCore:
-         self._android_now_playing = AndroidNowPlayingProvider(self)  # Android
+@@ -523,5 +538,6 @@ class LedFxCore:
          self.reconcile_now_playing_runtime("startup")
  
 +        self._write_boot_stage("connecting_audio")
