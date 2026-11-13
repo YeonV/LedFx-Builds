@@ -1,0 +1,126 @@
+name: Build Android Now Playing addon
+
+# Builds addons/nowplaying-android: a small Java-only APK that reads the
+# device's media session and sends it to the LedFx core on the same device as
+# song_info websocket messages (the song detector's protocol; the core routes
+# them into Now Playing via song_info_now_playing.patch).
+#
+# It carries the notification listener the main LedFx APK should not have, so
+# the main app installs past Play Protect while Now Playing becomes an opt-in
+# addon. Plain SDK tools, no Gradle - the same approach as the rootpack stub.
+# Signed with the production keystore, like every LedFx APK.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Addon version name (for example 1.0.0)'
+        default: '1.0.0'
+        required: true
+      version_code:
+        description: 'Addon version code (integer, must grow with every release)'
+        default: '1'
+        required: true
+      release_tag:
+        description: 'Optional: upload the APK to this LedFx-Builds release tag'
+        default: ''
+        required: false
+
+jobs:
+  build_addon:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      SRC: addons/nowplaying-android
+      MIN_SDK: '26'
+      TARGET_SDK: '35'
+      VERSION_NAME: ${{ github.event.inputs.version_name }}
+      VERSION_CODE: ${{ github.event.inputs.version_code }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17 (d8 needs it)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Locate SDK tools
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          PLATFORM=$(ls "$ANDROID_HOME/platforms" | sort -V | tail -n 1)
+          LEVEL=${PLATFORM#android-}
+          echo "build-tools: $BT"
+          echo "platform: $PLATFORM"
+          if [ "${LEVEL%%.*}" -lt "$TARGET_SDK" ]; then
+            echo "::error::platform $PLATFORM is older than targetSdk $TARGET_SDK"
+            exit 1
+          fi
+          echo "BT=$BT" >> "$GITHUB_ENV"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/$PLATFORM/android.jar" >> "$GITHUB_ENV"
+
+      - name: Compile resources and link the manifest
+        run: |
+          set -euo pipefail
+          mkdir -p build/gen build/classes build/dex
+          "$BT/aapt2" compile --dir "$SRC/res" -o build/res.zip
+          "$BT/aapt2" link \
+            -o build/unaligned.apk \
+            -I "$ANDROID_JAR" \
+            --manifest "$SRC/AndroidManifest.xml" \
+            --java build/gen \
+            --min-sdk-version "$MIN_SDK" \
+            --target-sdk-version "$TARGET_SDK" \
+            --version-code "$VERSION_CODE" \
+            --version-name "$VERSION_NAME" \
+            build/res.zip
+
+      - name: Compile Java
+        run: |
+          set -euo pipefail
+          javac -source 8 -target 8 -bootclasspath "$ANDROID_JAR" -Xlint:-options \
+            -encoding UTF-8 -d build/classes \
+            $(find "$SRC/src" build/gen -name '*.java')
+
+      - name: Dex and package
+        run: |
+          set -euo pipefail
+          "$BT/d8" --release --min-api "$MIN_SDK" --lib "$ANDROID_JAR" \
+            --output build/dex $(find build/classes -name '*.class')
+          (cd build/dex && zip -q -j ../unaligned.apk classes.dex)
+          "$BT/zipalign" -p -f 4 build/unaligned.apk build/aligned.apk
+
+      - name: Decode keystore from secrets
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_LEDFX_BASE64 }}" | base64 -d > $RUNNER_TEMP/ledfx-keystore.jks
+
+      - name: Sign and verify
+        run: |
+          set -euo pipefail
+          OUT="LedFx_NowPlaying_Addon-v${VERSION_NAME}.apk"
+          "$BT/apksigner" sign --ks $RUNNER_TEMP/ledfx-keystore.jks \
+            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --key-pass pass:${{ secrets.ANDROID_KEYSTORE_LEDFX_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_KEYSTORE_LEDFX_ALIAS }} \
+            --out "build/$OUT" build/aligned.apk
+          "$BT/apksigner" verify --print-certs "build/$OUT" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          "$BT/aapt2" dump badging "build/$OUT" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):"
+          # The listener must be in, with its bind permission.
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml "build/$OUT" > build/manifest.txt
+          grep -q 'com.ledfx.nowplaying.NowPlayingListenerService' build/manifest.txt
+          grep -q 'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' build/manifest.txt
+          echo "OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nowplaying-addon-${{ github.event.inputs.version_name }}
+          path: build/${{ env.OUT }}
+
+      - name: Upload to release
+        if: ${{ github.event.inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.inputs.release_tag }}" "build/$OUT" -R "${{ github.repository }}" --clobber

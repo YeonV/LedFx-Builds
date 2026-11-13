@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LedFx Now Playing</string>
+    <string name="listener_label">LedFx Now Playing</string>
+</resources>

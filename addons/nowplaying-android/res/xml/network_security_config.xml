@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Apps targeting API 28+ have cleartext HTTP blocked by default. The LedFx
+     core on this device only speaks plain HTTP, so allow it for loopback
+     only; everything else keeps the platform default. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
