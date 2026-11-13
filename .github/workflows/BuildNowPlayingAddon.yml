@@ -111,9 +111,11 @@ jobs:
           # fail the step without a word (run 1 did exactly that).
           "$BT/apksigner" verify --verbose --print-certs "build/$OUT"
           "$BT/aapt2" dump badging "build/$OUT"
-          # The listener must be in, with its bind permission.
+          # The listener must be in, with its bind permission. aapt2 keeps the
+          # name as written (".NowPlayingListenerService", resolved against the
+          # package at install time), so match the class name, not the FQN.
           "$BT/aapt2" dump xmltree --file AndroidManifest.xml "build/$OUT" > build/manifest.txt
-          for needle in com.ledfx.nowplaying.NowPlayingListenerService \
+          for needle in NowPlayingListenerService \
                         android.permission.BIND_NOTIFICATION_LISTENER_SERVICE \
                         android.service.notification.NotificationListenerService; do
             if ! grep -q "$needle" build/manifest.txt; then
