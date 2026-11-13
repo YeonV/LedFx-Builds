@@ -107,6 +107,9 @@ jobs:
           # UI and nothing in the build log says why - which is exactly how
           # b25 shipped.
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+          # song_info websocket messages (song detector, Android addon) feed Now
+          # Playing as one more source instead of bypassing it.
+          git apply song_info_now_playing.patch || { echo "::error::song_info_now_playing.patch did not apply"; exit 1; }
 
           # Discovery hands WLED's .local hostname to the resolver, which
           # Android cannot answer. Unlike the patch above this one is meant to
@@ -459,6 +462,9 @@ jobs:
           # UI and nothing in the build log says why - which is exactly how
           # b25 shipped.
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+          # song_info websocket messages (song detector, Android addon) feed Now
+          # Playing as one more source instead of bypassing it.
+          git apply song_info_now_playing.patch || { echo "::error::song_info_now_playing.patch did not apply"; exit 1; }
 
           # Discovery hands WLED's .local hostname to the resolver, which
           # Android cannot answer. Unlike the patch above this one is meant to

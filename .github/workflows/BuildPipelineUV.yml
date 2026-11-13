@@ -335,6 +335,9 @@ jobs:
           git apply sentry.patch || { echo "::error::sentry.patch did not apply"; exit 1; }
           git apply stems.patch || { echo "::error::stems.patch did not apply"; exit 1; }
           git apply nowplaying.patch || { echo "::error::nowplaying.patch did not apply"; exit 1; }
+          # song_info websocket messages (song detector, Android addon) feed Now
+          # Playing as one more source instead of bypassing it.
+          git apply song_info_now_playing.patch || { echo "::error::song_info_now_playing.patch did not apply"; exit 1; }
           # Despite living in the Android chain, this one is not Android-specific
           # at all - it contains zero platform checks. It skips the visualisation
           # pixel pipeline and melbank graph events when no client has the graph

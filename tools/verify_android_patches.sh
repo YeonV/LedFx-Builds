@@ -21,19 +21,13 @@ PATCH_DIR="$REPO_ROOT/tools"
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-# Keep this list and order in sync with the "apply patches" step in
-# .github/workflows/BuildAndroidMatrix.yml. Order matters: each patch is
-# applied against the PREVIOUS patch's output, not independently against
-# bare main - a patch that applies cleanly on its own can still fail here
-# if an earlier patch already rewrote the context it anchors on.
-PATCHES=(
-  sentry.patch
-  nowplaying.patch
-  wled_mdns.patch
-  remote_submix_echo.patch
-  boot_status.patch
-  android_capture_control.patch
-)
+# The order is read from the "apply patches" step in
+# .github/workflows/BuildAndroidMatrix.yml, so it cannot drift. Order matters:
+# each patch is applied against the PREVIOUS patch's output, not independently
+# against bare main - a patch that applies cleanly on its own can still fail
+# here if an earlier patch already rewrote the context it anchors on.
+mapfile -t PATCHES < <(grep -oE 'git apply [a-z_]+\.patch' "$REPO_ROOT/.github/workflows/BuildAndroidMatrix.yml" | awk '{print $3}' | awk '!seen[$0]++')
+[ ${#PATCHES[@]} -gt 0 ] || { echo "no patches found in BuildAndroidMatrix.yml" >&2; exit 1; }
 
 echo "==> Cloning LedFx/LedFx@main (fresh, depth 1) ..."
 git clone --depth 1 --quiet https://github.com/LedFx/LedFx.git "$WORK_DIR/ledfx"
@@ -49,7 +43,9 @@ for patch in "${PATCHES[@]}"; do
     continue
   fi
   echo "==> Applying $patch ..."
-  if patch -p1 --fuzz=0 --forward "$patch_path"; then
+  # git apply, exactly as CI runs it: `patch` matches context more leniently
+  # and has reported patches clean that CI then rejected.
+  if git apply "$patch_path"; then
     echo "    OK: $patch"
   else
     echo "    FAILED: $patch"

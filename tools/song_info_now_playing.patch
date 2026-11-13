@@ -1,0 +1,256 @@
+diff --git a/ledfx/api/websocket.py b/ledfx/api/websocket.py
+index fe50e8fe..5d56e783 100644
+--- a/ledfx/api/websocket.py
++++ b/ledfx/api/websocket.py
+@@ -3,12 +3,14 @@ import binascii
+ import inspect
+ import json
+ import logging
++import mimetypes
++import os
+ import struct
+ import time
+ import uuid
+ from collections.abc import Callable, Mapping
+ from concurrent import futures
+-from typing import Annotated, ClassVar, Literal, get_args
++from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, get_args
+ 
+ import numpy as np
+ import pybase64
+@@ -17,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
+ 
+ from ledfx.api import RestEndpoint
+ from ledfx.api.jsonutil import default, dumps
++from ledfx.assets import get_assets_directory, resolve_safe_asset_path
+ from ledfx.configuration.fields import coerce
+ from ledfx.events import (
+     ClientBroadcastEvent,
+@@ -101,6 +104,86 @@ def websocket_handler(type):
+     return function
+ 
+ 
++if TYPE_CHECKING:
++    from ledfx.nowplaying.service import NowPlayingService
++
++SONG_INFO_SOURCE = "song_info"
++_SONG_INFO_MAX_ARTWORK = 10 * 1024 * 1024
++
++
++def song_info_artwork(config_dir: str, thumbnail: object) -> tuple[bytes, str] | None:
++    """Read the cover a song_info message points at, if it lies in the assets dir.
++
++    The desktop song detector writes the file into the assets directory and
++    sends its absolute path; an uploader (POST /api/assets) sends the relative
++    asset path. Anything resolving outside the assets directory is ignored, so a
++    websocket client cannot make the core read arbitrary files.
++    """
++    if not isinstance(thumbnail, str) or not thumbnail:
++        return None
++    relative = thumbnail
++    if os.path.isabs(relative):
++        try:
++            relative = os.path.relpath(
++                os.path.realpath(relative),
++                os.path.realpath(get_assets_directory(config_dir)),
++            )
++        except ValueError:  # different drive on Windows
++            return None
++    valid, absolute, _error = resolve_safe_asset_path(config_dir, relative)
++    if not valid or absolute is None or not os.path.isfile(absolute):
++        _LOGGER.debug("song_info thumbnail not usable: %s", thumbnail)
++        return None
++    content_type = mimetypes.guess_type(absolute)[0]
++    if content_type is None or not content_type.startswith("image/"):
++        return None
++    if os.path.getsize(absolute) > _SONG_INFO_MAX_ARTWORK:
++        return None
++    with open(absolute, "rb") as file:
++        return file.read(), content_type
++
++
++def _float_or_none(value: object) -> float | None:
++    if isinstance(value, bool) or not isinstance(value, int | float | str):
++        return None
++    try:
++        return float(value)
++    except ValueError:
++        return None
++
++
++def song_info_to_now_playing(
++    now_playing: "NowPlayingService", config_dir: str, message: Mapping[str, object]
++) -> None:
++    """Feed a song_info message into Now Playing like any other provider.
++
++    The service then keeps the state for /api/now-playing, extracts gradients,
++    applies album art and emits song_detected itself.
++    """
++    from ledfx.nowplaying.models import TrackMetadata
++
++    def text(key: str) -> str | None:
++        value = message.get(key)
++        return value if isinstance(value, str) and value else None
++
++    playing = message.get("playing")
++    artwork = song_info_artwork(config_dir, message.get("thumbnail"))
++    track = TrackMetadata(
++        source_id=SONG_INFO_SOURCE,
++        title=text("title"),
++        artist=text("artist"),
++        album=text("album"),
++        position=_float_or_none(message.get("position")),
++        duration=_float_or_none(message.get("duration")),
++        playing=playing if isinstance(playing, bool) else None,
++    )
++    now_playing.set_metadata(
++        SONG_INFO_SOURCE, track, has_own_artwork=artwork is not None
++    )
++    if artwork is not None:
++        now_playing.set_artwork_bytes(SONG_INFO_SOURCE, *artwork)
++
++
+ WEB_AUDIO_CLIENTS = set()
+ ACTIVE_AUDIO_STREAM = None
+ 
+@@ -1100,6 +1183,13 @@ class WebsocketConnection:
+             message.get("title"),
+         )
+ 
++        # With Now Playing on, the message is one more source for it; the
++        # service emits song_detected itself, so firing here would double it.
++        now_playing = getattr(self._ledfx, "now_playing", None)
++        if now_playing is not None and now_playing.enabled:
++            song_info_to_now_playing(now_playing, self._ledfx.config_dir, message)
++            return
++
+         # Fire the event which will be broadcast to all subscribed clients
+         self._ledfx.events.fire_event(
+             SongDetectedEvent(
+diff --git a/ledfx/nowplaying/service.py b/ledfx/nowplaying/service.py
+index 66801468..bd80ae55 100644
+--- a/ledfx/nowplaying/service.py
++++ b/ledfx/nowplaying/service.py
+@@ -86,6 +86,9 @@ _SOURCE_PRIORITY: dict[str, int] = {
+     "sendspin": 10,
+     "mpris": 2,
+     "smtc": 1,
++    # song_info websocket messages (song detector, Android addon): below every
++    # native provider, so a detector running next to SMTC never takes over.
++    "song_info": 0,
+ }
+ 
+ # Content-type to file extension mapping
+diff --git a/tests/test_song_info_now_playing.py b/tests/test_song_info_now_playing.py
+new file mode 100644
+index 00000000..b5c82bc6
+--- /dev/null
++++ b/tests/test_song_info_now_playing.py
+@@ -0,0 +1,107 @@
++"""song_info websocket messages feed Now Playing when it is on."""
++
++import os
++from types import SimpleNamespace
++from unittest.mock import MagicMock
++
++import pytest
++
++from ledfx.api.websocket import (
++    WebsocketConnection,
++    song_info_artwork,
++    song_info_to_now_playing,
++)
++from ledfx.assets import get_assets_directory
++from ledfx.events import Event
++from ledfx.nowplaying.models import TrackMetadata
++from ledfx.nowplaying.service import NowPlayingService
++from tests.test_now_playing_opt_in import _Ledfx, _png
++
++
++@pytest.fixture
++def ledfx(tmp_path):
++    return _Ledfx(config_dir=str(tmp_path))
++
++
++@pytest.fixture
++def service(ledfx):
++    svc = NowPlayingService(ledfx)
++    svc._art_resolver = MagicMock()
++    return svc
++
++
++def _cover(ledfx, name="current_album_art.png"):
++    assets = get_assets_directory(ledfx.config_dir)
++    os.makedirs(assets, exist_ok=True)
++    path = os.path.join(assets, name)
++    with open(path, "wb") as file:
++        file.write(_png())
++    return path
++
++
++def _song(**extra):
++    return {"id": 1, "type": "song_info", "title": "Song", "artist": "Artist", **extra}
++
++
++def test_text_only_sets_the_track(service, ledfx):
++    song_info_to_now_playing(service, ledfx.config_dir, _song(position=3, playing=True))
++    metadata = service.get_current().metadata
++    assert metadata.title == "Song" and metadata.position == 3.0 and metadata.playing
++    events = ledfx.events.of(Event.SONG_DETECTED)
++    assert len(events) == 1 and events[-1].thumbnail is None
++
++
++def test_relative_asset_path_becomes_the_cover(service, ledfx):
++    _cover(ledfx)
++    song_info_to_now_playing(
++        service, ledfx.config_dir, _song(thumbnail="current_album_art.png")
++    )
++    assert service.get_current().artwork is not None
++    assert ledfx.events.of(Event.SONG_DETECTED)[-1].thumbnail == (
++        "now_playing/now_playing.png"
++    )
++
++
++def test_absolute_path_inside_assets_is_accepted(ledfx):
++    path = _cover(ledfx)
++    artwork = song_info_artwork(ledfx.config_dir, path)
++    assert artwork is not None and artwork[1] == "image/png"
++
++
++def test_path_outside_assets_is_ignored(ledfx, tmp_path):
++    outside = tmp_path / "secret.png"
++    outside.write_bytes(_png())
++    assert song_info_artwork(ledfx.config_dir, str(outside)) is None
++    assert song_info_artwork(ledfx.config_dir, "../secret.png") is None
++
++
++def test_native_provider_keeps_priority(service, ledfx):
++    service.set_metadata("smtc", TrackMetadata(source_id="smtc", title="Native"))
++    song_info_to_now_playing(service, ledfx.config_dir, _song())
++    assert service.get_current().metadata.title == "Native"
++
++
++def _connection(enabled):
++    events = MagicMock()
++    now_playing = SimpleNamespace(enabled=enabled)
++    ledfx = SimpleNamespace(events=events, now_playing=now_playing, config_dir="/x")
++    return SimpleNamespace(_ledfx=ledfx), events
++
++
++def test_disabled_now_playing_keeps_the_plain_relay():
++    connection, events = _connection(enabled=False)
++    WebsocketConnection.song_info_handler(connection, _song())
++    fired = events.fire_event.call_args.args[0]
++    assert fired.event_type == Event.SONG_DETECTED and fired.title == "Song"
++
++
++def test_enabled_now_playing_does_not_double_the_event(monkeypatch):
++    routed = []
++    monkeypatch.setattr(
++        "ledfx.api.websocket.song_info_to_now_playing",
++        lambda now_playing, config_dir, message: routed.append(message),
++    )
++    connection, events = _connection(enabled=True)
++    WebsocketConnection.song_info_handler(connection, _song())
++    assert len(routed) == 1
++    events.fire_event.assert_not_called()
