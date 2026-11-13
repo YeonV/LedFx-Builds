@@ -224,6 +224,10 @@ public class NowPlayingListenerService extends NotificationListenerService {
         final boolean hasState = state != null;
         final boolean playing = hasState && state.getState() == PlaybackState.STATE_PLAYING;
         final double position = hasState ? positionSeconds(state, playing) : -1;
+        // When the position was measured, in epoch seconds like the desktop
+        // song detector's time.time(): the frontend extrapolates the progress
+        // from it, without it the position never ticks.
+        final double timestamp = System.currentTimeMillis() / 1000.0;
         final Bitmap cover = cover(metadata);
 
         final Handler target = sender;
@@ -233,13 +237,15 @@ public class NowPlayingListenerService extends NotificationListenerService {
         target.post(new Runnable() {
             @Override
             public void run() {
-                send(title, artist, album, duration, hasState, playing, position, cover);
+                send(title, artist, album, duration, hasState, playing, position,
+                    timestamp, cover);
             }
         });
     }
 
     private void send(String title, String artist, String album, double duration,
-            boolean hasState, boolean playing, double position, Bitmap cover) {
+            boolean hasState, boolean playing, double position, double timestamp,
+            Bitmap cover) {
         LedFxClient c = client;
         if (c == null) {
             return;
@@ -280,6 +286,7 @@ public class NowPlayingListenerService extends NotificationListenerService {
                 message.put("playing", playing);
                 if (position >= 0) {
                     message.put("position", position);
+                    message.put("timestamp", timestamp);
                 }
             }
         } catch (JSONException e) {
