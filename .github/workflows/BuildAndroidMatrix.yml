@@ -83,10 +83,8 @@ jobs:
           cp ./src2/tools/transmission_mode_no_restart.patch ./deps/ledfx/transmission_mode_no_restart.patch
           cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
-          cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
-          cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
-          cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
+          cp ./src2/tools/audio_process.patch ./deps/ledfx/audio_process.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -204,17 +202,6 @@ jobs:
             || git apply --check --reverse binary_transmission.patch \
             || { echo "::error::binary_transmission.patch did not apply"; exit 1; }
 
-          # Computes only the melbanks something actually reads. Three were
-          # built every audio callback while a typical setup consumes one.
-          # Measured on a Nexus 5 driving real LEDs: 16% off the audio thread,
-          # 14% off total service CPU, no overlap between runs.
-          # ANDROID VARIANT - the desktop chain applies stems.patch, which
-          # rewrites the same accessor to go through _melbank_source. Use
-          # melbank_on_demand_desktop.patch there; each rejects the other.
-          git apply melbank_on_demand_android.patch \
-            || git apply --check --reverse melbank_on_demand_android.patch \
-            || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
-
           # Three version/validation checks were written as bare asserts, and
           # python-for-android compiles this bundle with -OO, which strips
           # assert statements out of the bytecode entirely. The config-version
@@ -228,26 +215,16 @@ jobs:
             || git apply --check --reverse assert_control_flow.patch \
             || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
 
-          # freq_power was a standing per-frame subscriber: it computed four
-          # band averages on every audio callback whether or not anything read
-          # them, and its first act was melbanks.want(2), forcing a melbank
-          # nobody needed. Measured on a Nexus 5 at ~11% of the audio callback.
-          # Now registers demand in get_freq_power, the sole read path for
-          # beat/bass/lows/mids/high. Never costs more than before. One patch
-          # for both chains - this region is identical pre- and post-stems.
-          git apply freq_power_on_demand.patch \
-            || git apply --check --reverse freq_power_on_demand.patch \
-            || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
-
-          # Gates the last two standing analysis subscribers nothing was
-          # reading. pitch is consumed only by pitchSpectrum; volume_beat_now
-          # is the sole caller of melbanks.want(0), so while it ran every
-          # frame melbank 0 was computed unconditionally. Measured on a Nexus
-          # 5 with Blade Power+ active: melbank 0 is 15.1% of the audio
-          # callback and aubio pitch a further 4.8%, neither of them read.
-          git apply analysis_on_demand_android.patch \
-            || git apply --check --reverse analysis_on_demand_android.patch \
-            || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
+          # Audio capture and analysis in a process of their own (the second
+          # p4a service, service_audio.py), so active virtuals no longer starve
+          # the audio thread of the interpreter lock. Upstream PR pending; this
+          # patch carries it until then. It replaces the three on-demand
+          # analysis patches (melbank/freq_power/analysis_on_demand), which
+          # rewrote the same code; demand tracking is to be ported into the new
+          # design as a follow-up.
+          git apply audio_process.patch \
+            || git apply --check --reverse audio_process.patch \
+            || { echo "::error::audio_process.patch did not apply"; exit 1; }
 
 
           cd ../..
@@ -439,10 +416,8 @@ jobs:
           cp ./src2/tools/transmission_mode_no_restart.patch ./deps/ledfx/transmission_mode_no_restart.patch
           cp ./src2/tools/transmission_mode_migration.patch ./deps/ledfx/transmission_mode_migration.patch
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
-          cp ./src2/tools/melbank_on_demand_android.patch ./deps/ledfx/melbank_on_demand_android.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
-          cp ./src2/tools/freq_power_on_demand.patch ./deps/ledfx/freq_power_on_demand.patch
-          cp ./src2/tools/analysis_on_demand_android.patch ./deps/ledfx/analysis_on_demand_android.patch
+          cp ./src2/tools/audio_process.patch ./deps/ledfx/audio_process.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -560,17 +535,6 @@ jobs:
             || git apply --check --reverse binary_transmission.patch \
             || { echo "::error::binary_transmission.patch did not apply"; exit 1; }
 
-          # Computes only the melbanks something actually reads. Three were
-          # built every audio callback while a typical setup consumes one.
-          # Measured on a Nexus 5 driving real LEDs: 16% off the audio thread,
-          # 14% off total service CPU, no overlap between runs.
-          # ANDROID VARIANT - the desktop chain applies stems.patch, which
-          # rewrites the same accessor to go through _melbank_source. Use
-          # melbank_on_demand_desktop.patch there; each rejects the other.
-          git apply melbank_on_demand_android.patch \
-            || git apply --check --reverse melbank_on_demand_android.patch \
-            || { echo "::error::melbank_on_demand_android.patch did not apply"; exit 1; }
-
           # Three version/validation checks were written as bare asserts, and
           # python-for-android compiles this bundle with -OO, which strips
           # assert statements out of the bytecode entirely. The config-version
@@ -584,26 +548,16 @@ jobs:
             || git apply --check --reverse assert_control_flow.patch \
             || { echo "::error::assert_control_flow.patch did not apply"; exit 1; }
 
-          # freq_power was a standing per-frame subscriber: it computed four
-          # band averages on every audio callback whether or not anything read
-          # them, and its first act was melbanks.want(2), forcing a melbank
-          # nobody needed. Measured on a Nexus 5 at ~11% of the audio callback.
-          # Now registers demand in get_freq_power, the sole read path for
-          # beat/bass/lows/mids/high. Never costs more than before. One patch
-          # for both chains - this region is identical pre- and post-stems.
-          git apply freq_power_on_demand.patch \
-            || git apply --check --reverse freq_power_on_demand.patch \
-            || { echo "::error::freq_power_on_demand.patch did not apply"; exit 1; }
-
-          # Gates the last two standing analysis subscribers nothing was
-          # reading. pitch is consumed only by pitchSpectrum; volume_beat_now
-          # is the sole caller of melbanks.want(0), so while it ran every
-          # frame melbank 0 was computed unconditionally. Measured on a Nexus
-          # 5 with Blade Power+ active: melbank 0 is 15.1% of the audio
-          # callback and aubio pitch a further 4.8%, neither of them read.
-          git apply analysis_on_demand_android.patch \
-            || git apply --check --reverse analysis_on_demand_android.patch \
-            || { echo "::error::analysis_on_demand_android.patch did not apply"; exit 1; }
+          # Audio capture and analysis in a process of their own (the second
+          # p4a service, service_audio.py), so active virtuals no longer starve
+          # the audio thread of the interpreter lock. Upstream PR pending; this
+          # patch carries it until then. It replaces the three on-demand
+          # analysis patches (melbank/freq_power/analysis_on_demand), which
+          # rewrote the same code; demand tracking is to be ported into the new
+          # design as a follow-up.
+          git apply audio_process.patch \
+            || git apply --check --reverse audio_process.patch \
+            || { echo "::error::audio_process.patch did not apply"; exit 1; }
 
 
           cd ../..

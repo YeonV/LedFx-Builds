@@ -1,0 +1,2254 @@
+diff --git a/ledfx/__main__.py b/ledfx/__main__.py
+index fcb8b19c..56ed0401 100644
+--- a/ledfx/__main__.py
++++ b/ledfx/__main__.py
+@@ -11,6 +11,7 @@ WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+ 
+ import argparse
+ import logging
++import multiprocessing
+ import os
+ import sys
+ import threading
+@@ -233,6 +234,9 @@ def main():
+     """
+     Main entry point allowing external calls
+     """
++    # A frozen build starts the audio process (ledfx.audio_process) by
++    # re-running this executable; this turns that run into the worker.
++    multiprocessing.freeze_support()
+ 
+     args = parse_args()
+     if args.dump_schemas:
+diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
+index 47ee913c..3266e322 100644
+--- a/ledfx/api/utils.py
++++ b/ledfx/api/utils.py
+@@ -11,6 +11,7 @@ PERMITTED_KEYS = {
+         "onset_method",
+         "pitch_tolerance",
+         "android_remote_submix_echo",
++        "separate_process",
+     ),
+     "silence_scene": ("enabled", "scene_id", "timeout_seconds"),
+     "melbanks": (
+diff --git a/ledfx/audio_process/__init__.py b/ledfx/audio_process/__init__.py
+new file mode 100755
+index 00000000..cdbd4526
+--- /dev/null
++++ b/ledfx/audio_process/__init__.py
+@@ -0,0 +1,12 @@
++"""Audio capture and analysis in a process of its own.
++
++Python runs one thread at a time per interpreter. In the LedFx process the
++audio thread shares that with every virtual's render thread, the event loop
++and the API, and with several active virtuals it falls behind the audio device
++and drops blocks. Here capture and AudioAnalyzer run in a separate process with
++an interpreter of its own, and only each block's results travel back.
++
++worker.py is the audio process. client.py is the LedFx side: it starts the
++worker, opens and closes sources in it and hands each block's results to
++AudioAnalysisSource. protocol.py is the framing between the two.
++"""
+diff --git a/ledfx/audio_process/client.py b/ledfx/audio_process/client.py
+new file mode 100755
+index 00000000..3ad7f6b5
+--- /dev/null
++++ b/ledfx/audio_process/client.py
+@@ -0,0 +1,232 @@
++"""LedFx's side of the audio process.
++
++AudioProcessClient starts the worker, accepts its connection only with the
++token it was started with, and runs one reader thread that turns each snapshot
++into a SnapshotView for AudioAnalysisSource.
++
++The reader runs in the LedFx process and can fall behind like any other thread
++there. It then jumps to the newest snapshot instead of replaying stale ones,
++but ORs the per-block event flags of the skipped ones into it, so an onset or
++beat is never lost to a skipped frame.
++"""
++
++import logging
++import multiprocessing
++import secrets
++import select
++import socket
++import threading
++
++import numpy as np
++
++from ledfx.audio_process import protocol, worker
++from ledfx.effects.audio_analyzer import SnapshotView
++
++_LOGGER = logging.getLogger(__name__)
++
++EVENT_FLAGS = ("onset", "bpm_beat_now", "volume_beat_now")
++START_TIMEOUT = 10
++COMMAND_TIMEOUT = 5
++
++
++def spawn_process(port, token):
++    """Default launcher: a fresh interpreter via multiprocessing's spawn
++    context, which every platform supports and which shares no state with
++    LedFx. Returns something with terminate() and join()."""
++    process = multiprocessing.get_context("spawn").Process(
++        target=worker.main, args=(port, token), name="LedFx audio", daemon=True
++    )
++    process.start()
++    return process
++
++
++_launcher = spawn_process
++
++
++def set_launcher(launcher):
++    """Replace how the worker gets started, e.g. as an Android service.
++
++    `launcher(port, token)` must start something that calls
++    ledfx.audio_process.worker.main(port, token), and return an object with
++    terminate() and join(timeout), or None if it cannot be stopped from here.
++    """
++    global _launcher
++    _launcher = launcher
++
++
++class AudioProcessError(OSError):
++    """An OSError, so device fallbacks treat it like any failed audio open."""
++
++
++class AudioProcessClient:
++    def __init__(self, on_results, on_disconnect=None):
++        self.on_results = on_results
++        self.on_disconnect = on_disconnect
++        self._sock = None
++        self._handle = None
++        self._send_lock = threading.Lock()
++        self._replies = {}
++        self._reply_lock = threading.Lock()
++        self._next_id = 0
++        self._reader = None
++        self.alive = False
++
++    # -- lifecycle --------------------------------------------------------
++
++    def start(self, timeout=START_TIMEOUT):
++        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        try:
++            listener.bind(("127.0.0.1", 0))
++            listener.listen(4)
++            listener.settimeout(timeout)
++            port = listener.getsockname()[1]
++            token = secrets.token_hex(16)
++            self._handle = _launcher(port, token)
++            self._sock = self._accept(listener, token)
++        finally:
++            listener.close()
++        self._sock.settimeout(None)
++        self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
++        self.alive = True
++        self._reader = threading.Thread(
++            target=self._read_loop, name="AudioProcessReader", daemon=True
++        )
++        self._reader.start()
++
++    @staticmethod
++    def _accept(listener, token):
++        while True:
++            try:
++                conn, _ = listener.accept()
++            except TimeoutError as e:
++                raise AudioProcessError("the audio process did not connect") from e
++            conn.settimeout(COMMAND_TIMEOUT)
++            try:
++                hello = protocol.recv(conn)
++            except (OSError, ValueError, protocol.ProtocolError):
++                conn.close()
++                continue
++            if hello.get("t") == "hello" and secrets.compare_digest(
++                str(hello.get("token", "")), token
++            ):
++                _LOGGER.info("Audio process connected (pid %s)", hello.get("pid"))
++                return conn
++            _LOGGER.warning("Rejected a connection without the audio process token")
++            conn.close()
++
++    def stop(self):
++        self.alive = False
++        if self._sock is not None:
++            try:
++                self._send({"t": "quit"})
++            except OSError:
++                pass
++            try:
++                self._sock.shutdown(socket.SHUT_RDWR)
++            except OSError:
++                pass
++            self._sock.close()
++        handle, self._handle = self._handle, None
++        if handle is not None:
++            handle.join(3)
++            if getattr(handle, "is_alive", lambda: False)():
++                handle.terminate()
++        self.alive = False
++
++    # -- commands ---------------------------------------------------------
++
++    def _send(self, message):
++        with self._send_lock:
++            protocol.send(self._sock, message)
++
++    def _request(self, message, timeout=COMMAND_TIMEOUT):
++        with self._reply_lock:
++            self._next_id += 1
++            request_id = self._next_id
++            done = threading.Event()
++            self._replies[request_id] = [done, None]
++        message["id"] = request_id
++        self._send(message)
++        if not done.wait(timeout):
++            with self._reply_lock:
++                self._replies.pop(request_id, None)
++            raise AudioProcessError(f"no answer to {message['t']!r}")
++        with self._reply_lock:
++            return self._replies.pop(request_id)[1]
++
++    def configure(self, audio_config, melbank_configs, coeffs_type):
++        self._send(
++            {
++                "t": "configure",
++                "audio_config": audio_config,
++                "melbank_configs": melbank_configs,
++                "coeffs_type": coeffs_type,
++            }
++        )
++
++    def open(self, device, device_name, samplerate, blocksize, channels):
++        reply = self._request(
++            {
++                "t": "open",
++                "device": device,
++                "device_name": device_name,
++                "samplerate": samplerate,
++                "blocksize": blocksize,
++                "channels": channels,
++            }
++        )
++        if reply.get("t") != "opened":
++            raise AudioProcessError(reply.get("error", "could not open the device"))
++        return reply["device"]
++
++    def close(self):
++        self._request({"t": "close"})
++
++    def push(self, samples):
++        """Analyse a block LedFx received itself (browser or Sendspin audio)."""
++        data = np.ascontiguousarray(np.frombuffer(samples, dtype=np.float32)).tobytes()
++        self._send({"t": "block", "data": data})
++
++    # -- reading ----------------------------------------------------------
++
++    def _ready(self):
++        readable, _, _ = select.select([self._sock], [], [], 0)
++        return bool(readable)
++
++    def _read_loop(self):
++        try:
++            while True:
++                message = protocol.recv(self._sock)
++                if message.get("t") != "snapshot":
++                    self._reply(message)
++                    continue
++                snapshot = message["s"]
++                flags = {name: snapshot[name] for name in EVENT_FLAGS}
++                # Catch up: newest values, but no lost events.
++                while self._ready():
++                    message = protocol.recv(self._sock)
++                    if message.get("t") != "snapshot":
++                        self._reply(message)
++                        continue
++                    snapshot = message["s"]
++                    for name in EVENT_FLAGS:
++                        flags[name] = flags[name] or snapshot[name]
++                snapshot.update(flags)
++                try:
++                    self.on_results(SnapshotView(snapshot))
++                except Exception:
++                    _LOGGER.exception("Error handling audio results")
++        except (ConnectionError, OSError, protocol.ProtocolError, ValueError) as e:
++            if self.alive:
++                _LOGGER.error("Audio process connection lost: %s", e)
++        finally:
++            self.alive = False
++            if self.on_disconnect is not None:
++                self.on_disconnect()
++
++    def _reply(self, message):
++        with self._reply_lock:
++            slot = self._replies.get(message.get("id"))
++            if slot is not None:
++                slot[1] = message
++                slot[0].set()
+diff --git a/ledfx/audio_process/protocol.py b/ledfx/audio_process/protocol.py
+new file mode 100755
+index 00000000..947250fd
+--- /dev/null
++++ b/ledfx/audio_process/protocol.py
+@@ -0,0 +1,86 @@
++"""Message framing between LedFx and its audio process.
++
++A message is a dict of JSON-compatible values plus bytes. On the wire:
++
++    4 bytes  big-endian length of the JSON header
++    header   UTF-8 JSON; every bytes value is replaced by {"__blob__": i}
++    blobs    the bytes values in order, each prefixed with its 4-byte length
++
++JSON plus raw bytes rather than pickle: anything on the machine can connect to
++a loopback port, and unpickling what it sends would run its code.
++"""
++
++import json
++import struct
++
++_LEN = struct.Struct(">I")
++# A snapshot is a few KB and an audio block well under 100 KB.
++MAX_FRAME = 16 * 1024 * 1024
++
++
++class ProtocolError(Exception):
++    pass
++
++
++def _strip_blobs(value, blobs):
++    if isinstance(value, (bytes, bytearray, memoryview)):
++        blobs.append(bytes(value))
++        return {"__blob__": len(blobs) - 1}
++    if isinstance(value, dict):
++        return {k: _strip_blobs(v, blobs) for k, v in value.items()}
++    if isinstance(value, (list, tuple)):
++        return [_strip_blobs(v, blobs) for v in value]
++    return value
++
++
++def _restore_blobs(value, blobs):
++    if isinstance(value, dict):
++        if set(value) == {"__blob__"}:
++            index = value["__blob__"]
++            if not isinstance(index, int) or not 0 <= index < len(blobs):
++                raise ProtocolError(f"bad blob reference {index!r}")
++            return blobs[index]
++        return {k: _restore_blobs(v, blobs) for k, v in value.items()}
++    if isinstance(value, list):
++        return [_restore_blobs(v, blobs) for v in value]
++    return value
++
++
++def encode(message):
++    blobs = []
++    header = json.dumps(_strip_blobs(message, blobs), separators=(",", ":")).encode()
++    parts = [_LEN.pack(len(header)), header, _LEN.pack(len(blobs))]
++    for blob in blobs:
++        parts.append(_LEN.pack(len(blob)))
++        parts.append(blob)
++    return b"".join(parts)
++
++
++def _recv_exact(sock, size):
++    if size > MAX_FRAME:
++        raise ProtocolError(f"frame of {size} bytes exceeds {MAX_FRAME}")
++    buf = bytearray(size)
++    view = memoryview(buf)
++    got = 0
++    while got < size:
++        n = sock.recv_into(view[got:], size - got)
++        if n == 0:
++            raise ConnectionError("peer closed the connection")
++        got += n
++    return bytes(buf)
++
++
++def recv(sock):
++    """Read one message. Raises ConnectionError when the peer has gone."""
++    (header_len,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
++    header = json.loads(_recv_exact(sock, header_len))
++    (count,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
++    blobs = []
++    for _ in range(count):
++        (blob_len,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
++        blobs.append(_recv_exact(sock, blob_len))
++    return _restore_blobs(header, blobs)
++
++
++def send(sock, message):
++    sock.sendall(encode(message))
+diff --git a/ledfx/audio_process/worker.py b/ledfx/audio_process/worker.py
+new file mode 100755
+index 00000000..4709205a
+--- /dev/null
++++ b/ledfx/audio_process/worker.py
+@@ -0,0 +1,178 @@
++"""The audio process: capture, analysis, and nothing that renders.
++
++It connects back to LedFx, proves it was started by it (token), then follows
++commands: configure the analyzer, open or close a capture device, analyse
++blocks LedFx forwards from network sources. Every analysed block goes back as
++a snapshot. The device callback only analyses and queues; a separate thread
++writes to the socket, so a slow LedFx can never stall the capture.
++"""
++
++import logging
++import os
++import queue
++import socket
++import sys
++import threading
++
++import numpy as np
++
++from ledfx.audio_process import protocol
++from ledfx.effects.audio_analyzer import AudioAnalyzer
++
++_LOGGER = logging.getLogger(__name__)
++
++# About two seconds of snapshots at 60 blocks per second.
++SEND_QUEUE_BLOCKS = 120
++
++
++class AudioWorker:
++    def __init__(self, sock, audio_module):
++        self._sock = sock
++        self._sd = audio_module
++        self._analyzer = None
++        self._stream = None
++        self._outbox = queue.Queue(maxsize=SEND_QUEUE_BLOCKS)
++        self._dropped = 0
++        self._running = True
++        self._sender = threading.Thread(
++            target=self._send_loop, name="AudioWorkerSend", daemon=True
++        )
++
++    # -- outgoing ---------------------------------------------------------
++
++    def _send_loop(self):
++        while self._running:
++            message = self._outbox.get()
++            if message is None:
++                return
++            try:
++                protocol.send(self._sock, message)
++            except OSError:
++                self._running = False
++                return
++
++    def _post(self, message):
++        try:
++            self._outbox.put_nowait(message)
++        except queue.Full:
++            self._dropped += 1
++            if self._dropped % 100 == 1:
++                _LOGGER.warning(
++                    "LedFx is not reading; dropped %s snapshots", self._dropped
++                )
++
++    def _analyse(self, samples):
++        analyzer = self._analyzer
++        if analyzer is not None and analyzer.process(samples):
++            self._post({"t": "snapshot", "s": analyzer.snapshot()})
++
++    # -- capture ----------------------------------------------------------
++
++    # Parameter names as AudioInputSource's callback has them: the Android
++    # sounddevice shim passes them by keyword, PortAudio by position.
++    def _callback(self, in_data, frame_count, time_info, status):
++        self._analyse(in_data)
++
++    def _resolve_device(self, index, name):
++        devices = self._sd.query_devices()
++        hostapis = self._sd.query_hostapis()
++
++        def full_name(i):
++            device = devices[i]
++            return f"{hostapis[device['hostapi']]['name']}: {device['name']}"
++
++        if name and 0 <= index < len(devices) and full_name(index) == name:
++            return index
++        if name:
++            for i in range(len(devices)):
++                if devices[i]["max_input_channels"] > 0 and full_name(i) == name:
++                    return i
++            raise LookupError(f"audio device {name!r} not found in the audio process")
++        return index
++
++    def _open(self, msg):
++        self._close()
++        device = self._resolve_device(msg["device"], msg.get("device_name"))
++        kwargs = {
++            "samplerate": msg["samplerate"],
++            "device": device,
++            "callback": self._callback,
++            "dtype": np.float32,
++            "latency": "low",
++            "blocksize": msg["blocksize"],
++        }
++        if msg.get("channels") is not None:
++            kwargs["channels"] = msg["channels"]
++        stream = self._sd.InputStream(**kwargs)
++        stream.start()
++        self._stream = stream
++        return device
++
++    def _close(self):
++        stream, self._stream = self._stream, None
++        if stream is not None:
++            try:
++                stream.stop()
++                stream.close()
++            except Exception:
++                _LOGGER.warning("Error closing the audio stream", exc_info=True)
++
++    # -- commands ---------------------------------------------------------
++
++    def handle(self, msg):
++        kind = msg.get("t")
++        if kind == "configure":
++            self._analyzer = AudioAnalyzer(
++                msg["audio_config"], msg["melbank_configs"], msg["coeffs_type"]
++            )
++        elif kind == "block":
++            self._analyse(np.frombuffer(msg["data"], dtype=np.float32))
++        elif kind == "open":
++            try:
++                device = self._open(msg)
++            except Exception as e:  # noqa: BLE001
++                self._post(
++                    {
++                        "t": "open_failed",
++                        "id": msg.get("id"),
++                        "error": f"{type(e).__name__}: {e}",
++                    }
++                )
++            else:
++                self._post({"t": "opened", "id": msg.get("id"), "device": device})
++        elif kind == "close":
++            self._close()
++            self._post({"t": "closed", "id": msg.get("id")})
++        elif kind == "quit":
++            self._running = False
++        else:
++            _LOGGER.warning("Unknown command %r", kind)
++
++    def serve(self):
++        self._sender.start()
++        try:
++            while self._running:
++                self.handle(protocol.recv(self._sock))
++        except (ConnectionError, OSError):
++            pass
++        finally:
++            self._running = False
++            self._close()
++            self._outbox.put(None)
++
++
++def main(port, token, audio_module=None):
++    """Entry point of the audio process: connect to LedFx on 127.0.0.1:port."""
++    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
++    if audio_module is None:
++        import sounddevice as audio_module
++    sock = socket.create_connection(("127.0.0.1", port), timeout=3)
++    sock.settimeout(None)
++    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
++    protocol.send(sock, {"t": "hello", "token": token, "pid": os.getpid()})
++    AudioWorker(sock, audio_module).serve()
++    sock.close()
++
++
++if __name__ == "__main__":
++    main(int(sys.argv[1]), sys.argv[2])
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index b377a144..93287e4b 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -138,6 +138,10 @@ class AudioInputConfig(LedFxModel):
+         "auto",
+         description='Only affects the Android "System Audio (root)" input. Auto detects whether the ROM already plays audio through the speaker while capturing and only echoes it back when needed; On/Off override that detection.',
+     )
++    separate_process: bool = Field(
++        False,
++        description="Capture and analyse audio in a process of its own, so many active virtuals cannot make it drop audio.",
++    )
+ 
+ 
+ class AudioAnalysisConfig(LedFxModel):
+diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
+index 8b48cdc3..d84c3400 100644
+--- a/ledfx/effects/audio.py
++++ b/ledfx/effects/audio.py
+@@ -1,19 +1,16 @@
+ import logging
+-import queue
+ import threading
+ import time
+-from collections import deque
+ from collections.abc import Callable
+ from functools import cache, cached_property, lru_cache
+ from typing import ClassVar
+ 
+-import aubio
+ import numpy as np
+-import samplerate
+ import sounddevice as sd
+ 
+ import ledfx.api.websocket
+ from ledfx.api.websocket import WEB_AUDIO_CLIENTS, WebAudioStream
++from ledfx.audio_process.client import AudioProcessClient, AudioProcessError
+ from ledfx.configuration.fields import (
+     RUNTIME_CONTEXT,
+     EnumSource,
+@@ -21,8 +18,9 @@ from ledfx.configuration.fields import (
+ )
+ from ledfx.configuration.models import AudioConfig, replace_model
+ from ledfx.effects import Effect
++from ledfx.effects.audio_analyzer import FREQ_MAX_MELS, AudioAnalyzer
+ from ledfx.effects.math import ExpFilter
+-from ledfx.effects.melbank import MIC_RATE, Melbanks
++from ledfx.effects.melbank import Melbanks
+ from ledfx.events import AudioDeviceChangeEvent, AudioSourceErrorEvent, Event
+ from ledfx.sendspin import SENDSPIN_AVAILABLE
+ from ledfx.sendspin.config import is_always_on as is_sendspin_always_on
+@@ -36,15 +34,59 @@ MIN_MIDI = 21
+ MAX_MIDI = 108
+ 
+ 
++class RemoteAudioStream:
++    """A capture device opened in the audio process, with InputStream's
++    start/stop/close, so the activation code drives it like a local one."""
++
++    def __init__(self, client, **open_args):
++        self._client = client
++        self._open_args = open_args
++
++    def start(self):
++        self._client.open(**self._open_args)
++
++    def stop(self):
++        if self._client.alive:
++            try:
++                self._client.close()
++            except AudioProcessError:
++                _LOGGER.warning("The audio process did not confirm closing the device")
++
++    def close(self):
++        pass
++
++
++class _IdleTempo:
++    """What the tempo tracker reports before any audio has been analysed."""
++
++    @staticmethod
++    def get_bpm():
++        return 0.0
++
++    @staticmethod
++    def get_confidence():
++        return 0.0
++
++    @staticmethod
++    def get_period_s():
++        return 0.0
++
++
++_IDLE_TEMPO = _IdleTempo()
++
++
+ class AudioInputSource:
+     _audio_stream_active = False
+     _audio = None
+     _stream = None
+     _callbacks: ClassVar[list[Callable[[], None]]] = []
+     _audioWindowSize = 4
+-    _processed_audio_sample = None
+-    _volume = -90
+-    _volume_filter = ExpFilter(-90, alpha_decay=0.99, alpha_rise=0.99)
++    _analyzer = None
++    _results = None
++    # Set while this source's capture and analysis run in the audio process.
++    _remote = None
++    # The audio process client, shared by every source instance.
++    _audio_process = None
+     _subscriber_threshold = 0
+     _timer = None
+     _last_active = None
+@@ -444,7 +486,6 @@ class AudioInputSource:
+     def __init__(self, ledfx, config):
+         self._ledfx = ledfx
+         self.lock = threading.Lock()
+-        self._has_volume_measurement = False
+         # We must not inherit legacy _callbacks from prior instances
+         self._callbacks = []
+         self.update_config(config)
+@@ -569,7 +610,7 @@ class AudioInputSource:
+         if hasattr(self, "_config"):
+             old_config = self._config
+             # Pipeline-affecting keys require rebuilding internal audio objects even when the audio stream should stay active.
+-            _PIPELINE_KEYS = ("delay_ms", "sample_rate", "fft_size")
++            _PIPELINE_KEYS = ("delay_ms", "sample_rate", "fft_size", "separate_process")
+             pipeline_changing = any(
+                 getattr(old_config, k) != getattr(new_config, k) for k in _PIPELINE_KEYS
+             )
+@@ -728,45 +769,12 @@ class AudioInputSource:
+                 )
+             device_idx = default_device
+ 
+-        # Setup a pre-emphasis filter to balance the input volume of lows to highs
+-        self.pre_emphasis = aubio.digital_filter(3)
+-        # depending on the coeffs type, we need to use different pre_emphasis values to make em work better. allegedly.
+-        selected_coeff = self._ledfx.config.melbanks.coeffs_type
+-        if selected_coeff == "matt_mel":
+-            _LOGGER.debug("Using matt_mel settings for pre-emphasis.")
+-            self.pre_emphasis.set_biquad(0.8268, -1.6536, 0.8268, -1.6536, 0.6536)
+-        elif selected_coeff == "scott_mel":
+-            _LOGGER.debug("Using scott_mel settings for pre-emphasis.")
+-            self.pre_emphasis.set_biquad(1.3662, -1.9256, 0.5621, -1.9256, 0.9283)
+-        else:
+-            _LOGGER.debug("Using generic settings for pre-emphasis")
+-            self.pre_emphasis.set_biquad(0.85870, -1.71740, 0.85870, -1.71605, 0.71874)
+-
+-        freq_domain_length = (self._config.fft_size // 2) + 1
+-
+-        self._raw_audio_sample = np.zeros(
+-            MIC_RATE // self._config.sample_rate,
+-            dtype=np.float32,
+-        )
+-
+-        # Setup the phase vocoder to perform a windowed FFT
+-        self._phase_vocoder = aubio.pvoc(
+-            self._config.fft_size,
+-            MIC_RATE // self._config.sample_rate,
+-        )
+-        self._frequency_domain_null = aubio.cvec(self._config.fft_size)
+-        self._frequency_domain = self._frequency_domain_null
+-        self._frequency_domain_x = np.linspace(
+-            0,
+-            MIC_RATE,
+-            freq_domain_length,
+-        )
+-
+-        samples_to_delay = int(0.001 * self._config.delay_ms * self._config.sample_rate)
+-        if samples_to_delay:
+-            self.delay_queue = queue.Queue(maxsize=samples_to_delay)
+-        else:
+-            self.delay_queue = None
++        # The per-block signal chain (resampler, delay line, pre-emphasis, phase
++        # vocoder, melbanks, detectors) lives in AudioAnalyzer.
++        self._analyzer = self._create_analyzer()
++        self._remote = self._audio_process_client()
++        if self._remote is not None:
++            self._remote.configure(*self._analyzer_args())
+ 
+         def update_device_tracking(device_idx):
+             """
+@@ -832,6 +840,17 @@ class AudioInputSource:
+                     instance_id=self._ledfx.config.instance_id,
+                     ledfx=self._ledfx,
+                 )
++            elif self._remote is not None:
++                AudioInputSource._stream = RemoteAudioStream(
++                    self._remote,
++                    device=device_idx,
++                    device_name=f"{hostapis[device['hostapi']]['name']}: {device['name']}",
++                    samplerate=int(device["default_samplerate"]),
++                    blocksize=int(
++                        device["default_samplerate"] / self._config.sample_rate
++                    ),
++                    channels=channels,
++                )
+             else:
+                 AudioInputSource._stream = self._audio.InputStream(
+                     samplerate=int(device["default_samplerate"]),
+@@ -846,8 +865,6 @@ class AudioInputSource:
+                     **({"channels": channels} if channels is not None else {}),
+                 )
+ 
+-            self.resampler = samplerate.Resampler("sinc_fastest", channels=1)
+-
+             _LOGGER.info(
+                 "Audio source opened: %s: %s",
+                 hostapis[device["hostapi"]]["name"],
+@@ -1025,304 +1042,203 @@ class AudioInputSource:
+ 
+     def _audio_sample_callback(self, in_data, frame_count, time_info, status):
+         """Callback for when a new audio sample is acquired"""
+-        # time_start = time.time()
+-        # self._raw_audio_sample = np.frombuffer(in_data, dtype=np.float32)
+-        raw_sample = np.frombuffer(in_data, dtype=np.float32)
+-
+-        in_sample_len = len(raw_sample)
+-        out_sample_len = MIC_RATE // self._config.sample_rate
+-
+-        if in_sample_len != out_sample_len:
+-            # Simple resampling
+-            processed_audio_sample = self.resampler.process(
+-                raw_sample,
+-                # MIC_RATE / self._stream.samplerate
+-                out_sample_len / in_sample_len,
+-                # end_of_input=True
+-            )
+-        else:
+-            processed_audio_sample = raw_sample
+-
+-        if len(processed_audio_sample) != out_sample_len:
+-            _LOGGER.debug(
+-                "Discarded malformed audio frame - %s samples, expected %s",
+-                len(processed_audio_sample),
+-                out_sample_len,
+-            )
++        remote = self._remote
++        if remote is not None:
++            # Browser or Sendspin audio arrives here; the audio process
++            # analyses it like its own capture.
++            if remote.alive:
++                remote.push(in_data)
++            return
++        analyzer = self._analyzer
++        if analyzer is None or not analyzer.process(in_data):
+             return
++        self._apply_results(analyzer)
+ 
+-        # handle delaying the audio with the queue
+-        if self.delay_queue:
+-            try:
+-                self.delay_queue.put_nowait(processed_audio_sample)
+-            except queue.Full:
+-                self._raw_audio_sample = self.delay_queue.get_nowait()
+-                self.delay_queue.put_nowait(processed_audio_sample)
+-                self.pre_process_audio()
+-                self._invalidate_caches()
+-                self._invoke_callbacks()
+-        else:
+-            self._raw_audio_sample = processed_audio_sample
+-            self.pre_process_audio()
+-            self._invalidate_caches()
+-            self._invoke_callbacks()
++    def _apply_results(self, results):
++        """Make one block's analysis results current and notify subscribers.
+ 
+-        # print(f"Core Audio Processing Latency {round(time.time()-time_start, 3)} s")
+-        # return self._raw_audio_sample
++        `results` is anything with AudioAnalyzer's result attributes: the
++        analyzer itself when analysis runs in this process.
++        """
++        self._results = results
++        silence_controller = getattr(self._ledfx, "silence_scene", None)
++        if silence_controller is not None:
++            silence_controller.report_volume(results.volume_filtered)
++        self._invoke_callbacks()
+ 
+-    def _invoke_callbacks(self):
+-        """Notifies all clients of the new data"""
+-        for callback in self._callbacks:
+-            callback()
++    def _analyzer_args(self):
++        raise NotImplementedError
+ 
+-    def _invalidate_caches(self):
+-        """Invalidates the necessary cache"""
++    def _create_analyzer(self):
++        return AudioAnalyzer(*self._analyzer_args())
+ 
+-    def pre_process_audio(self):
+-        """
+-        Pre-processing stage that will run on every sample, only
+-        core functionality that will be used for every audio effect
+-        should be done here. Everything else should be deferred until
+-        queried by an effect.
++    def _audio_process_client(self):
++        """The running audio process client when this source should use one.
++
++        Falls back to in-process analysis, with a warning, when the process
++        cannot be started.
+         """
+-        # clean up nans that have been mysteriously appearing..
+-        self._raw_audio_sample[np.isnan(self._raw_audio_sample)] = 0
+-
+-        # Calculate the current volume for silence detection
+-        self._volume = 1 + aubio.db_spl(self._raw_audio_sample) / 100
+-        self._volume = max(0, min(1, self._volume))
+-        self._volume_filter.update(self._volume)
+-        self._has_volume_measurement = True
+-
+-        # Calculate the frequency domain from the filtered data and
+-        # force all zeros when below the volume threshold
+-        volume = self._volume_filter.value
+-        silence_controller = getattr(self._ledfx, "silence_scene", None)
+-        if silence_controller is not None:
+-            silence_controller.report_volume(volume)
+-        if volume is not None and volume > self._config.min_volume:
+-            self._processed_audio_sample = self._raw_audio_sample
++        if not self._config.separate_process:
++            return None
++        client = AudioInputSource._audio_process
++        if client is None or not client.alive:
++            client = AudioProcessClient(self._apply_results)
++            try:
++                client.start()
++            except OSError as e:
++                _LOGGER.warning(
++                    "Could not start the audio process (%s); analysing audio in-process.",
++                    e,
++                )
++                return None
++            AudioInputSource._audio_process = client
++        client.on_results = self._apply_results
++        return client
+ 
+-            # Perform a pre-emphasis to balance the highs and lows
+-            if self.pre_emphasis:
+-                self._processed_audio_sample = self.pre_emphasis(self._raw_audio_sample)
++    def _invoke_callbacks(self):
++        """Notifies all clients of the new data"""
++        for callback in self._callbacks:
++            callback()
+ 
+-            # Pass into the phase vocoder to get a windowed FFT
+-            self._frequency_domain = self._phase_vocoder(self._processed_audio_sample)
+-        else:
+-            self._frequency_domain = self._frequency_domain_null
++    @property
++    def _has_volume_measurement(self):
++        results = self._results
++        return results is not None and results.has_volume_measurement
+ 
+     def audio_sample(self, raw=False):
+         """Returns the raw audio sample"""
+-
++        results = self._results
++        if results is None:
++            return None
+         if raw:
+-            return self._raw_audio_sample
+-        return self._processed_audio_sample
++            return results.raw_sample
++        return results.processed_sample
+ 
+     def frequency_domain(self):
+-        return self._frequency_domain
++        results = self._results
++        return results.frequency_domain if results is not None else None
++
++    @property
++    def _frequency_domain(self):
++        return self.frequency_domain()
+ 
+     def volume(self, filtered=True):
++        results = self._results
++        if results is None:
++            return -90
+         if filtered:
+-            return self._volume_filter.value
+-        return self._volume
++            return results.volume_filtered
++        return results.volume_raw
+ 
+ 
+ class AudioAnalysisSource(AudioInputSource):
+     # some frequency constants
+     # beat, bass, mids, high
+-    freq_max_mels: ClassVar[list[int]] = [
+-        100,
+-        250,
+-        3000,
+-        10000,
+-    ]
++    freq_max_mels: ClassVar[list[int]] = list(FREQ_MAX_MELS)
+ 
+     def __init__(self, ledfx, config):
+         super().__init__(ledfx, config)
+         self.initialise_analysis()
+ 
+-        # Subscribe functions to be run on every frame of audio
+-        self.subscribe(self.melbanks)
+-        self.subscribe(self.pitch)
+-        self.subscribe(self.onset)
+-        self.subscribe(self.bar_oscillator)
+-        self.subscribe(self.volume_beat_now)
+-        self.subscribe(self.freq_power)
++        # Publishes each block's results before any effect callback runs
++        self.subscribe(self._publish_results)
+ 
+         # ensure any new analysis callbacks are above this line
+         self._subscriber_threshold = len(self._callbacks)
+ 
+     def initialise_analysis(self):
+-        # melbanks
+         if not hasattr(self, "melbanks"):
+             self.melbanks = Melbanks(
+                 self._ledfx, self, self._ledfx.config.melbanks.model_dump()
+             )
+ 
+-        fft_params = (
+-            self._config.fft_size,
+-            MIC_RATE // self._config.sample_rate,
+-            MIC_RATE,
+-        )
+-
+-        # pitch, tempo, onset
+-        self._tempo = aubio.tempo(self._config.tempo_method, *fft_params)
+-        self._onset = aubio.onset(self._config.onset_method, *fft_params)
+-        self._pitch = aubio.pitch(self._config.pitch_method, *fft_params)
+-        self._pitch.set_unit("midi")
+-        self._pitch.set_tolerance(self._config.pitch_tolerance)
+-
+-        # bar oscillator
+-        self.beat_counter = 0
+-
+-        # beat oscillator
+-        self.beat_timestamp = time.time()
+-        self.beat_period = 2
+-
+-        # freq power
+-        self.freq_power_raw = np.zeros(len(self.freq_max_mels))
+-        self.freq_power_filter = ExpFilter(
+-            np.zeros(len(self.freq_max_mels)), alpha_decay=0.2, alpha_rise=0.97
+-        )
+-        self.freq_mel_indexes = []
+-
+-        for freq in self.freq_max_mels:
+-            assert self.melbanks.melbanks_config.max_frequencies[2] >= freq
+-
+-            self.freq_mel_indexes.append(
+-                next(
+-                    (
+-                        i
+-                        for i, f in enumerate(
+-                            self.melbanks.melbank_processors[2].melbank_frequencies
+-                        )
+-                        if f > freq
+-                    ),
+-                    len(self.melbanks.melbank_processors[2].melbank_frequencies),
+-                )
+-            )
+-
+-        # volume based beat detection
+-        self.beat_max_mel_index = next(
+-            (
+-                i - 1
+-                for i, f in enumerate(
+-                    self.melbanks.melbank_processors[0].melbank_frequencies
+-                )
+-                if f > self.freq_max_mels[0]
+-            ),
+-            self.melbanks.melbank_processors[0].melbank_frequencies[-1],
++    def _analyzer_args(self):
++        # A Sendspin source that is always on can activate from inside
++        # AudioInputSource.__init__, before initialise_analysis has run.
++        self.initialise_analysis()
++        return (
++            self._config.model_dump(),
++            [entry["config"] for entry in self.melbanks.melbank_collection],
++            self._ledfx.config.melbanks.coeffs_type,
+         )
+ 
+-        self.beat_min_percent_diff = 0.5
+-        self.beat_min_time_since = 0.1
+-        self.beat_min_amplitude = 0.5
+-        self.beat_power_history_len = int(self._config.sample_rate * 0.2)
+-
+-        self.beat_prev_time = time.time()
+-        self.beat_power_history = deque(maxlen=self.beat_power_history_len)
++    def _rebuild_analyzer(self):
++        """Pick up changed analysis or melbank settings without reopening the
++        stream. Detector and filter state restart, as they always did."""
++        if self._analyzer is not None:
++            self._analyzer = self._create_analyzer()
++            remote = self._remote
++            if remote is not None and remote.alive:
++                remote.configure(*self._analyzer_args())
+ 
+     def update_config(self, config):
+         super().update_config(config)
+         self.initialise_analysis()
++        self._rebuild_analyzer()
+ 
+-    def _invalidate_caches(self):
+-        """Invalidates the cache for all melbank related data"""
+-        super()._invalidate_caches()
+-
+-        self.pitch.cache_clear()
+-        self.onset.cache_clear()
+-        self.bpm_beat_now.cache_clear()
+-        self.volume_beat_now.cache_clear()
+-        self.bar_oscillator.cache_clear()
++    def _publish_results(self):
++        """Copy the block's melbanks into the arrays effects read, then send
++        the graph updates, as Melbanks.__call__ did."""
++        results = self._results
++        melbanks = self.melbanks
++        try:
++            for target, source in zip(melbanks.melbanks, results.melbanks, strict=True):
++                np.copyto(target, source)
++            for target, source in zip(
++                melbanks.melbanks_filtered, results.melbanks_filtered, strict=True
++            ):
++                np.copyto(target, source)
++        except ValueError:
++            # The melbank layout changed mid-block; the rebuilt analyzer's next
++            # block has the new shape.
++            return
++        if melbanks.dev_enabled:
++            for i in range(len(melbanks.melbank_processors)):
++                melbanks.send_melbank_event(i)
++        else:
++            melbanks.send_melbank_event(len(melbanks.melbank_processors) - 1)
+ 
+-    @cache  # noqa: B019
+     def pitch(self):
+-        # If our audio handler is returning null, then we just return 0 for midi_value and wait for the device starts sending audio.
+-        try:
+-            return self._pitch(self.audio_sample(raw=True))[0]
+-        except ValueError as e:
+-            _LOGGER.warning("%s", e)
+-            return 0
++        results = self._results
++        return results.pitch if results is not None else 0
+ 
+-    @cache  # noqa: B019
+     def onset(self):
+-        try:
+-            return bool(self._onset(self.audio_sample(raw=True))[0])
+-        except ValueError as e:
+-            _LOGGER.warning("%s", e)
+-            return 0
++        results = self._results
++        return results.onset if results is not None else False
+ 
+-    @cache  # noqa: B019
+     def bpm_beat_now(self):
+         """
+         Returns True if a beat is expected now based on BPM data
+         """
+-        try:
+-            return bool(self._tempo(self.audio_sample(raw=True))[0])
+-        except ValueError as e:
+-            _LOGGER.warning("%s", e)
+-            return False
++        results = self._results
++        return results.bpm_beat_now if results is not None else False
+ 
+-    @cache  # noqa: B019
+     def volume_beat_now(self):
+         """
+         Returns True if a beat is expected now based on volume of the beat freq region
+-        This algorithm is a bit weird, but works quite nicely.
+-        I've tried my best to optimise it from the original
+-        implementation in systematic_leds
+         """
++        results = self._results
++        return results.volume_beat_now if results is not None else False
+ 
+-        time_now = time.time()
+-        melbank = self.melbanks.melbanks[0][: self.beat_max_mel_index]
+-        beat_power = np.sum(melbank)
+-        melbank_max = np.max(melbank)
++    @property
++    def beat_counter(self):
++        results = self._results
++        return results.beat_counter if results is not None else 0
+ 
+-        # calculates the % difference of the first value of the channel to the average for the channel
+-        if sum(self.beat_power_history) > 0:
+-            difference = (
+-                beat_power * self.beat_power_history_len / sum(self.beat_power_history)
+-                - 1
+-            )
+-        else:
+-            difference = 0
+-
+-        self.beat_power_history.appendleft(beat_power)
+-
+-        if (
+-            difference >= self.beat_min_percent_diff
+-            and melbank_max >= self.beat_min_amplitude
+-            and time_now - self.beat_prev_time > self.beat_min_time_since
+-        ):
+-            self.beat_prev_time = time_now
+-            return True
+-        else:
+-            return False
+-
+-    def freq_power(self):
+-        # hard coded this bc i'm tired and it'll run faster
+-
+-        melbank = self.melbanks.melbanks[2]
+-
+-        self.freq_power_raw[0] = np.average(melbank[: self.freq_mel_indexes[0]])
+-        self.freq_power_raw[1] = np.average(
+-            melbank[self.freq_mel_indexes[0] : self.freq_mel_indexes[1]]
+-        )
+-        self.freq_power_raw[2] = np.average(
+-            melbank[self.freq_mel_indexes[1] : self.freq_mel_indexes[2]]
+-        )
+-        self.freq_power_raw[3] = np.average(
+-            melbank[self.freq_mel_indexes[2] : self.freq_mel_indexes[3]]
+-        )
+-        np.minimum(self.freq_power_raw, 1, out=self.freq_power_raw)
+-        self.freq_power_filter.update(self.freq_power_raw)
++    @property
++    def _tempo(self):
++        """The tempo tracker, for its get_bpm()/get_confidence()/get_period_s()."""
++        results = self._results
++        return results.tempo if results is not None else _IDLE_TEMPO
+ 
+     def get_freq_power(self, i, filtered=True):
++        results = self._results
++        if results is None:
++            return 0.0
+         if filtered:
+-            value = self.freq_power_filter.value[i]
++            value = results.freq_power_filtered[i]
+         else:
+-            value = self.freq_power_raw[i]
++            value = results.freq_power_raw[i]
+ 
+         return value if not np.isnan(value) else 0.0
+ 
+@@ -1359,7 +1275,6 @@ class AudioAnalysisSource(AudioInputSource):
+         """
+         return self.get_freq_power(3, filtered)
+ 
+-    @cache  # noqa: B019
+     def bar_oscillator(self):
+         """
+         Returns a float (0<=x<4) corresponding to the position of the beat
+@@ -1379,22 +1294,8 @@ class AudioAnalysisSource(AudioInputSource):
+             value of
+         beat grid pointer
+         """
+-        # update tempo and oscillator
+-        # print(self._tempo.get_delay_s())
+-        if self.bpm_beat_now():
+-            self.beat_counter = (self.beat_counter + 1) % 4
+-            self.beat_period = self._tempo.get_period_s()
+-            # print("beat at:", self._tempo.get_delay_s())
+-            self.beat_timestamp = time.time()
+-            oscillator = self.beat_counter
+-        else:
+-            time_since_beat = time.time() - self.beat_timestamp
+-            oscillator = (
+-                1 - (self.beat_period - time_since_beat) / self.beat_period
+-            ) + self.beat_counter
+-            # ensure it's between [0 and 4). useful when audio cuts
+-            oscillator = oscillator % 4
+-        return oscillator
++        results = self._results
++        return results.bar_oscillator if results is not None else 0.0
+ 
+     def beat_oscillator(self):
+         """
+diff --git a/ledfx/effects/audio_analyzer.py b/ledfx/effects/audio_analyzer.py
+new file mode 100755
+index 00000000..f13315c2
+--- /dev/null
++++ b/ledfx/effects/audio_analyzer.py
+@@ -0,0 +1,326 @@
++"""Per-block audio analysis, independent of the LedFx core.
++
++AudioAnalyzer holds the whole signal chain that used to live inside
++AudioInputSource/AudioAnalysisSource: resampling, the optional delay line,
++pre-emphasis, the phase vocoder, the melbanks and the aubio detectors. It needs
++no LedFx instance, no event bus and no config persistence, only plain config
++values, so the same object can run inside the LedFx process or in a separate
++audio process (see ledfx.audio_process) without a second implementation.
++
++Every block runs the same steps, in the same order, that AudioAnalysisSource
++ran through its subscribed callbacks: melbanks, pitch, onset, bar oscillator
++(which drives the tempo tracker), volume beat, frequency power.
++"""
++
++import logging
++import queue
++import time
++from collections import deque
++
++import aubio
++import numpy as np
++import samplerate
++
++from ledfx.effects.math import ExpFilter
++from ledfx.effects.melbank import MIC_RATE, Melbank
++
++_LOGGER = logging.getLogger(__name__)
++
++# Upper edges of the beat, bass, mids and high bands, in Hz.
++FREQ_MAX_MELS = (100, 250, 3000, 10000)
++
++PRE_EMPHASIS_COEFFS = {
++    "matt_mel": (0.8268, -1.6536, 0.8268, -1.6536, 0.6536),
++    "scott_mel": (1.3662, -1.9256, 0.5621, -1.9256, 0.9283),
++}
++PRE_EMPHASIS_DEFAULT = (0.85870, -1.71740, 0.85870, -1.71605, 0.71874)
++
++
++class AudioAnalyzer:
++    """Analyses one audio block at a time and keeps the results.
++
++    Args:
++        audio_config: the audio section of the LedFx config (AudioConfig dump).
++        melbank_configs: one fully merged config dict per melbank processor,
++            as Melbanks builds them (global settings already applied).
++        coeffs_type: the melbanks coeffs_type, which picks the pre-emphasis.
++    """
++
++    def __init__(self, audio_config, melbank_configs, coeffs_type):
++        self.sample_rate = audio_config["sample_rate"]
++        self.fft_size = audio_config["fft_size"]
++        self.min_volume = audio_config["min_volume"]
++        self.hop = MIC_RATE // self.sample_rate
++
++        self.resampler = samplerate.Resampler("sinc_fastest", channels=1)
++
++        samples_to_delay = int(0.001 * audio_config["delay_ms"] * self.sample_rate)
++        self.delay_queue = (
++            queue.Queue(maxsize=samples_to_delay) if samples_to_delay else None
++        )
++
++        self.pre_emphasis = aubio.digital_filter(3)
++        self.pre_emphasis.set_biquad(
++            *PRE_EMPHASIS_COEFFS.get(coeffs_type, PRE_EMPHASIS_DEFAULT)
++        )
++        self.phase_vocoder = aubio.pvoc(self.fft_size, self.hop)
++        self.frequency_domain_null = aubio.cvec(self.fft_size)
++        self.frequency_domain = self.frequency_domain_null
++
++        self.raw_sample = np.zeros(self.hop, dtype=np.float32)
++        self.processed_sample = None
++        self.volume_raw = -90
++        self.volume_filter = ExpFilter(-90, alpha_decay=0.99, alpha_rise=0.99)
++        self.has_volume_measurement = False
++
++        self.melbank_processors = [Melbank(None, cfg) for cfg in melbank_configs]
++        mel_len = self.melbank_processors[0]._config.samples
++        self.melbanks = tuple(np.zeros(mel_len) for _ in self.melbank_processors)
++        self.melbanks_filtered = tuple(
++            np.zeros(mel_len) for _ in self.melbank_processors
++        )
++
++        fft_params = (self.fft_size, self.hop, MIC_RATE)
++        self.tempo = aubio.tempo(audio_config["tempo_method"], *fft_params)
++        self.onset_detector = aubio.onset(audio_config["onset_method"], *fft_params)
++        self.pitch_detector = aubio.pitch(audio_config["pitch_method"], *fft_params)
++        self.pitch_detector.set_unit("midi")
++        self.pitch_detector.set_tolerance(audio_config["pitch_tolerance"])
++
++        self.pitch = 0
++        self.onset = False
++        self.bpm_beat_now = False
++        self.volume_beat_now = False
++        self.bar_oscillator = 0.0
++
++        self.beat_counter = 0
++        self.beat_timestamp = time.time()
++        self.beat_period = 2
++
++        self.freq_power_raw = np.zeros(len(FREQ_MAX_MELS))
++        self.freq_power_filter = ExpFilter(
++            np.zeros(len(FREQ_MAX_MELS)), alpha_decay=0.2, alpha_rise=0.97
++        )
++        mid_freqs = self.melbank_processors[2].melbank_frequencies
++        self.freq_mel_indexes = [
++            next((i for i, f in enumerate(mid_freqs) if f > freq), len(mid_freqs))
++            for freq in FREQ_MAX_MELS
++        ]
++
++        low_freqs = self.melbank_processors[0].melbank_frequencies
++        self.beat_max_mel_index = next(
++            (i - 1 for i, f in enumerate(low_freqs) if f > FREQ_MAX_MELS[0]),
++            low_freqs[-1],
++        )
++        self.beat_min_percent_diff = 0.5
++        self.beat_min_time_since = 0.1
++        self.beat_min_amplitude = 0.5
++        self.beat_power_history_len = int(self.sample_rate * 0.2)
++        self.beat_prev_time = time.time()
++        self.beat_power_history = deque(maxlen=self.beat_power_history_len)
++
++    @property
++    def volume_filtered(self):
++        return self.volume_filter.value
++
++    @property
++    def freq_power_filtered(self):
++        return self.freq_power_filter.value
++
++    def process(self, in_data):
++        """Analyse one block of float32 mono samples at any input rate.
++
++        Returns False when the block was discarded (wrong length after
++        resampling) or only went into the delay line, True when a new set of
++        results is available.
++        """
++        raw = np.frombuffer(in_data, dtype=np.float32)
++        if len(raw) != self.hop:
++            sample = self.resampler.process(raw, self.hop / len(raw))
++        else:
++            sample = raw
++        if len(sample) != self.hop:
++            return False
++
++        if self.delay_queue is not None:
++            try:
++                self.delay_queue.put_nowait(sample)
++                return False
++            except queue.Full:
++                self.raw_sample = self.delay_queue.get_nowait()
++                self.delay_queue.put_nowait(sample)
++        else:
++            self.raw_sample = sample
++
++        self._pre_process()
++        self._melbanks()
++        self.pitch = self._detect(self.pitch_detector, 0)
++        self.onset = bool(self._detect(self.onset_detector, False))
++        self._bar_oscillator()
++        self._volume_beat()
++        self._freq_power()
++        return True
++
++    def _pre_process(self):
++        self.raw_sample[np.isnan(self.raw_sample)] = 0
++        volume = 1 + aubio.db_spl(self.raw_sample) / 100
++        self.volume_raw = max(0, min(1, volume))
++        self.volume_filter.update(self.volume_raw)
++        self.has_volume_measurement = True
++
++        if self.volume_filter.value > self.min_volume:
++            self.processed_sample = self.pre_emphasis(self.raw_sample)
++            self.frequency_domain = self.phase_vocoder(self.processed_sample)
++        else:
++            self.frequency_domain = self.frequency_domain_null
++
++    def _melbanks(self):
++        if self.volume_filter.value > self.min_volume:
++            for i, proc in enumerate(self.melbank_processors):
++                proc(self.frequency_domain, self.melbanks[i], self.melbanks_filtered[i])
++        else:
++            for melbank in self.melbanks:
++                melbank[:] = 0
++            for melbank in self.melbanks_filtered:
++                melbank[:] = 0
++
++    def _detect(self, detector, fallback):
++        try:
++            return detector(self.raw_sample)[0]
++        except ValueError as e:
++            _LOGGER.warning("%s", e)
++            return fallback
++
++    def _bar_oscillator(self):
++        self.bpm_beat_now = bool(self._detect(self.tempo, False))
++        if self.bpm_beat_now:
++            self.beat_counter = (self.beat_counter + 1) % 4
++            self.beat_period = self.tempo.get_period_s()
++            self.beat_timestamp = time.time()
++            self.bar_oscillator = self.beat_counter
++        else:
++            time_since_beat = time.time() - self.beat_timestamp
++            oscillator = (
++                1 - (self.beat_period - time_since_beat) / self.beat_period
++            ) + self.beat_counter
++            self.bar_oscillator = oscillator % 4
++
++    def _volume_beat(self):
++        time_now = time.time()
++        melbank = self.melbanks[0][: self.beat_max_mel_index]
++        beat_power = np.sum(melbank)
++        melbank_max = np.max(melbank)
++        if sum(self.beat_power_history) > 0:
++            difference = (
++                beat_power * self.beat_power_history_len / sum(self.beat_power_history)
++                - 1
++            )
++        else:
++            difference = 0
++        self.beat_power_history.appendleft(beat_power)
++        if (
++            difference >= self.beat_min_percent_diff
++            and melbank_max >= self.beat_min_amplitude
++            and time_now - self.beat_prev_time > self.beat_min_time_since
++        ):
++            self.beat_prev_time = time_now
++            self.volume_beat_now = True
++        else:
++            self.volume_beat_now = False
++
++    def _freq_power(self):
++        melbank = self.melbanks[2]
++        idx = self.freq_mel_indexes
++        self.freq_power_raw[0] = np.average(melbank[: idx[0]])
++        self.freq_power_raw[1] = np.average(melbank[idx[0] : idx[1]])
++        self.freq_power_raw[2] = np.average(melbank[idx[1] : idx[2]])
++        self.freq_power_raw[3] = np.average(melbank[idx[2] : idx[3]])
++        np.minimum(self.freq_power_raw, 1, out=self.freq_power_raw)
++        self.freq_power_filter.update(self.freq_power_raw)
++
++    def snapshot(self):
++        """The results of the latest block as plain values, for sending to
++        another process. SnapshotView turns them back into the attributes
++        this class has, so readers cannot tell the two apart."""
++        return {
++            "volume_raw": float(self.volume_raw),
++            "volume_filtered": float(self.volume_filter.value),
++            "has_volume_measurement": self.has_volume_measurement,
++            "melbanks": [m.tobytes() for m in self.melbanks],
++            "melbanks_filtered": [m.tobytes() for m in self.melbanks_filtered],
++            "melbank_dtype": self.melbanks[0].dtype.str,
++            "pitch": float(self.pitch),
++            "onset": bool(self.onset),
++            "bpm_beat_now": bool(self.bpm_beat_now),
++            "volume_beat_now": bool(self.volume_beat_now),
++            "bar_oscillator": float(self.bar_oscillator),
++            "beat_counter": int(self.beat_counter),
++            "tempo_bpm": float(self.tempo.get_bpm()),
++            "tempo_confidence": float(self.tempo.get_confidence()),
++            "tempo_period_s": float(self.tempo.get_period_s()),
++            "freq_power_raw": np.asarray(
++                self.freq_power_raw, dtype=np.float64
++            ).tobytes(),
++            "freq_power_filtered": np.asarray(
++                self.freq_power_filter.value, dtype=np.float64
++            ).tobytes(),
++        }
++
++
++class _SnapshotTempo:
++    """The read side of aubio's tempo tracker, from a snapshot."""
++
++    def __init__(self, bpm, confidence, period_s):
++        self._bpm = bpm
++        self._confidence = confidence
++        self._period_s = period_s
++
++    def get_bpm(self):
++        return self._bpm
++
++    def get_confidence(self):
++        return self._confidence
++
++    def get_period_s(self):
++        return self._period_s
++
++
++class SnapshotView:
++    """A received snapshot with AudioAnalyzer's result attributes.
++
++    The signal itself (raw/processed sample, frequency domain) stays in the
++    process that analysed it, so those read as None.
++    """
++
++    raw_sample = None
++    processed_sample = None
++    frequency_domain = None
++
++    def __init__(self, snapshot):
++        dtype = np.dtype(snapshot["melbank_dtype"])
++        self.volume_raw = snapshot["volume_raw"]
++        self.volume_filtered = snapshot["volume_filtered"]
++        self.has_volume_measurement = snapshot["has_volume_measurement"]
++        self.melbanks = tuple(
++            np.frombuffer(b, dtype=dtype) for b in snapshot["melbanks"]
++        )
++        self.melbanks_filtered = tuple(
++            np.frombuffer(b, dtype=dtype) for b in snapshot["melbanks_filtered"]
++        )
++        self.pitch = snapshot["pitch"]
++        self.onset = snapshot["onset"]
++        self.bpm_beat_now = snapshot["bpm_beat_now"]
++        self.volume_beat_now = snapshot["volume_beat_now"]
++        self.bar_oscillator = snapshot["bar_oscillator"]
++        self.beat_counter = snapshot["beat_counter"]
++        self.tempo = _SnapshotTempo(
++            snapshot["tempo_bpm"],
++            snapshot["tempo_confidence"],
++            snapshot["tempo_period_s"],
++        )
++        self.freq_power_raw = np.frombuffer(
++            snapshot["freq_power_raw"], dtype=np.float64
++        )
++        self.freq_power_filtered = np.frombuffer(
++            snapshot["freq_power_filtered"], dtype=np.float64
++        )
+diff --git a/ledfx/effects/melbank.py b/ledfx/effects/melbank.py
+index 1e7de288..95eb60e0 100644
+--- a/ledfx/effects/melbank.py
++++ b/ledfx/effects/melbank.py
+@@ -437,6 +437,10 @@ class Melbanks:
+             np.zeros(self.mel_len) for _ in range(self.mel_count)
+         )
+         self.minimum_volume = self._audio._config.min_volume
++        # The analysis builds its own melbank processors from this collection.
++        rebuild = getattr(self._audio, "_rebuild_analyzer", None)
++        if rebuild is not None:
++            rebuild()
+ 
+     def __call__(self):
+         # fastest way i could think of.
+diff --git a/tests/configuration/snapshots/config_dumps.json b/tests/configuration/snapshots/config_dumps.json
+index 5878572b..c78175d1 100644
+--- a/tests/configuration/snapshots/config_dumps.json
++++ b/tests/configuration/snapshots/config_dumps.json
+@@ -1,6 +1,6 @@
+ {
+  "hammer_test.json": {
+-  "config": "e8595a469a4a5da9c235d6135fe3b3cd3f82e71c96c8e2317e161c6c8bfeb913",
++  "config": "cf9a77cb0a74f7dfd423e4c6e30689f9aa9a348ee6a87e670ef260ba364f052d",
+   "devices:dummy": "bcf581b4520b86559a50b19a7ba172334a69eca2690767593eb8d2d450a99496",
+   "effects:bar": "de367a677852817e54405b68ebfbba2e3f174949ebc46dda5d81456a319cdb62",
+   "effects:blade_power_plus": "165dc846064d012220274fbf1f27a97f3899d2fe366dfd29be0fc6c1fa7003b4",
+@@ -58,7 +58,7 @@
+   "effects:wavelength": "2dc96e796b1107024e025a66e30cd490d1d7ff45907c34cf104d420913aadca1"
+  },
+  "remapping_config.json": {
+-  "config": "1caf66fadef05af86b3e14b899df33fce8b6c1c3e3db431f66fbc01e5dc2e221",
++  "config": "278eb385bb592d0bdff97f57d5cc038cfaed7a68b84d845def2d72958b6717f1",
+   "devices:dummy": "3b7f2904bcb88bd368804044573af75b29280f39ea251d9685608a64b240108b",
+   "effects:bar": "de367a677852817e54405b68ebfbba2e3f174949ebc46dda5d81456a319cdb62",
+   "effects:blade_power_plus": "165dc846064d012220274fbf1f27a97f3899d2fe366dfd29be0fc6c1fa7003b4",
+@@ -116,7 +116,7 @@
+   "effects:wavelength": "2dc96e796b1107024e025a66e30cd490d1d7ff45907c34cf104d420913aadca1"
+  },
+  "scenes_playlists.json": {
+-  "config": "39a88a728f9424c6ef9d7a7fd29cacf8bc8a36ec31f0a48cb8b38ef56eed64ec",
++  "config": "f27df403db7f2c217d5148acae0a35bf0885bb6c9568cb662c3bf0875c095a12",
+   "devices:dummy": "21c33690a617a361d7a66af13bc06f910d3189a7ec0a7bfa64f1615920d021cb",
+   "effects:equalizer2d": "86d575bd397a74a70e0ca81de506ba6276e62203efc0c88381c105132b06da55",
+   "effects:noise2d": "7527693d8ed51498cf1cdcbe0db275219af7f04db76bf90d68c5a452290ed9a1",
+@@ -128,7 +128,7 @@
+   "effects:wavelength": "2dc96e796b1107024e025a66e30cd490d1d7ff45907c34cf104d420913aadca1"
+  },
+  "v2_3_6_every_plugin.json": {
+-  "config": "bf4d6476470ce96d15e6db0ae764337e427d833bf9876598d07ac3b33eb896af",
++  "config": "34403350972bea30330107a837b2392ae14ab5be4845381844478405a23a8407",
+   "devices:adalight": "944b53cb6d8909c2df126556be95bcc08e933f686dc910eb7e85dc44f5818dfa",
+   "devices:artnet": "cd6b1a205bfda0b1f069f66da774066cf51a068790911d80f708409cb688bb59",
+   "devices:ddp": "fcebb542c3f8eabe6ff136236dae9d09f167f057d44548f53c624d5e8f14fca0",
+@@ -174,7 +174,7 @@
+   "integrations:spotify": "0e29a8f9ef663205de8f0b9233fa1adc47ae94531a86dee2f8735ca0054e3e67"
+  },
+  "virtuals_remapping_hell.json": {
+-  "config": "e6d18dd96fe064e18fe1ec16390b14e4ca1a1fa4a9e1046a7edcf75db32b7061",
++  "config": "c803d605906ca906aeea07b97d2a5779f1e5fca8c1f9cf77bcb9587652b239fb",
+   "devices:dummy": "d0c74c8dd0c5b3cf4b19d8b2d761ceddedb7df41da507e1022b4e293a9af1a0c",
+   "effects:bar": "de367a677852817e54405b68ebfbba2e3f174949ebc46dda5d81456a319cdb62",
+   "effects:blade_power_plus": "165dc846064d012220274fbf1f27a97f3899d2fe366dfd29be0fc6c1fa7003b4",
+@@ -232,17 +232,17 @@
+   "effects:wavelength": "2dc96e796b1107024e025a66e30cd490d1d7ff45907c34cf104d420913aadca1"
+  },
+  "v0_devices_only.json": {
+-  "config": "6496faa1c273755703355aaec01d7f9ba7f87b4e37652111e906a501a15c9915",
++  "config": "048a94fb6fbf5f644d81d43926253904b08667bc3f0d95963ae6ddf6ec73d279",
+   "devices:wled": "8eb3858035f0fb30db86d7cf5674c10baf597e4a4dd320a0643e46517cfd6d43"
+  },
+  "v0_displays.json": {
+-  "config": "f23d6ef86cbd34a560ed4c69694f702a810fe3f1f7ba26e09e13ff9fb938e736",
++  "config": "b531a81f4ddcd4a16573b779ae12cb6c7f5a55e67c46ffdcb4a9f9ec8f3fe72d",
+   "devices:artnet": "62f0885972d319929c856f41de580c97a1071f832785060e1774abb0b2dbc917",
+   "devices:e131": "e8ac3db7a0c23ff3bd22fbeea401df44c84786780a6a73ff308a95b0f870e97c",
+   "effects:rainbow": "9192e3027adb198c3f300013d8c49f45c5888604feb379d1cf187f78cb025b8e"
+  },
+  "v2_3_5_equalizer.json": {
+-  "config": "74cf4f56902a437bcfec75418f35f56d8f2bcc305362f5f69fd8c011c780c592",
++  "config": "2800f7ac812f1de24d1f1d981c459ac5f3d9d2190223e13d3c7fe9a2e03db6bf",
+   "effects:equalizer2d": "7a1869be61dac97e53e7ff64e34262f6e52b2ca660eeb0d17b9e1212a41e1b6c"
+  }
+ }
+diff --git a/tests/configuration/snapshots/legacy_schema.json b/tests/configuration/snapshots/legacy_schema.json
+index 60b32de3..fd24da57 100644
+--- a/tests/configuration/snapshots/legacy_schema.json
++++ b/tests/configuration/snapshots/legacy_schema.json
+@@ -411,6 +411,12 @@
+      "description": "Add a delay to LedFx's output to sync with your audio. Useful for Bluetooth devices which typically have a short audio lag.",
+      "default": 0
+     },
++    "separate_process": {
++     "type": "boolean",
++     "title": "Separate Process",
++     "description": "Capture and analyse audio in a process of its own, so many active virtuals cannot make it drop audio.",
++     "default": false
++    },
+     "pitch_method": {
+      "type": "string",
+      "enum": [
+@@ -456,7 +462,8 @@
+     "delay_ms",
+     "pitch_method",
+     "onset_method",
+-    "pitch_tolerance"
++    "pitch_tolerance",
++    "separate_process"
+    ]
+   }
+  },
+diff --git a/tests/configuration/snapshots/schemas_dump.json b/tests/configuration/snapshots/schemas_dump.json
+index 1ce12fcb..c94a6e18 100644
+--- a/tests/configuration/snapshots/schemas_dump.json
++++ b/tests/configuration/snapshots/schemas_dump.json
+@@ -94,6 +94,12 @@
+      "minimum": 0,
+      "title": "Delay Ms",
+      "type": "integer"
++    },
++    "separate_process": {
++     "default": false,
++     "description": "Capture and analyse audio in a process of its own, so many active virtuals cannot make it drop audio.",
++     "title": "Separate Process",
++     "type": "boolean"
+     }
+    },
+    "title": "AudioConfig",
+@@ -575,6 +581,12 @@
+        "minimum": 0,
+        "title": "Delay Ms",
+        "type": "integer"
++      },
++      "separate_process": {
++       "default": false,
++       "description": "Capture and analyse audio in a process of its own, so many active virtuals cannot make it drop audio.",
++       "title": "Separate Process",
++       "type": "boolean"
+       }
+      },
+      "title": "AudioConfig",
+@@ -1683,7 +1695,8 @@
+       "min_volume": 0.2,
+       "audio_device": null,
+       "audio_device_name": "",
+-      "delay_ms": 0
++      "delay_ms": 0,
++      "separate_process": false
+      },
+      "title": "Audio"
+     },
+diff --git a/tests/test_audio_analyzer.py b/tests/test_audio_analyzer.py
+new file mode 100755
+index 00000000..5fd2b723
+--- /dev/null
++++ b/tests/test_audio_analyzer.py
+@@ -0,0 +1,197 @@
++"""AudioAnalyzer and the AudioAnalysisSource getters that expose it.
++
++Every value an effect can read must come straight from the analyzer's results
++for the latest block, through the same getters effects always used.
++"""
++
++import time
++
++import numpy as np
++import pytest
++
++from ledfx.configuration.models import AudioConfig
++from ledfx.effects.audio import AudioAnalysisSource
++from ledfx.effects.audio_analyzer import AudioAnalyzer
++from tests.test_utilities.fake_ledfx import fake_ledfx
++
++STREAM_RATE = 48000
++FPS = 60
++SECONDS = 10
++
++
++class FakeClock:
++    def __init__(self):
++        self.now = 1_000_000.0
++
++    def __call__(self):
++        return self.now
++
++    def tick(self):
++        self.now += 1 / FPS
++
++
++def make_signal():
++    """Tones, noise, a kick every half second and a silent stretch."""
++    rng = np.random.default_rng(1234)
++    n = STREAM_RATE * SECONDS
++    t = np.arange(n) / STREAM_RATE
++    signal = 0.15 * np.sin(2 * np.pi * 440 * t) + 0.1 * np.sin(2 * np.pi * 1760 * t)
++    signal += 0.03 * rng.standard_normal(n)
++    kick_len = int(0.15 * STREAM_RATE)
++    kick = np.exp(-np.arange(kick_len) / 3000.0) * np.sin(
++        2 * np.pi * 50 * np.arange(kick_len) / STREAM_RATE
++    )
++    for start in range(0, n - kick_len, STREAM_RATE // 2):
++        signal[start : start + kick_len] += kick
++    signal[4 * STREAM_RATE : 5 * STREAM_RATE] = 0.0
++    signal = np.clip(signal, -1, 1).astype(np.float32)
++    block = STREAM_RATE // FPS
++    return [signal[i : i + block] for i in range(0, n - block + 1, block)]
++
++
++def make_source(audio_config):
++    """AudioAnalysisSource set up as activation leaves it, without a device."""
++    src = object.__new__(AudioAnalysisSource)
++    src._ledfx = fake_ledfx({"audio": audio_config})
++    src._config = AudioConfig.model_validate(audio_config)
++    src._callbacks = []
++    src.initialise_analysis()
++    src._analyzer = src._create_analyzer()
++    src._callbacks = [src._publish_results]
++    return src
++
++
++def source_values(src):
++    """Everything an effect can read, through the effect-facing API."""
++    return {
++        "volume_raw": src.volume(filtered=False),
++        "volume_filtered": src.volume(filtered=True),
++        "melbanks": [m.copy() for m in src.melbanks.melbanks],
++        "melbanks_filtered": [m.copy() for m in src.melbanks.melbanks_filtered],
++        "pitch": src.pitch(),
++        "onset": src.onset(),
++        "bpm_beat_now": src.bpm_beat_now(),
++        "bar_oscillator": src.bar_oscillator(),
++        "beat_oscillator": src.beat_oscillator(),
++        "volume_beat_now": src.volume_beat_now(),
++        "beat_counter": src.beat_counter,
++        "tempo_bpm": src._tempo.get_bpm(),
++        "tempo_confidence": src._tempo.get_confidence(),
++        "powers": [
++            src.beat_power(),
++            src.bass_power(),
++            src.lows_power(),
++            src.mids_power(),
++            src.high_power(),
++            src.beat_power(filtered=False),
++            src.lows_power(filtered=False),
++        ],
++    }
++
++
++def analyzer_values(an):
++    def power(i, filtered=True):
++        value = an.freq_power_filtered[i] if filtered else an.freq_power_raw[i]
++        return value if not np.isnan(value) else 0.0
++
++    return {
++        "volume_raw": an.volume_raw,
++        "volume_filtered": an.volume_filtered,
++        "melbanks": [m.copy() for m in an.melbanks],
++        "melbanks_filtered": [m.copy() for m in an.melbanks_filtered],
++        "pitch": an.pitch,
++        "onset": an.onset,
++        "bpm_beat_now": an.bpm_beat_now,
++        "bar_oscillator": an.bar_oscillator,
++        "beat_oscillator": an.bar_oscillator % 1,
++        "volume_beat_now": an.volume_beat_now,
++        "beat_counter": an.beat_counter,
++        "tempo_bpm": an.tempo.get_bpm(),
++        "tempo_confidence": an.tempo.get_confidence(),
++        "powers": [
++            power(0),
++            power(1),
++            (power(0) + power(1)) * 0.5,
++            power(2),
++            power(3),
++            power(0, False),
++            (power(0, False) + power(1, False)) * 0.5,
++        ],
++    }
++
++
++def assert_same(expected, got, where):
++    for key, value in expected.items():
++        other = got[key]
++        if isinstance(value, list) and value and isinstance(value[0], np.ndarray):
++            for a, b in zip(value, other, strict=True):
++                np.testing.assert_array_equal(a, b, err_msg=f"{where} {key}")
++        else:
++            assert value == other, f"{where} {key}: {value!r} != {other!r}"
++
++
++def run(feed, values, blocks, clock):
++    rows = []
++    for block in blocks:
++        clock.tick()
++        feed(block)
++        rows.append(values())
++    return rows
++
++
++@pytest.mark.parametrize("delay_ms", [0, 50])
++def test_source_exposes_exactly_the_analyzer_results(monkeypatch, delay_ms):
++    audio_config = AudioConfig.model_validate({"delay_ms": delay_ms}).model_dump()
++    blocks = make_signal()
++    clock = FakeClock()
++    monkeypatch.setattr(time, "time", clock)
++
++    src = make_source(audio_config)
++    from_source = run(
++        lambda b: src._audio_sample_callback(b, 1, None, None),
++        lambda: source_values(src),
++        blocks,
++        clock,
++    )
++
++    clock.now = 1_000_000.0
++    melbank_configs = [entry["config"] for entry in src.melbanks.melbank_collection]
++    an = AudioAnalyzer(
++        audio_config, melbank_configs, src._ledfx.config.melbanks.coeffs_type
++    )
++    from_analyzer = run(an.process, lambda: analyzer_values(an), blocks, clock)
++
++    started = False
++    for i, (expected, got) in enumerate(zip(from_analyzer, from_source, strict=True)):
++        started = started or an.has_volume_measurement
++        if not src._has_volume_measurement:
++            continue
++        assert_same(expected, got, f"block {i}")
++    assert started
++
++
++def test_signal_exercises_every_detector(monkeypatch):
++    """Equality only means something if the detectors actually fire."""
++    clock = FakeClock()
++    monkeypatch.setattr(time, "time", clock)
++    src = make_source(AudioConfig.model_validate({}).model_dump())
++    seen = {"onset": 0, "volume_beat_now": 0, "bpm_beat_now": 0, "silent": 0}
++    for block in make_signal():
++        clock.tick()
++        src._audio_sample_callback(block, 1, None, None)
++        seen["onset"] += bool(src.onset())
++        seen["volume_beat_now"] += bool(src.volume_beat_now())
++        seen["bpm_beat_now"] += bool(src.bpm_beat_now())
++        seen["silent"] += not src.melbanks.melbanks[0].any()
++    assert all(seen.values()), seen
++
++
++def test_getters_before_any_audio():
++    src = make_source(AudioConfig.model_validate({}).model_dump())
++    assert src.volume() == -90
++    assert src.pitch() == 0
++    assert src.onset() is False
++    assert src.beat_power() == 0.0
++    assert src.bar_oscillator() == 0.0
++    assert src._tempo.get_bpm() == 0.0
++    assert src._has_volume_measurement is False
+diff --git a/tests/test_audio_process.py b/tests/test_audio_process.py
+new file mode 100755
+index 00000000..0bda6a54
+--- /dev/null
++++ b/tests/test_audio_process.py
+@@ -0,0 +1,316 @@
++"""The audio process: framing, the worker's commands, and a real spawned
++process whose results must equal in-process analysis exactly."""
++
++import socket
++import threading
++import time
++
++import pytest
++
++from ledfx.audio_process import client as client_module
++from ledfx.audio_process import protocol
++from ledfx.audio_process.client import AudioProcessClient, AudioProcessError
++from ledfx.audio_process.worker import AudioWorker
++from ledfx.configuration.models import AudioConfig
++from ledfx.effects.audio_analyzer import AudioAnalyzer, SnapshotView
++from tests.test_audio_analyzer import (
++    FakeClock,
++    analyzer_values,
++    assert_same,
++    make_signal,
++    make_source,
++)
++
++# -- protocol -------------------------------------------------------------
++
++
++def roundtrip(message):
++    a, b = socket.socketpair()
++    try:
++        protocol.send(a, message)
++        return protocol.recv(b)
++    finally:
++        a.close()
++        b.close()
++
++
++def test_protocol_roundtrip_with_nested_blobs():
++    message = {
++        "t": "snapshot",
++        "s": {
++            "x": 1.5,
++            "flags": [True, False],
++            "melbanks": [b"\x00\x01", b""],
++            "n": None,
++        },
++        "data": bytearray(b"abc"),
++    }
++    got = roundtrip(message)
++    assert got["s"]["melbanks"] == [b"\x00\x01", b""]
++    assert got["data"] == b"abc"
++    assert got["s"]["x"] == 1.5
++    assert got["s"]["flags"] == [True, False]
++    assert got["s"]["n"] is None
++
++
++def test_protocol_rejects_dangling_blob_reference():
++    a, b = socket.socketpair()
++    try:
++        header = b'{"x":{"__blob__":3}}'
++        a.sendall(protocol._LEN.pack(len(header)) + header + protocol._LEN.pack(0))
++        with pytest.raises(protocol.ProtocolError):
++            protocol.recv(b)
++    finally:
++        a.close()
++        b.close()
++
++
++def test_protocol_reports_closed_peer():
++    a, b = socket.socketpair()
++    a.close()
++    with pytest.raises(ConnectionError):
++        protocol.recv(b)
++    b.close()
++
++
++# -- snapshot -------------------------------------------------------------
++
++
++def test_snapshot_view_carries_every_result_exactly():
++    clock = FakeClock()
++    config = AudioConfig.model_validate({}).model_dump()
++    src = make_source(config)
++    an = AudioAnalyzer(*src._analyzer_args())
++    for block in make_signal()[:200]:
++        clock.tick()
++        if an.process(block):
++            view = SnapshotView(roundtrip({"s": an.snapshot()})["s"])
++            assert_same(analyzer_values(an), analyzer_values(view), "snapshot")
++
++
++# -- worker commands (in a thread, fake audio module) ------------------------
++
++
++class FakeStream:
++    def __init__(self, **kwargs):
++        self.kwargs = kwargs
++        self.started = False
++
++    def start(self):
++        self.started = True
++
++    def stop(self):
++        self.started = False
++
++    def close(self):
++        pass
++
++
++class FakeSounddevice:
++    def __init__(self):
++        self.opened = []
++
++    def query_hostapis(self):
++        return [{"name": "MME"}, {"name": "Windows WASAPI"}]
++
++    def query_devices(self):
++        return [
++            {"name": "Speakers", "hostapi": 0, "max_input_channels": 0},
++            {"name": "Microphone", "hostapi": 1, "max_input_channels": 1},
++            {"name": "Line In", "hostapi": 1, "max_input_channels": 2},
++        ]
++
++    def InputStream(self, **kwargs):
++        stream = FakeStream(**kwargs)
++        self.opened.append(stream)
++        return stream
++
++
++def worker_pair():
++    a, b = socket.socketpair()
++    sd = FakeSounddevice()
++    w = AudioWorker(b, sd)
++    t = threading.Thread(target=w.serve, daemon=True)
++    t.start()
++    return a, sd, t
++
++
++def test_worker_opens_device_by_name_when_index_drifted():
++    a, sd, t = worker_pair()
++    protocol.send(
++        a,
++        {
++            "t": "open",
++            "id": 1,
++            "device": 1,
++            "device_name": "Windows WASAPI: Line In",
++            "samplerate": 48000,
++            "blocksize": 800,
++            "channels": 1,
++        },
++    )
++    reply = protocol.recv(a)
++    assert reply == {"t": "opened", "id": 1, "device": 2}
++    assert sd.opened[0].kwargs["device"] == 2
++    assert sd.opened[0].started
++    protocol.send(a, {"t": "quit"})
++    a.close()
++    t.join(3)
++
++
++def test_worker_refuses_unknown_device_instead_of_another():
++    a, sd, t = worker_pair()
++    protocol.send(
++        a,
++        {
++            "t": "open",
++            "id": 7,
++            "device": 1,
++            "device_name": "Windows WASAPI: Gone",
++            "samplerate": 48000,
++            "blocksize": 800,
++            "channels": 1,
++        },
++    )
++    reply = protocol.recv(a)
++    assert reply["t"] == "open_failed"
++    assert reply["id"] == 7
++    assert "Gone" in reply["error"]
++    assert sd.opened == []
++    a.close()
++    t.join(3)
++
++
++# -- token ----------------------------------------------------------------
++
++
++def test_client_rejects_a_connection_without_the_token(monkeypatch):
++    """Something else connects first; only the real worker is accepted."""
++    started = {}
++
++    def launcher(port, token):
++        def connect():
++            intruder = socket.create_connection(("127.0.0.1", port))
++            protocol.send(intruder, {"t": "hello", "token": "wrong"})
++            started["intruder"] = intruder
++            real = socket.create_connection(("127.0.0.1", port))
++            protocol.send(real, {"t": "hello", "token": token})
++            started["real"] = real
++
++        threading.Thread(target=connect, daemon=True).start()
++
++    monkeypatch.setattr(client_module, "_launcher", launcher)
++    c = AudioProcessClient(lambda view: None)
++    c.start(timeout=5)
++    try:
++        assert c.alive
++        # The intruder was closed by the client.
++        started["intruder"].settimeout(3)
++        assert started["intruder"].recv(1) == b""
++    finally:
++        c.stop()
++        started["real"].close()
++
++
++def test_client_gives_up_when_nothing_connects(monkeypatch):
++    monkeypatch.setattr(client_module, "_launcher", lambda port, token: None)
++    c = AudioProcessClient(lambda view: None)
++    with pytest.raises(AudioProcessError):
++        c.start(timeout=0.5)
++
++
++# -- a real audio process -------------------------------------------------------
++
++
++def test_spawned_process_matches_in_process_analysis_exactly(monkeypatch):
++    """Blocks go to a real separate interpreter and come back as results that
++    the source's getters expose identically to in-process analysis.
++
++    time.time is not shared with the child, so values that depend on the wall
++    clock (bar oscillator, volume beat) are left out here; the in-process
++    tests cover them with a fake clock.
++    """
++    config = AudioConfig.model_validate({}).model_dump()
++    blocks = make_signal()[:240]
++
++    local = AudioAnalyzer(*make_source(config)._analyzer_args())
++    expected = []
++    for block in blocks:
++        if local.process(block):
++            expected.append(analyzer_values(local))
++
++    src = make_source(config)
++    got = []
++    arrived = threading.Event()
++
++    def on_results(view):
++        src._apply_results(view)
++        got.append(clock_free(source_like(src)))
++        arrived.set()
++
++    c = AudioProcessClient(on_results)
++    c.start()
++    try:
++        c.configure(*src._analyzer_args())
++        for block in blocks:
++            arrived.clear()
++            before = len(got)
++            c.push(block)
++            # Wait for this block's result, or for nothing (first block is
++            # swallowed by the resampler), before sending the next.
++            arrived.wait(2)
++            assert len(got) - before in (0, 1)
++    finally:
++        c.stop()
++
++    assert len(got) == len(expected) > 200
++    for i, (e, g) in enumerate(zip(expected, got, strict=True)):
++        assert_same(clock_free(e), g, f"block {i}")
++
++
++CLOCK_DEPENDENT = ("bar_oscillator", "beat_oscillator", "volume_beat_now")
++
++
++def clock_free(values):
++    return {k: v for k, v in values.items() if k not in CLOCK_DEPENDENT}
++
++
++def source_like(src):
++    from tests.test_audio_analyzer import source_values
++
++    return source_values(src)
++
++
++def test_reader_merges_event_flags_of_skipped_snapshots():
++    """When the reader is behind it keeps the newest values but no event."""
++    a, b = socket.socketpair()
++    seen = []
++    c = AudioProcessClient(seen.append)
++    c._sock = b
++    c.alive = True
++    an = AudioAnalyzer(
++        *make_source(AudioConfig.model_validate({}).model_dump())._analyzer_args()
++    )
++    for block in make_signal()[:5]:
++        an.process(block)
++    base = an.snapshot()
++    first = dict(base, onset=True, bpm_beat_now=False, volume_beat_now=False, pitch=1.0)
++    second = dict(
++        base, onset=False, bpm_beat_now=True, volume_beat_now=False, pitch=2.0
++    )
++    # Both are queued before the reader starts, so it reads them as a backlog.
++    protocol.send(a, {"t": "snapshot", "s": first})
++    protocol.send(a, {"t": "snapshot", "s": second})
++    reader = threading.Thread(target=c._read_loop, daemon=True)
++    reader.start()
++    deadline = time.monotonic() + 3
++    while not seen and time.monotonic() < deadline:
++        time.sleep(0.01)
++    a.close()
++    reader.join(3)
++    assert len(seen) == 1
++    view = seen[0]
++    assert view.pitch == 2.0
++    assert view.onset is True
++    assert view.bpm_beat_now is True
++    assert view.volume_beat_now is False
