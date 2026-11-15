@@ -137,8 +137,8 @@ jobs:
           <details><summary>Expand</summary>
 
           - **App**: the *android-arm64-v8a-release.apk* fits most phones (*armeabi-v7a* for older ones)
-          - **Now Playing**: also install *LedFx_NowPlaying_Addon* - via adb, or pause Play Protect, install, then App info > ⋮ > Allow restricted settings, and grant notification access
-          - **Rooted**: flash the *root-module* zip for latency-free internal audio capture
+          - **Now Playing**: also install *LedFx_NowPlaying_Addon* - via adb, or pause Play Protect, install, then App info > ⋮ > Allow restricted settings, and grant notification access (rooted: the root module does this for you)
+          - **Rooted**: just flash the *root-module* zip and reboot - it installs the app and the Now Playing addon (or updates them), grants every permission, and adds latency-free internal audio capture
 
           </details>
 
