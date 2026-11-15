@@ -1,0 +1,13 @@
+diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
+index 93287e4..57693cf 100644
+--- a/ledfx/configuration/models.py
++++ b/ledfx/configuration/models.py
+@@ -139,7 +139,7 @@ class AudioInputConfig(LedFxModel):
+         description='Only affects the Android "System Audio (root)" input. Auto detects whether the ROM already plays audio through the speaker while capturing and only echoes it back when needed; On/Off override that detection.',
+     )
+     separate_process: bool = Field(
+-        False,
++        True,
+         description="Capture and analyse audio in a process of its own, so many active virtuals cannot make it drop audio.",
+     )
+ 

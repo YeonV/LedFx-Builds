@@ -85,6 +85,7 @@ jobs:
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/audio_process.patch ./deps/ledfx/audio_process.patch
+          cp ./src2/tools/separate_process_android_default.patch ./deps/ledfx/separate_process_android_default.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -225,6 +226,13 @@ jobs:
           git apply audio_process.patch \
             || git apply --check --reverse audio_process.patch \
             || { echo "::error::audio_process.patch did not apply"; exit 1; }
+
+          # Android only: the audio process on by default. Measured on a
+          # Pixel 8, every input route (root, Stereo Mix, MediaProjection)
+          # gains from it; the upstream default stays False for desktop.
+          git apply separate_process_android_default.patch \
+            || git apply --check --reverse separate_process_android_default.patch \
+            || { echo "::error::separate_process_android_default.patch did not apply"; exit 1; }
 
 
           cd ../..
@@ -418,6 +426,7 @@ jobs:
           cp ./src2/tools/binary_transmission.patch ./deps/ledfx/binary_transmission.patch
           cp ./src2/tools/assert_control_flow.patch ./deps/ledfx/assert_control_flow.patch
           cp ./src2/tools/audio_process.patch ./deps/ledfx/audio_process.patch
+          cp ./src2/tools/separate_process_android_default.patch ./deps/ledfx/separate_process_android_default.patch
           cd ./deps/ledfx
 
           # Check if sentry_config.py exists (patch target)
@@ -558,6 +567,13 @@ jobs:
           git apply audio_process.patch \
             || git apply --check --reverse audio_process.patch \
             || { echo "::error::audio_process.patch did not apply"; exit 1; }
+
+          # Android only: the audio process on by default. Measured on a
+          # Pixel 8, every input route (root, Stereo Mix, MediaProjection)
+          # gains from it; the upstream default stays False for desktop.
+          git apply separate_process_android_default.patch \
+            || git apply --check --reverse separate_process_android_default.patch \
+            || { echo "::error::separate_process_android_default.patch did not apply"; exit 1; }
 
 
           cd ../..
@@ -812,7 +828,14 @@ jobs:
 
   build_rootpack:
     runs-on: ubuntu-22.04
-    needs: [build_stub]
+    # Waits for the release APKs and the addon: the module records their hashes
+    # so it can download and install them itself (rootpack/customize.sh).
+    # !cancelled(): a failed architecture must not cost the module.
+    needs: [build_stub, build_archs_release, build_nowplaying_addon]
+    if: ${{ !cancelled() && needs.build_stub.result == 'success' }}
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.version && format('v{0}', github.event.inputs.version) || format('v2.1.{0}', github.event.inputs.fversion) }}
+      IS_RELEASE: ${{ github.event.inputs.release == 'Yes' && github.event.inputs.upload_url != '' }}
     steps:
       - name: Checkout Android Builder
         uses: actions/checkout@v4
@@ -825,6 +848,77 @@ jobs:
           name: stub
           path: rootpack/
 
+      - name: Download release APK artifacts
+        if: env.IS_RELEASE == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          path: release-apks/
+          pattern: package-release-*
+          merge-multiple: true
+
+      - name: Download Now Playing addon artifact
+        if: env.IS_RELEASE == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: nowplaying-addon
+          path: addon-apk/
+
+      # What the module downloads, from this very release: asset names as the
+      # release job uploads them, their SHA-256 (busybox wget on the device does
+      # not validate TLS certificates) and versionCodes (to update only an older
+      # install). Without a release there is nothing to download from, and the
+      # module behaves as before: LedFx must already be installed.
+      - name: Write release.env for the module
+        if: env.IS_RELEASE == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ github.event.inputs.upload_url }}
+        run: |
+          set -euo pipefail
+          REPO=$(echo "$UPLOAD_URL" | sed -n 's#.*/repos/\([^/]*/[^/]*\)/releases/.*#\1#p')
+          RELEASE_ID=$(echo "$UPLOAD_URL" | sed -n 's#.*/releases/\([0-9]*\)/.*#\1#p')
+          TAG=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/$RELEASE_ID" | jq -r '.tag_name')
+          if [ -z "$REPO" ] || [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::could not resolve the release (repo '$REPO', tag '$TAG')"
+            exit 1
+          fi
+          AAPT2=$(find "$ANDROID_HOME" -name "aapt2" -type f | sort -r | head -n 1)
+          version_code() {
+            "$AAPT2" dump badging "$1" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -n 1
+          }
+          OUT=rootpack/release.env
+          { echo "RELEASE_REPO=$REPO"; echo "RELEASE_TAG=$TAG"; } > "$OUT"
+          for apk in release-apks/*.apk; do
+            [ -f "$apk" ] || continue
+            arch=$(basename "$apk" | sed -n 's/.*-\(armeabi-v7a\|arm64-v8a\|x86_64\|x86\)-.*/\1/p')
+            if [ -z "$arch" ]; then
+              echo "::warning::no architecture in $(basename "$apk"), left out of release.env"
+              continue
+            fi
+            var=$(echo "$arch" | tr '-' '_')
+            vc=$(version_code "$apk")
+            [ -n "$vc" ] || { echo "::error::no versionCode in $apk"; exit 1; }
+            echo "LEDFX_${var}_NAME=LedFx_CC-${RELEASE_VERSION}--android-${arch}-release.apk" >> "$OUT"
+            echo "LEDFX_${var}_SHA256=$(sha256sum "$apk" | cut -d' ' -f1)" >> "$OUT"
+            echo "LEDFX_${var}_VC=$vc" >> "$OUT"
+          done
+          addon=$(ls addon-apk/*.apk 2>/dev/null | head -n 1 || true)
+          if [ -n "$addon" ]; then
+            vc=$(version_code "$addon")
+            [ -n "$vc" ] || { echo "::error::no versionCode in $addon"; exit 1; }
+            echo "ADDON_NAME=$(basename "$addon")" >> "$OUT"
+            echo "ADDON_SHA256=$(sha256sum "$addon" | cut -d' ' -f1)" >> "$OUT"
+            echo "ADDON_VC=$vc" >> "$OUT"
+          else
+            echo "::warning::Now Playing addon APK not found, left out of release.env"
+          fi
+          grep -q '^LEDFX_' "$OUT" || echo "::warning::no release APK found; the module will need LedFx installed"
+          echo "--- release.env ---"
+          cat "$OUT"
+
       # The scripts stay tiny and CPU-arch-independent (still their own job
       # rather than duplicated across the APK build matrix); the stub is
       # now the only thing that's actually bundled, and it's arch-agnostic
@@ -833,6 +927,7 @@ jobs:
         run: |
           cd rootpack
           zip -r ../ledfx_root_audio_module.zip module.prop customize.sh post-fs-data.sh service.sh uninstall.sh common.sh stub.apk
+          if [ -f release.env ]; then zip ../ledfx_root_audio_module.zip release.env; fi
           cd ..
           echo "--- module zip contents ---"
           unzip -l ledfx_root_audio_module.zip
@@ -950,7 +1045,7 @@ jobs:
         run: |
           module_file="rootpack-dl/ledfx_root_audio_module.zip"
           if [ -f "$module_file" ]; then
-            asset_name="LedFx_CC-${RELEASE_VERSION}--android-root-audio-module.zip"
+            asset_name="LedFx_CC-${RELEASE_VERSION}--android-root-module.zip"
             echo "Uploading $module_file as $asset_name"
 
             UPLOAD_URL=$(echo "${{ github.event.inputs.upload_url }}" | sed 's/{?name,label}//')
