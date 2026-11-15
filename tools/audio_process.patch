@@ -1,5 +1,5 @@
 diff --git a/ledfx/__main__.py b/ledfx/__main__.py
-index fcb8b19c..56ed0401 100644
+index fcb8b19..56ed040 100644
 --- a/ledfx/__main__.py
 +++ b/ledfx/__main__.py
 @@ -11,6 +11,7 @@ WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
@@ -21,7 +21,7 @@ index fcb8b19c..56ed0401 100644
      args = parse_args()
      if args.dump_schemas:
 diff --git a/ledfx/api/utils.py b/ledfx/api/utils.py
-index 47ee913c..3266e322 100644
+index 47ee913..3266e32 100644
 --- a/ledfx/api/utils.py
 +++ b/ledfx/api/utils.py
 @@ -11,6 +11,7 @@ PERMITTED_KEYS = {
@@ -33,8 +33,8 @@ index 47ee913c..3266e322 100644
      "silence_scene": ("enabled", "scene_id", "timeout_seconds"),
      "melbanks": (
 diff --git a/ledfx/audio_process/__init__.py b/ledfx/audio_process/__init__.py
-new file mode 100755
-index 00000000..cdbd4526
+new file mode 100644
+index 0000000..cdbd452
 --- /dev/null
 +++ b/ledfx/audio_process/__init__.py
 @@ -0,0 +1,12 @@
@@ -51,11 +51,11 @@ index 00000000..cdbd4526
 +AudioAnalysisSource. protocol.py is the framing between the two.
 +"""
 diff --git a/ledfx/audio_process/client.py b/ledfx/audio_process/client.py
-new file mode 100755
-index 00000000..3ad7f6b5
+new file mode 100644
+index 0000000..86a4d4e
 --- /dev/null
 +++ b/ledfx/audio_process/client.py
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,218 @@
 +"""LedFx's side of the audio process.
 +
 +AudioProcessClient starts the worker, accepts its connection only with the
@@ -63,15 +63,14 @@ index 00000000..3ad7f6b5
 +into a SnapshotView for AudioAnalysisSource.
 +
 +The reader runs in the LedFx process and can fall behind like any other thread
-+there. It then jumps to the newest snapshot instead of replaying stale ones,
-+but ORs the per-block event flags of the skipped ones into it, so an onset or
-+beat is never lost to a skipped frame.
++there. So it pulls: it asks for the next snapshot as soon as one arrives, and
++the worker holds only the newest until then (see worker). At most one snapshot
++is ever on its way, so a slow reader gets fewer, never older, results.
 +"""
 +
 +import logging
 +import multiprocessing
 +import secrets
-+import select
 +import socket
 +import threading
 +
@@ -82,7 +81,6 @@ index 00000000..3ad7f6b5
 +
 +_LOGGER = logging.getLogger(__name__)
 +
-+EVENT_FLAGS = ("onset", "bpm_beat_now", "volume_beat_now")
 +START_TIMEOUT = 10
 +COMMAND_TIMEOUT = 5
 +
@@ -150,6 +148,7 @@ index 00000000..3ad7f6b5
 +            target=self._read_loop, name="AudioProcessReader", daemon=True
 +        )
 +        self._reader.start()
++        self._send({"t": "next"})
 +
 +    @staticmethod
 +    def _accept(listener, token):
@@ -247,10 +246,6 @@ index 00000000..3ad7f6b5
 +
 +    # -- reading ----------------------------------------------------------
 +
-+    def _ready(self):
-+        readable, _, _ = select.select([self._sock], [], [], 0)
-+        return bool(readable)
-+
 +    def _read_loop(self):
 +        try:
 +            while True:
@@ -258,20 +253,11 @@ index 00000000..3ad7f6b5
 +                if message.get("t") != "snapshot":
 +                    self._reply(message)
 +                    continue
-+                snapshot = message["s"]
-+                flags = {name: snapshot[name] for name in EVENT_FLAGS}
-+                # Catch up: newest values, but no lost events.
-+                while self._ready():
-+                    message = protocol.recv(self._sock)
-+                    if message.get("t") != "snapshot":
-+                        self._reply(message)
-+                        continue
-+                    snapshot = message["s"]
-+                    for name in EVENT_FLAGS:
-+                        flags[name] = flags[name] or snapshot[name]
-+                snapshot.update(flags)
++                # Ask now, so the worker can send the next one while this
++                # one is handled; it holds the newest until then.
++                self._send({"t": "next"})
 +                try:
-+                    self.on_results(SnapshotView(snapshot))
++                    self.on_results(SnapshotView(message["s"]))
 +                except Exception:
 +                    _LOGGER.exception("Error handling audio results")
 +        except (ConnectionError, OSError, protocol.ProtocolError, ValueError) as e:
@@ -289,18 +275,25 @@ index 00000000..3ad7f6b5
 +                slot[1] = message
 +                slot[0].set()
 diff --git a/ledfx/audio_process/protocol.py b/ledfx/audio_process/protocol.py
-new file mode 100755
-index 00000000..947250fd
+new file mode 100644
+index 0000000..2733e4e
 --- /dev/null
 +++ b/ledfx/audio_process/protocol.py
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,117 @@
 +"""Message framing between LedFx and its audio process.
 +
 +A message is a dict of JSON-compatible values plus bytes. On the wire:
 +
-+    4 bytes  big-endian length of the JSON header
++    4 bytes  big-endian length of everything that follows
++    4 bytes  length of the JSON header
 +    header   UTF-8 JSON; every bytes value is replaced by {"__blob__": i}
++    4 bytes  number of blobs
 +    blobs    the bytes values in order, each prefixed with its 4-byte length
++
++The leading total length lets the reader take a whole message in two socket
++reads and split it in memory. Every blocking read gives up the interpreter
++lock, and in a busy LedFx process getting it back costs up to a switch
++interval each time, so a read per field made one snapshot cost tens of ms.
 +
 +JSON plus raw bytes rather than pickle: anything on the machine can connect to
 +a loopback port, and unpickling what it sends would run its code.
@@ -349,7 +342,8 @@ index 00000000..947250fd
 +    for blob in blobs:
 +        parts.append(_LEN.pack(len(blob)))
 +        parts.append(blob)
-+    return b"".join(parts)
++    body = b"".join(parts)
++    return _LEN.pack(len(body)) + body
 +
 +
 +def _recv_exact(sock, size):
@@ -366,38 +360,66 @@ index 00000000..947250fd
 +    return bytes(buf)
 +
 +
++class _Cursor:
++    def __init__(self, body):
++        self._body = body
++        self._at = 0
++
++    def take(self, size):
++        end = self._at + size
++        if end > len(self._body):
++            raise ProtocolError("message shorter than its fields")
++        chunk = self._body[self._at : end]
++        self._at = end
++        return chunk
++
++    def length(self):
++        return _LEN.unpack(self.take(_LEN.size))[0]
++
++    def done(self):
++        return self._at == len(self._body)
++
++
++def decode(body):
++    cursor = _Cursor(body)
++    header = json.loads(cursor.take(cursor.length()))
++    blobs = [cursor.take(cursor.length()) for _ in range(cursor.length())]
++    if not cursor.done():
++        raise ProtocolError("message longer than its fields")
++    return _restore_blobs(header, blobs)
++
++
 +def recv(sock):
 +    """Read one message. Raises ConnectionError when the peer has gone."""
-+    (header_len,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
-+    header = json.loads(_recv_exact(sock, header_len))
-+    (count,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
-+    blobs = []
-+    for _ in range(count):
-+        (blob_len,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
-+        blobs.append(_recv_exact(sock, blob_len))
-+    return _restore_blobs(header, blobs)
++    (size,) = _LEN.unpack(_recv_exact(sock, _LEN.size))
++    return decode(_recv_exact(sock, size))
 +
 +
 +def send(sock, message):
 +    sock.sendall(encode(message))
 diff --git a/ledfx/audio_process/worker.py b/ledfx/audio_process/worker.py
-new file mode 100755
-index 00000000..4709205a
+new file mode 100644
+index 0000000..c78429e
 --- /dev/null
 +++ b/ledfx/audio_process/worker.py
-@@ -0,0 +1,178 @@
+@@ -0,0 +1,212 @@
 +"""The audio process: capture, analysis, and nothing that renders.
 +
 +It connects back to LedFx, proves it was started by it (token), then follows
 +commands: configure the analyzer, open or close a capture device, analyse
-+blocks LedFx forwards from network sources. Every analysed block goes back as
-+a snapshot. The device callback only analyses and queues; a separate thread
-+writes to the socket, so a slow LedFx can never stall the capture.
++blocks LedFx forwards from network sources. The device callback only analyses;
++a separate thread writes to the socket, so a slow LedFx can never stall the
++capture.
++
++Snapshots are pulled, not pushed: one goes out only when LedFx asked for it
++with "next". Until then the newest one replaces the older, with the per-block
++event flags of the replaced one ORed in, so a reader that is behind gets fresh
++values and no lost onset or beat, and never a backlog to work through.
 +"""
 +
++import collections
 +import logging
 +import os
-+import queue
 +import socket
 +import sys
 +import threading
@@ -409,8 +431,7 @@ index 00000000..4709205a
 +
 +_LOGGER = logging.getLogger(__name__)
 +
-+# About two seconds of snapshots at 60 blocks per second.
-+SEND_QUEUE_BLOCKS = 120
++EVENT_FLAGS = ("onset", "bpm_beat_now", "volume_beat_now")
 +
 +
 +class AudioWorker:
@@ -419,8 +440,10 @@ index 00000000..4709205a
 +        self._sd = audio_module
 +        self._analyzer = None
 +        self._stream = None
-+        self._outbox = queue.Queue(maxsize=SEND_QUEUE_BLOCKS)
-+        self._dropped = 0
++        self._cond = threading.Condition()
++        self._replies = collections.deque()
++        self._latest = None
++        self._wanted = False
 +        self._running = True
 +        self._sender = threading.Thread(
 +            target=self._send_loop, name="AudioWorkerSend", daemon=True
@@ -428,31 +451,58 @@ index 00000000..4709205a
 +
 +    # -- outgoing ---------------------------------------------------------
 +
++    def _next_message(self):
++        with self._cond:
++            while True:
++                if self._replies:
++                    return self._replies.popleft()
++                if not self._running:
++                    return None
++                if self._wanted and self._latest is not None:
++                    snapshot, self._latest = self._latest, None
++                    self._wanted = False
++                    return {"t": "snapshot", "s": snapshot}
++                self._cond.wait()
++
 +    def _send_loop(self):
-+        while self._running:
-+            message = self._outbox.get()
++        while True:
++            message = self._next_message()
 +            if message is None:
 +                return
 +            try:
 +                protocol.send(self._sock, message)
 +            except OSError:
-+                self._running = False
++                self._stop()
 +                return
 +
 +    def _post(self, message):
-+        try:
-+            self._outbox.put_nowait(message)
-+        except queue.Full:
-+            self._dropped += 1
-+            if self._dropped % 100 == 1:
-+                _LOGGER.warning(
-+                    "LedFx is not reading; dropped %s snapshots", self._dropped
-+                )
++        with self._cond:
++            self._replies.append(message)
++            self._cond.notify()
++
++    def _offer(self, snapshot):
++        with self._cond:
++            older = self._latest
++            if older is not None:
++                for name in EVENT_FLAGS:
++                    snapshot[name] = snapshot[name] or older[name]
++            self._latest = snapshot
++            self._cond.notify()
++
++    def _want(self):
++        with self._cond:
++            self._wanted = True
++            self._cond.notify()
++
++    def _stop(self):
++        with self._cond:
++            self._running = False
++            self._cond.notify()
 +
 +    def _analyse(self, samples):
 +        analyzer = self._analyzer
 +        if analyzer is not None and analyzer.process(samples):
-+            self._post({"t": "snapshot", "s": analyzer.snapshot()})
++            self._offer(analyzer.snapshot())
 +
 +    # -- capture ----------------------------------------------------------
 +
@@ -513,6 +563,8 @@ index 00000000..4709205a
 +            self._analyzer = AudioAnalyzer(
 +                msg["audio_config"], msg["melbank_configs"], msg["coeffs_type"]
 +            )
++        elif kind == "next":
++            self._want()
 +        elif kind == "block":
 +            self._analyse(np.frombuffer(msg["data"], dtype=np.float32))
 +        elif kind == "open":
@@ -532,7 +584,7 @@ index 00000000..4709205a
 +            self._close()
 +            self._post({"t": "closed", "id": msg.get("id")})
 +        elif kind == "quit":
-+            self._running = False
++            self._stop()
 +        else:
 +            _LOGGER.warning("Unknown command %r", kind)
 +
@@ -544,9 +596,8 @@ index 00000000..4709205a
 +        except (ConnectionError, OSError):
 +            pass
 +        finally:
-+            self._running = False
++            self._stop()
 +            self._close()
-+            self._outbox.put(None)
 +
 +
 +def main(port, token, audio_module=None):
@@ -565,7 +616,7 @@ index 00000000..4709205a
 +if __name__ == "__main__":
 +    main(int(sys.argv[1]), sys.argv[2])
 diff --git a/ledfx/configuration/models.py b/ledfx/configuration/models.py
-index b377a144..93287e4b 100644
+index b377a14..93287e4 100644
 --- a/ledfx/configuration/models.py
 +++ b/ledfx/configuration/models.py
 @@ -138,6 +138,10 @@ class AudioInputConfig(LedFxModel):
@@ -580,7 +631,7 @@ index b377a144..93287e4b 100644
  
  class AudioAnalysisConfig(LedFxModel):
 diff --git a/ledfx/effects/audio.py b/ledfx/effects/audio.py
-index 8b48cdc3..d84c3400 100644
+index 8b48cdc..d8a6986 100644
 --- a/ledfx/effects/audio.py
 +++ b/ledfx/effects/audio.py
 @@ -1,19 +1,16 @@
@@ -808,10 +859,10 @@ index 8b48cdc3..d84c3400 100644
 +            # analyses it like its own capture.
 +            if remote.alive:
 +                remote.push(in_data)
-+            return
+             return
 +        analyzer = self._analyzer
 +        if analyzer is None or not analyzer.process(in_data):
-             return
++            return
 +        self._apply_results(analyzer)
  
 -        # handle delaying the audio with the queue
@@ -1149,11 +1200,7 @@ index 8b48cdc3..d84c3400 100644
 -        melbank = self.melbanks.melbanks[0][: self.beat_max_mel_index]
 -        beat_power = np.sum(melbank)
 -        melbank_max = np.max(melbank)
-+    @property
-+    def beat_counter(self):
-+        results = self._results
-+        return results.beat_counter if results is not None else 0
- 
+-
 -        # calculates the % difference of the first value of the channel to the average for the channel
 -        if sum(self.beat_power_history) > 0:
 -            difference = (
@@ -1162,7 +1209,11 @@ index 8b48cdc3..d84c3400 100644
 -            )
 -        else:
 -            difference = 0
--
++    @property
++    def beat_counter(self):
++        results = self._results
++        return results.beat_counter if results is not None else 0
+ 
 -        self.beat_power_history.appendleft(beat_power)
 -
 -        if (
@@ -1244,9 +1295,97 @@ index 8b48cdc3..d84c3400 100644
  
      def beat_oscillator(self):
          """
+@@ -1410,6 +1311,31 @@ class AudioAnalysisSource(AudioInputSource):
+         return self.bar_oscillator() % 1
+ 
+ 
++_EVENT_FLAGS = ("onset", "bpm_beat_now", "volume_beat_now")
++
++
++class _WithMissedEvents:
++    """The audio source as one effect's audio_data_updated sees it after it
++    missed blocks: the newest results, plus any onset or beat among the
++    missed ones, so a busy frame delays an event instead of losing it."""
++
++    def __init__(self, source, missed):
++        self._source = source
++        self._missed = missed
++
++    def __getattr__(self, name):
++        return getattr(self._source, name)
++
++    def onset(self):
++        return "onset" in self._missed or self._source.onset()
++
++    def bpm_beat_now(self):
++        return "bpm_beat_now" in self._missed or self._source.bpm_beat_now()
++
++    def volume_beat_now(self):
++        return "volume_beat_now" in self._missed or self._source.volume_beat_now()
++
++
+ @Effect.no_registration
+ class AudioReactiveEffect(Effect):
+     """
+@@ -1432,6 +1358,9 @@ class AudioReactiveEffect(Effect):
+         super().__init__(ledfx, config)
+         # protect against possible deactivate race condition
+         self.audio = None
++        self._audio_pending = False
++        self._missed_events = set()
++        self._pending_lock = threading.Lock()
+ 
+     def activate(self, channel):
+         _LOGGER.info("Activating AudioReactiveEffect.")
+@@ -1467,9 +1396,42 @@ class AudioReactiveEffect(Effect):
+ 
+     def _audio_data_updated(self):
+         self.melbank.cache_clear()
+-        with self.lock:
+-            if self.is_active:
+-                self.audio_data_updated(self.audio)
++        if self.lock.acquire(blocking=False):
++            try:
++                self._update_audio()
++            finally:
++                self.lock.release()
++            return
++        # The render thread holds the lock for a whole frame. Waiting for it
++        # here would hold up every other effect's update behind this one, so
++        # the render thread applies the newest results at the start of its
++        # next frame instead, with the onsets and beats of the blocks between.
++        audio = self.audio
++        if audio is None:
++            return
++        with self._pending_lock:
++            for name in _EVENT_FLAGS:
++                if getattr(audio, name)():
++                    self._missed_events.add(name)
++            self._audio_pending = True
++
++    def _update_audio(self):
++        """Run audio_data_updated on the newest results; needs self.lock."""
++        with self._pending_lock:
++            missed, self._missed_events = self._missed_events, set()
++            self._audio_pending = False
++        if self.is_active:
++            audio = self.audio
++            self.audio_data_updated(
++                _WithMissedEvents(audio, missed) if missed else audio
++            )
++
++    def _render(self):
++        if self._audio_pending:
++            with self.lock:
++                if self._audio_pending:
++                    self._update_audio()
++        super()._render()
+ 
+     def audio_data_updated(self, data):
+         """
 diff --git a/ledfx/effects/audio_analyzer.py b/ledfx/effects/audio_analyzer.py
-new file mode 100755
-index 00000000..f13315c2
+new file mode 100644
+index 0000000..f13315c
 --- /dev/null
 +++ b/ledfx/effects/audio_analyzer.py
 @@ -0,0 +1,326 @@
@@ -1577,7 +1716,7 @@ index 00000000..f13315c2
 +            snapshot["freq_power_filtered"], dtype=np.float64
 +        )
 diff --git a/ledfx/effects/melbank.py b/ledfx/effects/melbank.py
-index 1e7de288..95eb60e0 100644
+index 1e7de28..95eb60e 100644
 --- a/ledfx/effects/melbank.py
 +++ b/ledfx/effects/melbank.py
 @@ -437,6 +437,10 @@ class Melbanks:
@@ -1592,7 +1731,7 @@ index 1e7de288..95eb60e0 100644
      def __call__(self):
          # fastest way i could think of.
 diff --git a/tests/configuration/snapshots/config_dumps.json b/tests/configuration/snapshots/config_dumps.json
-index 5878572b..c78175d1 100644
+index 5878572..c78175d 100644
 --- a/tests/configuration/snapshots/config_dumps.json
 +++ b/tests/configuration/snapshots/config_dumps.json
 @@ -1,6 +1,6 @@
@@ -1661,7 +1800,7 @@ index 5878572b..c78175d1 100644
   }
  }
 diff --git a/tests/configuration/snapshots/legacy_schema.json b/tests/configuration/snapshots/legacy_schema.json
-index 60b32de3..fd24da57 100644
+index 60b32de..fd24da5 100644
 --- a/tests/configuration/snapshots/legacy_schema.json
 +++ b/tests/configuration/snapshots/legacy_schema.json
 @@ -411,6 +411,12 @@
@@ -1688,7 +1827,7 @@ index 60b32de3..fd24da57 100644
    }
   },
 diff --git a/tests/configuration/snapshots/schemas_dump.json b/tests/configuration/snapshots/schemas_dump.json
-index 1ce12fcb..c94a6e18 100644
+index 1ce12fc..c94a6e1 100644
 --- a/tests/configuration/snapshots/schemas_dump.json
 +++ b/tests/configuration/snapshots/schemas_dump.json
 @@ -94,6 +94,12 @@
@@ -1728,8 +1867,8 @@ index 1ce12fcb..c94a6e18 100644
       "title": "Audio"
      },
 diff --git a/tests/test_audio_analyzer.py b/tests/test_audio_analyzer.py
-new file mode 100755
-index 00000000..5fd2b723
+new file mode 100644
+index 0000000..5fd2b72
 --- /dev/null
 +++ b/tests/test_audio_analyzer.py
 @@ -0,0 +1,197 @@
@@ -1930,12 +2069,154 @@ index 00000000..5fd2b723
 +    assert src.bar_oscillator() == 0.0
 +    assert src._tempo.get_bpm() == 0.0
 +    assert src._has_volume_measurement is False
+diff --git a/tests/test_audio_effect_lock.py b/tests/test_audio_effect_lock.py
+new file mode 100644
+index 0000000..a413bb8
+--- /dev/null
++++ b/tests/test_audio_effect_lock.py
+@@ -0,0 +1,136 @@
++"""An effect's audio update never waits for its render thread.
++
++The render thread holds the effect lock for a whole frame. The thread that
++delivers audio results (the audio callback, or the audio process reader)
++updates every active effect in turn, so waiting on one effect's lock held up
++all the others behind it. Now a busy lock defers the update to the start of
++that effect's next frame, with the newest results and every missed event.
++"""
++
++import threading
++import time
++
++from ledfx.effects import Effect
++from ledfx.effects.audio import AudioReactiveEffect
++
++
++class FakeAudio:
++    def __init__(self):
++        self.flags = {"onset": False, "bpm_beat_now": False, "volume_beat_now": False}
++        self.pitch_value = 0.0
++
++    def onset(self):
++        return self.flags["onset"]
++
++    def bpm_beat_now(self):
++        return self.flags["bpm_beat_now"]
++
++    def volume_beat_now(self):
++        return self.flags["volume_beat_now"]
++
++    def pitch(self):
++        return self.pitch_value
++
++
++class FakeMelbank:
++    def cache_clear(self):
++        pass
++
++
++class FakeLogSec:
++    def log_sec(self, now):
++        pass
++
++    def try_log(self):
++        return False
++
++
++@Effect.no_registration
++class Recorder(AudioReactiveEffect):
++    def audio_data_updated(self, data):
++        self.updates.append(
++            (data.pitch(), data.onset(), data.bpm_beat_now(), data.volume_beat_now())
++        )
++
++    def render(self):
++        self.frames += 1
++
++    def __del__(self):
++        pass  # built without activate(), so there is nothing to deactivate
++
++
++def make_effect():
++    effect = Recorder.__new__(Recorder)
++    effect.lock = threading.Lock()
++    effect.audio = FakeAudio()
++    effect.melbank = FakeMelbank()
++    effect.logsec = FakeLogSec()
++    effect._last_frame_time = time.perf_counter()
++    effect._active = True
++    effect._audio_pending = False
++    effect._missed_events = set()
++    effect._pending_lock = threading.Lock()
++    effect.updates = []
++    effect.frames = 0
++    return effect
++
++
++def deliver(effect, pitch, **flags):
++    effect.audio.pitch_value = pitch
++    effect.audio.flags = {
++        "onset": False,
++        "bpm_beat_now": False,
++        "volume_beat_now": False,
++        **flags,
++    }
++    effect._audio_data_updated()
++
++
++def test_free_lock_updates_at_once_as_before():
++    effect = make_effect()
++    deliver(effect, 1.0, onset=True)
++    assert effect.updates == [(1.0, True, False, False)]
++    assert not effect._audio_pending
++
++
++def test_busy_lock_returns_at_once_and_render_applies_newest_with_missed_events():
++    effect = make_effect()
++    effect.lock.acquire()  # the render thread is mid-frame
++    try:
++        started = time.perf_counter()
++        deliver(effect, 1.0, onset=True)
++        deliver(effect, 2.0, bpm_beat_now=True)
++        deliver(effect, 3.0)
++        assert time.perf_counter() - started < 0.1
++        assert effect.updates == []
++        assert effect._audio_pending
++    finally:
++        effect.lock.release()
++
++    effect._render()
++    # Newest values, and both events from the blocks it missed.
++    assert effect.updates == [(3.0, True, True, False)]
++    assert effect.frames == 1
++    assert not effect._audio_pending
++
++    # The missed events are reported once, not again on the next update.
++    deliver(effect, 4.0)
++    assert effect.updates[-1] == (4.0, False, False, False)
++
++
++def test_missed_events_carry_into_an_update_the_reader_makes_itself():
++    """Render had no frame in between: the next free update merges them."""
++    effect = make_effect()
++    effect.lock.acquire()
++    deliver(effect, 1.0, volume_beat_now=True)
++    effect.lock.release()
++    deliver(effect, 2.0)
++    assert effect.updates == [(2.0, False, False, True)]
++    assert not effect._audio_pending
++
++
++def test_render_without_pending_audio_does_not_update():
++    effect = make_effect()
++    effect._render()
++    assert effect.updates == []
++    assert effect.frames == 1
 diff --git a/tests/test_audio_process.py b/tests/test_audio_process.py
-new file mode 100755
-index 00000000..0bda6a54
+new file mode 100644
+index 0000000..4130164
 --- /dev/null
 +++ b/tests/test_audio_process.py
-@@ -0,0 +1,316 @@
+@@ -0,0 +1,397 @@
 +"""The audio process: framing, the worker's commands, and a real spawned
 +process whose results must equal in-process analysis exactly."""
 +
@@ -1995,9 +2276,46 @@ index 00000000..0bda6a54
 +    a, b = socket.socketpair()
 +    try:
 +        header = b'{"x":{"__blob__":3}}'
-+        a.sendall(protocol._LEN.pack(len(header)) + header + protocol._LEN.pack(0))
++        body = protocol._LEN.pack(len(header)) + header + protocol._LEN.pack(0)
++        a.sendall(protocol._LEN.pack(len(body)) + body)
 +        with pytest.raises(protocol.ProtocolError):
 +            protocol.recv(b)
++    finally:
++        a.close()
++        b.close()
++
++
++def test_protocol_rejects_a_body_that_does_not_match_its_fields():
++    header = b'{"x":1}'
++    body = protocol._LEN.pack(len(header)) + header + protocol._LEN.pack(1)
++    with pytest.raises(protocol.ProtocolError):
++        protocol.decode(body)  # announces one blob, carries none
++    with pytest.raises(protocol.ProtocolError):
++        protocol.decode(body[:-4] + protocol._LEN.pack(0) + b"extra")
++
++
++class CountingSocket:
++    def __init__(self, sock):
++        self._sock = sock
++        self.reads = 0
++
++    def recv_into(self, *args):
++        self.reads += 1
++        return self._sock.recv_into(*args)
++
++
++def test_protocol_reads_a_whole_snapshot_in_two_reads():
++    """Every socket read gives up the interpreter lock, and in a busy LedFx
++    getting it back costs up to a switch interval, so reads per message are
++    what a snapshot costs the reader there."""
++    a, b = socket.socketpair()
++    try:
++        protocol.send(a, {"t": "snapshot", "s": base_snapshot()})
++        counting = CountingSocket(b)
++        got = protocol.recv(counting)
++        assert got["t"] == "snapshot"
++        assert len(got["s"]["melbanks"]) > 0
++        assert counting.reads == 2
 +    finally:
 +        a.close()
 +        b.close()
@@ -2219,36 +2537,80 @@ index 00000000..0bda6a54
 +    return source_values(src)
 +
 +
-+def test_reader_merges_event_flags_of_skipped_snapshots():
-+    """When the reader is behind it keeps the newest values but no event."""
-+    a, b = socket.socketpair()
-+    seen = []
-+    c = AudioProcessClient(seen.append)
-+    c._sock = b
-+    c.alive = True
++def base_snapshot():
 +    an = AudioAnalyzer(
 +        *make_source(AudioConfig.model_validate({}).model_dump())._analyzer_args()
 +    )
 +    for block in make_signal()[:5]:
 +        an.process(block)
-+    base = an.snapshot()
-+    first = dict(base, onset=True, bpm_beat_now=False, volume_beat_now=False, pitch=1.0)
-+    second = dict(
-+        base, onset=False, bpm_beat_now=True, volume_beat_now=False, pitch=2.0
-+    )
-+    # Both are queued before the reader starts, so it reads them as a backlog.
-+    protocol.send(a, {"t": "snapshot", "s": first})
-+    protocol.send(a, {"t": "snapshot", "s": second})
++    return an.snapshot()
++
++
++def nothing_arrives(sock, wait=0.3):
++    sock.settimeout(wait)
++    try:
++        sock.recv(1)
++    except TimeoutError:
++        return True
++    finally:
++        sock.settimeout(None)
++    return False
++
++
++def test_worker_sends_only_the_newest_snapshot_when_asked():
++    """A reader that is behind gets fresh values and every event, never a
++    backlog: unasked snapshots replace each other, flags ORed together."""
++    a, b = socket.socketpair()
++    w = AudioWorker(b, FakeSounddevice())
++    t = threading.Thread(target=w.serve, daemon=True)
++    t.start()
++    base = base_snapshot()
++    w._offer(dict(base, onset=True, bpm_beat_now=False, volume_beat_now=False, pitch=1.0))
++    w._offer(dict(base, onset=False, bpm_beat_now=True, volume_beat_now=False, pitch=2.0))
++    assert nothing_arrives(a)
++
++    protocol.send(a, {"t": "next"})
++    s = protocol.recv(a)["s"]
++    assert s["pitch"] == 2.0
++    assert (s["onset"], s["bpm_beat_now"], s["volume_beat_now"]) == (True, True, False)
++
++    # Asked once, sent once: the next snapshot waits for the next request.
++    w._offer(dict(base, onset=False, bpm_beat_now=False, volume_beat_now=False, pitch=3.0))
++    assert nothing_arrives(a)
++    protocol.send(a, {"t": "next"})
++    s = protocol.recv(a)["s"]
++    assert s["pitch"] == 3.0
++    assert (s["onset"], s["bpm_beat_now"], s["volume_beat_now"]) == (False, False, False)
++    protocol.send(a, {"t": "quit"})
++    a.close()
++    t.join(3)
++    assert not t.is_alive()
++
++
++def test_reader_asks_for_the_next_snapshot_before_handling_this_one():
++    a, b = socket.socketpair()
++    handling = threading.Event()
++    release = threading.Event()
++    seen = []
++
++    def on_results(view):
++        seen.append(view)
++        handling.set()
++        release.wait(3)
++
++    c = AudioProcessClient(on_results)
++    c._sock = b
++    c.alive = True
 +    reader = threading.Thread(target=c._read_loop, daemon=True)
 +    reader.start()
-+    deadline = time.monotonic() + 3
-+    while not seen and time.monotonic() < deadline:
-+        time.sleep(0.01)
++    protocol.send(a, {"t": "snapshot", "s": dict(base_snapshot(), pitch=5.0)})
++    # on_results blocks until release; a request sent only after it would
++    # miss this timeout.
++    a.settimeout(1)
++    assert protocol.recv(a) == {"t": "next"}
++    a.settimeout(None)
++    assert handling.wait(3)
++    release.set()
 +    a.close()
 +    reader.join(3)
-+    assert len(seen) == 1
-+    view = seen[0]
-+    assert view.pitch == 2.0
-+    assert view.onset is True
-+    assert view.bpm_beat_now is True
-+    assert view.volume_beat_now is False
++    assert [v.pitch for v in seen] == [5.0]
